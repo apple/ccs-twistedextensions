@@ -27,6 +27,7 @@ from twext.enterprise.dal.parseschema import addSQLToSchema
 from twisted.trial.unittest import TestCase
 
 
+
 class SchemaTestHelper(object):
     """
     Mix-in that can parse a schema from a string.
@@ -218,7 +219,8 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
                 "create table sample (example integer unique);",
                 "create table sample (example integer, unique (example));",
                 "create table sample "
-                "(example integer, constraint unique_example unique (example))"]:
+                "(example integer, constraint unique_example unique (example))"
+        ]:
             s = self.schemaFromString(identicalSchema)
             table = s.tableNamed('sample')
             column = table.columnNamed('example')
@@ -320,8 +322,8 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
 
     def test_deleteAction(self):
         """
-        A column with an 'on delete cascade' constraint will have its C{cascade}
-        attribute set to True.
+        A column with an 'on delete cascade' constraint will have its
+        C{cascade} attribute set to True.
         """
         s = self.schemaFromString(
             """
@@ -329,11 +331,24 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             create table c2 (d2 integer references a1 on delete cascade);
             create table e3 (f3 integer references a1 on delete set null);
             create table g4 (h4 integer references a1 on delete set default);
-            """)
-        self.assertEquals(s.tableNamed("a1").columnNamed("b1").deleteAction, None)
-        self.assertEquals(s.tableNamed("c2").columnNamed("d2").deleteAction, "cascade")
-        self.assertEquals(s.tableNamed("e3").columnNamed("f3").deleteAction, "set null")
-        self.assertEquals(s.tableNamed("g4").columnNamed("h4").deleteAction, "set default")
+            """
+        )
+        self.assertEquals(
+            s.tableNamed("a1").columnNamed("b1").deleteAction,
+            None
+        )
+        self.assertEquals(
+            s.tableNamed("c2").columnNamed("d2").deleteAction,
+            "cascade"
+        )
+        self.assertEquals(
+            s.tableNamed("e3").columnNamed("f3").deleteAction,
+            "set null"
+        )
+        self.assertEquals(
+            s.tableNamed("g4").columnNamed("h4").deleteAction,
+            "set default"
+        )
 
 
     def test_indexes(self):
@@ -350,8 +365,8 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             create index idx_a_b on a(b);
             create index idx_a_b_c on a (c, b);
             create index idx_c on z using btree (c);
-            """)
-
+            """
+        )
         a = s.tableNamed("a")
         b = s.indexNamed("idx_a_b")
         bc = s.indexNamed('idx_a_b_c')
@@ -373,11 +388,14 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
 
             create unique index idx_a_c on a(c);
             create index idx_a_b_c on a (c, b);
-            """)
-
-        self.assertEqual(set([pseudo.name for pseudo in s.pseudoIndexes()]), set((
-            "a-unique:(c)",
-            "a:(c,b)",
-            "a-unique:(b)",
-            "z-unique:(c)",
-        )))
+            """
+        )
+        self.assertEqual(
+            set([pseudo.name for pseudo in s.pseudoIndexes()]),
+            set((
+                "a-unique:(c)",
+                "a:(c,b)",
+                "a-unique:(b)",
+                "z-unique:(c)",
+            ))
+        )

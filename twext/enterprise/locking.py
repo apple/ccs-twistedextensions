@@ -51,7 +51,7 @@ def makeLockSchema(inSchema):
 
     @return: inSchema
     """
-    LockTable = Table(inSchema, 'NAMED_LOCK')
+    LockTable = Table(inSchema, "NAMED_LOCK")
 
     LockTable.addColumn("LOCK_NAME", SQLType("varchar", 255))
     LockTable.tableConstraint(Constraint.NOT_NULL, ["LOCK_NAME"])
@@ -85,9 +85,14 @@ class NamedLock(Record, fromTable(LockSchema.NAMED_LOCK)):
         def autoRelease(self):
             txn.preCommit(lambda: self.release(True))
             return self
+
         def lockFailed(f):
             raise LockTimeout(name)
-        return cls.create(txn, lockName=name).addCallback(autoRelease).addErrback(lockFailed)
+
+        d = cls.create(txn, lockName=name)
+        d.addCallback(autoRelease)
+        d.addErrback(lockFailed)
+        return d
 
 
     def release(self, ignoreAlreadyUnlocked=False):

@@ -115,7 +115,7 @@ class _IWorkPerformer(Interface):
     (in the worst case) pass from worker->controller->controller->worker.
     """
 
-    def performWork(table, workID): #@NoSelf
+    def performWork(table, workID):
         """
         @param table: The table where work is waiting.
         @type table: L{TableSyntax}
@@ -142,7 +142,7 @@ def makeNodeSchema(inSchema):
     # Initializing this duplicate schema avoids a circular dependency, but this
     # should really be accomplished with independent schema objects that the
     # transaction is made aware of somehow.
-    NodeTable = Table(inSchema, 'NODE_INFO')
+    NodeTable = Table(inSchema, "NODE_INFO")
 
     NodeTable.addColumn("HOSTNAME", SQLType("varchar", 255))
     NodeTable.addColumn("PID", SQLType("integer", None))
@@ -151,12 +151,14 @@ def makeNodeSchema(inSchema):
         # Note: in the real data structure, this is actually a not-cleaned-up
         # sqlparse internal data structure, but it *should* look closer to
         # this.
-        ProcedureCall("timezone", ["UTC", NamedValue('CURRENT_TIMESTAMP')])
+        ProcedureCall("timezone", ["UTC", NamedValue("CURRENT_TIMESTAMP")])
     )
     for column in NodeTable.columns:
         NodeTable.tableConstraint(Constraint.NOT_NULL, [column.name])
-    NodeTable.primaryKey = [NodeTable.columnNamed("HOSTNAME"),
-                            NodeTable.columnNamed("PORT")]
+    NodeTable.primaryKey = [
+        NodeTable.columnNamed("HOSTNAME"),
+        NodeTable.columnNamed("PORT"),
+    ]
 
     return inSchema
 
@@ -260,8 +262,9 @@ def abstract(thunk):
     @classmethod
     @wraps(thunk)
     def inner(cls, *a, **k):
-        raise NotImplementedError(qual(cls) + " does not implement " +
-                                  thunk.func_name)
+        raise NotImplementedError(
+            qual(cls) + " does not implement " + thunk.func_name
+        )
     return inner
 
 
@@ -360,6 +363,7 @@ class WorkItem(Record):
 
     group = None
 
+
     @abstract
     def doWork(self):
         """
@@ -370,6 +374,7 @@ class WorkItem(Record):
         This method does I{not} need to delete the row referencing it; that
         will be taken care of by the job queueing machinery.
         """
+
 
     @classmethod
     def forTable(cls, table):
@@ -457,8 +462,8 @@ class SchemaAMP(AMP):
 
 class ConnectionFromPeerNode(SchemaAMP):
     """
-    A connection to a peer node.  Symmetric; since the 'client' and the
-    'server' both serve the same role, the logic is the same in every node.
+    A connection to a peer node.  Symmetric; since the "client" and the
+    "server" both serve the same role, the logic is the same in every node.
 
     @ivar localWorkerPool: the pool of local worker procesess that can process
         queue work.
@@ -492,8 +497,9 @@ class ConnectionFromPeerNode(SchemaAMP):
         self.peerPool = peerPool
         self._bonusLoad = 0
         self._reportedLoad = 0
-        super(ConnectionFromPeerNode, self).__init__(peerPool.schema,
-                                                     boxReceiver, locator)
+        super(ConnectionFromPeerNode, self).__init__(
+            peerPool.schema, boxReceiver, locator
+        )
 
 
     def reportCurrentLoad(self):
@@ -553,13 +559,16 @@ class ConnectionFromPeerNode(SchemaAMP):
         """
         d = self.callRemote(PerformWork, table=table, workID=workID)
         self._bonusLoad += 1
+
         @d.addBoth
         def performed(result):
             self._bonusLoad -= 1
             return result
+
         @d.addCallback
         def success(result):
             return None
+
         return d
 
 
@@ -577,9 +586,9 @@ class ConnectionFromPeerNode(SchemaAMP):
 
         @return: a L{Deferred} that fires when the work has been completed.
         """
-        return self.peerPool.performWorkForPeer(table, workID).addCallback(
-            lambda ignored: {}
-        )
+        d = self.peerPool.performWorkForPeer(table, workID)
+        d.addCallback(lambda ignored: {})
+        return d
 
 
     @IdentifyNode.responder
@@ -720,10 +729,12 @@ class ConnectionFromWorker(SchemaAMP):
         """
         d = self.callRemote(PerformWork, table=table, workID=workID)
         self._load += 1
+
         @d.addBoth
         def f(result):
             self._load -= 1
             return result
+
         return d
 
 
@@ -800,8 +811,9 @@ class ConnectionFromController(SchemaAMP):
         process has instructed this worker to do it; so, look up the data in
         the row, and do it.
         """
-        return (ultimatelyPerform(self.transactionFactory, table, workID)
-                .addCallback(lambda ignored: {}))
+        d = ultimatelyPerform(self.transactionFactory, table, workID)
+        d.addCallback(lambda ignored: {})
+        return d
 
 
 
@@ -839,6 +851,7 @@ def ultimatelyPerform(txnFactory, table, workID):
         except NoSuchRecord:
             # The record has already been removed
             pass
+
     return inTransaction(txnFactory, work)
 
 
@@ -948,30 +961,41 @@ class WorkProposal(object):
         commit, and asking the local node controller process to do the work.
         """
         created = self.workItemType.create(self.txn, **self.kw)
+
         def whenCreated(item):
             self._whenProposed.callback(self)
+
             @self.txn.postCommit
             def whenDone():
                 self._whenCommitted.callback(self)
+
                 def maybeLater():
                     performer = self._chooser.choosePerformer()
-                    @passthru(performer.performWork(item.table, item.workID)
-                              .addCallback)
+
+                    @passthru(
+                        performer.performWork(item.table, item.workID)
+                        .addCallback
+                    )
                     def performed(result):
                         self._whenExecuted.callback(self)
+
                     @performed.addErrback
                     def notPerformed(why):
                         self._whenExecuted.errback(why)
+
                 reactor = self._chooser.reactor
                 when = max(0, astimestamp(item.notBefore) - reactor.seconds())
                 # TODO: Track the returned DelayedCall so it can be stopped
                 # when the service stops.
                 self._chooser.reactor.callLater(when, maybeLater)
+
             @self.txn.postAbort
             def whenFailed():
                 self._whenCommitted.errback(TransactionFailed)
+
         def whenNotCreated(failure):
             self._whenProposed.errback(failure)
+
         created.addCallbacks(whenCreated, whenNotCreated)
 
 
@@ -1192,6 +1216,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         if self.workerPool.hasAvailableCapacity():
             return self.workerPool
+
         if self.peers and not onlyLocally:
             return sorted(self.peers, lambda p: p.currentLoadEstimate())[0]
         else:
@@ -1271,6 +1296,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                 self._lastSeenNodeIndex = nodes.index(
                     (self.thisProcess.hostname, self.thisProcess.port)
                 )
+
             for itemType in self.allWorkItemTypes():
                 tooLate = datetime.utcfromtimestamp(
                     self.reactor.seconds() - self.queueProcessTimeout
@@ -1282,6 +1308,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     peer = self.choosePerformer()
                     yield peer.performWork(overdueItem.table,
                                            overdueItem.workID)
+
         return inTransaction(self.transactionFactory, workCheck)
 
     _currentWorkDeferred = None
@@ -1294,8 +1321,10 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         those checks in time based on the size of the cluster.
         """
         self._lostWorkCheckCall = None
-        @passthru(self._periodicLostWorkCheck().addErrback(log.err)
-                  .addCallback)
+
+        @passthru(
+            self._periodicLostWorkCheck().addErrback(log.err).addCallback
+        )
         def scheduleNext(result):
             self._currentWorkDeferred = None
             if not self.running:
@@ -1310,6 +1339,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             self._lostWorkCheckCall = self.reactor.callLater(
                 delay, self._lostWorkCheckLoop
             )
+
         self._currentWorkDeferred = scheduleNext
 
 
@@ -1340,10 +1370,12 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     txn, hostname=self.hostname, port=self.ampPort,
                     pid=self.pid, time=datetime.now()
                 )
+
             for node in nodes:
                 self._startConnectingTo(node)
 
         self._startingUp = inTransaction(self.transactionFactory, startup)
+
         @self._startingUp.addBoth
         def done(result):
             self._startingUp = None
@@ -1358,14 +1390,19 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         Stop this service, terminating any incoming or outgoing connections.
         """
         yield super(PeerConnectionPool, self).stopService()
+
         if self._startingUp is not None:
             yield self._startingUp
+
         if self._listeningPort is not None:
             yield self._listeningPort.stopListening()
+
         if self._lostWorkCheckCall is not None:
             self._lostWorkCheckCall.cancel()
+
         if self._currentWorkDeferred is not None:
             yield self._currentWorkDeferred
+
         for peer in self.peers:
             peer.transport.abortConnection()
 
@@ -1397,16 +1434,21 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         @type node: L{NodeInfo}
         """
         connected = node.endpoint(self.reactor).connect(self.peerFactory())
+
         def whenConnected(proto):
             self.mapPeer(node.hostname, node.port, proto)
-            proto.callRemote(IdentifyNode,
-                             host=self.thisProcess.hostname,
-                             port=self.thisProcess.port).addErrback(
-                                 noted, "identify"
-                             )
+            proto.callRemote(
+                IdentifyNode,
+                host=self.thisProcess.hostname,
+                port=self.thisProcess.port
+            ).addErrback(noted, "identify")
+
         def noted(err, x="connect"):
-            log.msg("Could not {0} to cluster peer {1} because {2}"
-                    .format(x, node, str(err.value)))
+            log.msg(
+                "Could not {0} to cluster peer {1} because {2}"
+                .format(x, node, str(err.value))
+            )
+
         connected.addCallbacks(whenConnected, noted)
 
 

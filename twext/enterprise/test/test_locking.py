@@ -30,6 +30,8 @@ schemaText = """
 create table NAMED_LOCK (LOCK_NAME varchar(255) unique primary key);
 """
 
+
+
 class TestLocking(TestCase):
     """
     Test locking and unlocking a database row.
@@ -87,6 +89,8 @@ class TestLocking(TestCase):
         yield NamedLock.acquire(txn1, u"a test lock")
 
         txn2 = self.pool.connection()
-        yield self.assertFailure(NamedLock.acquire(txn2, u"a test lock"), LockTimeout)
+        yield self.assertFailure(
+            NamedLock.acquire(txn2, u"a test lock"), LockTimeout
+        )
         yield txn2.abort()
         self.flushLoggedErrors()

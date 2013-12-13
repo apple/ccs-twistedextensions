@@ -69,7 +69,7 @@ from twext.enterprise.ienterprise import (
 # argument to the ConnectionPool but it should probably be determined
 # automatically from the database binding.
 
-DEFAULT_PARAM_STYLE = 'pyformat'
+DEFAULT_PARAM_STYLE = "pyformat"
 DEFAULT_DIALECT = POSTGRES_DIALECT
 
 
@@ -185,7 +185,7 @@ class _ConnectedTxn(object):
         dedicated to and associated with the current cursor.  It executes the
         given SQL, re-connecting first if necessary, re-cycling the old
         connection if necessary, and then, if there are results from the
-        statement (as determined by the DB-API 2.0 'description' attribute) it
+        statement (as determined by the DB-API 2.0 "description" attribute) it
         will fetch all the rows and return them, leaving them to be relayed to
         L{_ConnectedTxn.execSQL} via the L{ThreadHolder}.
 
@@ -224,18 +224,21 @@ class _ConnectedTxn(object):
             were returned by the executed statement.
         """
         wasFirst = self._first
+
         # If this is the first time this cursor has been used in this
         # transaction, remember that, but mark it as now used.
         self._first = False
         if args is None:
             args = []
+
         # Note: as of this writing, derived parameters are only used to support
         # cx_Oracle's "host variable" feature (i.e. cursor.var()), and creating
         # a host variable will never be a connection-oriented error (a
         # disconnected cursor can happily create variables of all types).
-        # However, this may need to move into the 'try' below if other database
+        # However, this may need to move into the "try" below if other database
         # features need to compute database arguments based on runtime state.
         derived = _deriveParameters(self._cursor, args)
+
         try:
             self._cursor.execute(sql, args)
         except:
@@ -263,7 +266,7 @@ class _ConnectedTxn(object):
                     # predictable across different databases, or even different
                     # bindings to the same database, so we have to do a
                     # catch-all here.  While I can't imagine another type of
-                    # error at the moment, bare 'except:'s are notorious for
+                    # error at the moment, bare C{except:}s are notorious for
                     # making debugging surprising error conditions very
                     # difficult, so let's make sure that the error is logged
                     # just in case.
@@ -280,14 +283,16 @@ class _ConnectedTxn(object):
                 self._cursor     = self._connection.cursor()
 
                 # Note that although this method is being invoked recursively,
-                # the '_first' flag is re-set at the very top, so we will _not_
+                # the "_first" flag is re-set at the very top, so we will _not_
                 # be re-entering it more than once.
                 result = self._reallyExecSQL(sql, args, raiseOnZeroRowCount)
                 return result
             else:
                 raise
+
         if derived is not None:
             _deriveQueryEnded(self._cursor, derived)
+
         if self._cursor.description:
             # see test_raiseOnZeroRowCountWithUnreliableRowCount
             rows = self._cursor.fetchall()
@@ -333,6 +338,7 @@ class _ConnectedTxn(object):
         """
         if not self._completed:
             self._completed = "ended"
+
             def reallySomething():
                 """
                 Do the database work and set appropriate flags.  Executed in
@@ -342,6 +348,7 @@ class _ConnectedTxn(object):
                     return
                 really()
                 self._first = True
+
             result = self._holder.submit(reallySomething)
             self._pool._repoolAfter(self, result)
             return result
@@ -383,6 +390,7 @@ class _ConnectedTxn(object):
             if self._cursor is None:
                 return
             self._connection.close()
+
         holder.submit(_reallyClose)
         return holder.stop()
 
@@ -470,11 +478,11 @@ class _WaitingTxn(object):
 
 
     def execSQL(self, *a, **kw):
-        return self._enspool('execSQL', a, kw)
+        return self._enspool("execSQL", a, kw)
 
 
     def commit(self):
-        return self._enspool('commit')
+        return self._enspool("commit")
 
 
     def abort(self):
@@ -538,11 +546,14 @@ class _CommitAndAbortHooks(object):
         Run pre-hooks, commit, the real DB commit, and then post-hooks.
         """
         pre = self._preCommit.runHooks()
+
         def ok(ignored):
             self._abort.clear()
             return doCommit().addCallback(self._commit.runHooks)
+
         def failed(why):
             return self.abort().addCallback(lambda ignored: why)
+
         return pre.addCallbacks(ok, failed)
 
 
@@ -561,7 +572,7 @@ class _CommitAndAbortHooks(object):
 
 class _SingleTxn(_CommitAndAbortHooks,
                  proxyForInterface(iface=IAsyncTransaction,
-                                   originalAttribute='_baseTxn')):
+                                   originalAttribute="_baseTxn")):
     """
     A L{_SingleTxn} is a single-use wrapper for the longer-lived
     L{_ConnectedTxn}, so that if a badly-behaved API client accidentally hangs
@@ -595,7 +606,7 @@ class _SingleTxn(_CommitAndAbortHooks,
         """
         Reveal the backend in the string representation.
         """
-        return '_SingleTxn(%r)' % (self._baseTxn,)
+        return "_SingleTxn(%r)" % (self._baseTxn,)
 
 
     def _unspoolOnto(self, baseTxn):
@@ -621,13 +632,15 @@ class _SingleTxn(_CommitAndAbortHooks,
         self._checkComplete()
         if block is None and self._blockedQueue is not None:
             return self._blockedQueue.execSQL(sql, args, raiseOnZeroRowCount)
-        # 'block' should always be _currentBlock at this point.
+        # "block" should always be _currentBlock at this point.
         d = super(_SingleTxn, self).execSQL(sql, args, raiseOnZeroRowCount)
         self._stillExecuting.append(d)
+
         def itsDone(result):
             self._stillExecuting.remove(d)
             self._checkNextBlock()
             return result
+
         d.addBoth(itsDone)
         return d
 
@@ -640,12 +653,12 @@ class _SingleTxn(_CommitAndAbortHooks,
         """
         if self._stillExecuting:
             # If we're still executing statements, nevermind.  We'll get called
-            # again by the 'itsDone' callback above.
+            # again by the C{itsDone} callback above.
             return
 
         if self._currentBlock is not None:
             # If there's still a current block, then keep it going.  We'll be
-            # called by the '_finishExecuting' callback below.
+            # called by the C{_finishExecuting} callback below.
             return
 
         # There's no block executing now.  What to do?
@@ -679,9 +692,11 @@ class _SingleTxn(_CommitAndAbortHooks,
             # until they're done.  (Commit will be repeated in
             # _checkNextBlock.)
             return self._blockedQueue.commit()
+
         def reallyCommit():
             self._markComplete()
             return super(_SingleTxn, self).commit()
+
         return self._commitWithHooks(reallyCommit)
 
 
@@ -702,9 +717,11 @@ class _SingleTxn(_CommitAndAbortHooks,
         """
         self._pool._waiting.remove(self)
         self._completed = True
-        self._unspoolOnto(_NoTxn(self._pool,
-                                 "connection pool shut down while txn "
-                                 "waiting for database connection."))
+        self._unspoolOnto(_NoTxn(
+            self._pool,
+            "connection pool shut down while txn "
+            "waiting for database connection."
+        ))
 
 
     def _checkComplete(self):
@@ -772,7 +789,7 @@ class CommandBlock(object):
     Does not implement commit() or abort(), because this will simply group
     commands.  In order to implement sub-transactions or checkpoints, some
     understanding of the SQL dialect in use by the underlying connection is
-    required.  Instead, it provides 'end'.
+    required.  Instead, it provides C{end}.
     """
     implements(ICommandBlock)
 
@@ -810,14 +827,18 @@ class CommandBlock(object):
         """
         if track and self._ended:
             raise AlreadyFinishedError()
+
         self._singleTxn._checkComplete()
+
         if self._singleTxn._currentBlock is self and self._started:
             d = self._singleTxn._execSQLForBlock(
                 sql, args, raiseOnZeroRowCount, self)
         else:
             d = self._spool.execSQL(sql, args, raiseOnZeroRowCount)
+
         if track:
             self._trackForEnd(d)
+
         return d
 
 
@@ -840,6 +861,7 @@ class CommandBlock(object):
         if self._ended:
             raise AlreadyFinishedError()
         self._ended = True
+
         # TODO: maybe this should return a Deferred that's a clone of
         # _endDeferred, so that callers can determine when the block is really
         # complete?  Struggling for an actual use-case on that one.
@@ -885,9 +907,11 @@ class _ConnectingPseudoTxn(object):
         if self._retry is not None:
             self._retry.cancel()
         d = self._holder.stop()
+
         def removeme(ignored):
             if self in self._pool._busy:
                 self._pool._busy.remove(self)
+
         d.addCallback(removeme)
         return d
 
@@ -899,6 +923,7 @@ def _fork(x):
     disturbing its results.
     """
     d = Deferred()
+
     def fired(result):
         d.callback(result)
         return result
@@ -952,8 +977,11 @@ class ConnectionPool(Service, object):
     RETRY_TIMEOUT = 10.0
 
 
-    def __init__(self, connectionFactory, maxConnections=10,
-                 paramstyle=DEFAULT_PARAM_STYLE, dialect=DEFAULT_DIALECT):
+    def __init__(
+        self,
+        connectionFactory, maxConnections=10,
+        paramstyle=DEFAULT_PARAM_STYLE, dialect=DEFAULT_DIALECT
+    ):
 
         super(ConnectionPool, self).__init__()
         self.connectionFactory = connectionFactory
@@ -1006,7 +1034,7 @@ class ConnectionPool(Service, object):
             yield self._busy[0].abort()
 
         # Phase 4: All transactions should now be in the free list, since
-        # 'abort()' will have put them there.  Shut down all the associated
+        # "abort()" will have put them there.  Shut down all the associated
         # ThreadHolders.
         while self._free:
             # Releasing a L{_ConnectedTxn} doesn't automatically recycle it /
@@ -1039,6 +1067,7 @@ class ConnectionPool(Service, object):
             # FIXME: should be wrapping a _SingleTxn around this to get
             # .commandBlock()
             return _NoTxn(self, "txn created while DB pool shutting down")
+
         if self._free:
             basetxn = self._free.pop(0)
             self._busy.append(basetxn)
@@ -1050,6 +1079,7 @@ class ConnectionPool(Service, object):
             # (free doesn't need to be considered, as it's tested above)
             if self._activeConnectionCount() < self.maxConnections:
                 self._startOneMore()
+
         return txn
 
 
@@ -1067,14 +1097,16 @@ class ConnectionPool(Service, object):
         holder = self._createHolder()
         holder.start()
         txn = _ConnectingPseudoTxn(self, holder)
-        # take up a slot in the 'busy' list, sit there so we can be aborted.
+        # take up a slot in the "busy" list, sit there so we can be aborted.
         self._busy.append(txn)
+
         def initCursor():
             # support threadlevel=1; we can't necessarily cursor() in a
             # different thread than we do transactions in.
             connection = self.connectionFactory()
             cursor     = connection.cursor()
             return (connection, cursor)
+
         def finishInit((connection, cursor)):
             if txn._aborted:
                 return
@@ -1086,12 +1118,15 @@ class ConnectionPool(Service, object):
             )
             self._busy.remove(txn)
             self._repoolNow(baseTxn)
+
         def maybeTryAgain(f):
             log.err(f, "Re-trying connection due to connection failure")
             txn._retry = self.reactor.callLater(self.RETRY_TIMEOUT, resubmit)
+
         def resubmit():
             d = holder.submit(initCursor)
             d.addCallbacks(finishInit, maybeTryAgain)
+
         resubmit()
 
 
@@ -1103,15 +1138,18 @@ class ConnectionPool(Service, object):
         self._busy.remove(txn)
         finishRecord = (txn, d)
         self._finishing.append(finishRecord)
+
         def repool(result):
             self._finishing.remove(finishRecord)
             self._repoolNow(txn)
             return result
+
         def discard(result):
             self._finishing.remove(finishRecord)
             txn._releaseConnection()
             self._startOneMore()
             return result
+
         return d.addCallbacks(repool, discard)
 
 
@@ -1130,10 +1168,12 @@ class ConnectionPool(Service, object):
 
 
 def txnarg():
-    return [('transactionID', Integer())]
+    return [("transactionID", Integer())]
 
 
 CHUNK_MAX = 0xffff
+
+
 
 class BigArgument(Argument):
     """
@@ -1162,9 +1202,9 @@ class BigArgument(Argument):
 
 class Pickle(BigArgument):
     """
-    A pickle sent over AMP.  This is to serialize the 'args' argument to
-    C{execSQL}, which is the dynamically-typed 'args' list argument to a DB-API
-    C{execute} function, as well as its dynamically-typed result ('rows').
+    A pickle sent over AMP.  This is to serialize the "args" argument to
+    C{execSQL}, which is the dynamically-typed "args" list argument to a DB-API
+    C{execute} function, as well as its dynamically-typed result ("rows").
 
     This should be cleaned up into a nicer structure, but this is not a network
     protocol, so we can be a little relaxed about security.
@@ -1235,11 +1275,13 @@ class ExecSQL(Command):
     """
     Execute an SQL statement.
     """
-    arguments = [('sql', String()),
-                 ('queryID', String()),
-                 ('args', Pickle()),
-                 ('blockID', String()),
-                 ('reportZeroRowCount', Boolean())] + txnarg()
+    arguments = [
+        ("sql", String()),
+        ("queryID", String()),
+        ("args", Pickle()),
+        ("blockID", String()),
+        ("reportZeroRowCount", Boolean())
+    ] + txnarg()
     errors = _quashErrors
 
 
@@ -1268,8 +1310,7 @@ class Row(Command):
     L{ExecSQL}.
     """
 
-    arguments = [('queryID', String()),
-                 ('row', Pickle())]
+    arguments = [("queryID", String()), ("row", Pickle())]
     errors = _quashErrors
 
 
@@ -1279,10 +1320,12 @@ class QueryComplete(Command):
     A query issued with L{ExecSQL} is complete.
     """
 
-    arguments = [('queryID', String()),
-                 ('norows', Boolean()),
-                 ('derived', Pickle()),
-                 ('noneResult', Boolean())]
+    arguments = [
+        ("queryID", String()),
+        ("norows", Boolean()),
+        ("derived", Pickle()),
+        ("noneResult", Boolean())
+    ]
     errors = _quashErrors
 
 
@@ -1359,19 +1402,23 @@ class ConnectionPoolConnection(AMP):
                     reportZeroRowCount):
         derived = None
         noneResult = False
+
         for param in args:
             if IDerivedParameter.providedBy(param):
                 if derived is None:
                     derived = []
                 derived.append(param)
+
         if blockID:
             txn = self._blocks[blockID]
         else:
             txn = self._txns[transactionID]
+
         if reportZeroRowCount:
             rozrc = _NoRows
         else:
             rozrc = None
+
         try:
             rows = yield txn.execSQL(sql, args, rozrc)
         except _NoRows:
@@ -1386,8 +1433,10 @@ class ConnectionPoolConnection(AMP):
             else:
                 noneResult = True
 
-        self.callRemote(QueryComplete, queryID=queryID, norows=norows,
-                        derived=derived, noneResult=noneResult)
+        self.callRemote(
+            QueryComplete, queryID=queryID, norows=norows,
+            derived=derived, noneResult=noneResult
+        )
         returnValue({})
 
 
@@ -1422,8 +1471,9 @@ class ConnectionPoolClient(AMP):
     A client which can execute SQL.
     """
 
-    def __init__(self, dialect=POSTGRES_DIALECT,
-                 paramstyle=DEFAULT_PARAM_STYLE):
+    def __init__(
+        self, dialect=POSTGRES_DIALECT, paramstyle=DEFAULT_PARAM_STYLE
+    ):
         # See DEFAULT_PARAM_STYLE FIXME above.
         super(ConnectionPoolClient, self).__init__()
         self._nextID    = count().next
@@ -1511,6 +1561,7 @@ class _Query(object):
             results = None
         else:
             results = self.results
+
         if derived is not None:
             # 1) Bleecchh.
             # 2) FIXME: add some direct tests in test_adbapi2, the unit test
@@ -1562,7 +1613,7 @@ class _NetTransaction(_CommitAndAbortHooks):
     @property
     def paramstyle(self):
         """
-        Forward 'paramstyle' attribute to the client.
+        Forward C{paramstyle} attribute to the client.
         """
         return self._client.paramstyle
 
@@ -1570,7 +1621,7 @@ class _NetTransaction(_CommitAndAbortHooks):
     @property
     def dialect(self):
         """
-        Forward 'dialect' attribute to the client.
+        Forward C{dialect} attribute to the client.
         """
         return self._client.dialect
 
@@ -1608,10 +1659,13 @@ class _NetTransaction(_CommitAndAbortHooks):
     def commit(self):
         def reallyCommit():
             self._committing = True
+
             def done(whatever):
                 self._committed = True
                 return whatever
+
             return self._complete(Commit).addBoth(done)
+
         return self._commitWithHooks(reallyCommit)
 
 
@@ -1658,7 +1712,7 @@ class _NetCommandBlock(object):
     @property
     def paramstyle(self):
         """
-        Forward 'paramstyle' attribute to the transaction.
+        Forward C{paramstyle} attribute to the transaction.
         """
         return self._transaction.paramstyle
 
@@ -1666,7 +1720,7 @@ class _NetCommandBlock(object):
     @property
     def dialect(self):
         """
-        Forward 'dialect' attribute to the transaction.
+        Forward C{dialect} attribute to the transaction.
         """
         return self._transaction.dialect
 

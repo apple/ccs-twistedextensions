@@ -22,12 +22,21 @@ This is an asynchronous object-relational mapper based on
 L{twext.enterprise.dal.syntax}.
 """
 
+__all__ = [
+    "ReadOnly",
+    "NoSuchRecord",
+    "fromTable",
+    "Record",
+]
+
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twext.enterprise.dal.syntax import (
     Select, Tuple, Constant, ColumnSyntax, Insert, Update, Delete
 )
 from twext.enterprise.util import parseSQLTimestamp
 # from twext.enterprise.dal.syntax import ExpressionSyntax
+
+
 
 class ReadOnly(AttributeError):
     """
@@ -38,10 +47,11 @@ class ReadOnly(AttributeError):
     def __init__(self, className, attributeName):
         self.className = className
         self.attributeName = attributeName
-        super(ReadOnly, self).__init__("SQL-backed attribute '{0}.{1}' is "
-                                       "read-only. Use '.update(...)' to "
-                                       "modify attributes."
-                                       .format(className, attributeName))
+        super(ReadOnly, self).__init__(
+            "SQL-backed attribute '{0}.{1}' is read-only. "
+            "Use '.update(...)' to modify attributes."
+            .format(className, attributeName)
+        )
 
 
 
@@ -65,6 +75,7 @@ class _RecordMeta(type):
         newbases = []
         table = None
         namer = None
+
         for base in bases:
             if isinstance(base, fromTable):
                 if table is not None:
@@ -83,6 +94,7 @@ class _RecordMeta(type):
                     if isinstance(base, _RecordMeta):
                         namer = base
                 newbases.append(base)
+
         if table is not None:
             attrmap = {}
             colmap = {}
@@ -93,6 +105,7 @@ class _RecordMeta(type):
                 colmap[column] = attrname
             ns.update(table=table, __attrmap__=attrmap, __colmap__=colmap)
             ns.update(attrmap)
+
         return super(_RecordMeta, cls).__new__(cls, name, tuple(newbases), ns)
 
 
@@ -135,6 +148,7 @@ class Record(object):
     __metaclass__ = _RecordMeta
 
     transaction = None
+
     def __setattr__(self, name, value):
         """
         Once the transaction is initialized, this object is immutable.  If you
@@ -142,12 +156,15 @@ class Record(object):
         """
         if self.transaction is not None:
             raise ReadOnly(self.__class__.__name__, name)
+
         return super(Record, self).__setattr__(name, value)
 
 
     def __repr__(self):
-        r = "<{0} record from table {1}".format(self.__class__.__name__,
-                                                self.table.model.name)
+        r = (
+            "<{0} record from table {1}"
+            .format(self.__class__.__name__, self.table.model.name)
+        )
         for k in sorted(self.__attrmap__.keys()):
             r += " {0}={1}".format(k, repr(getattr(self, k)))
         r += ">"
@@ -162,11 +179,13 @@ class Record(object):
         names).
         """
         words = columnName.lower().split("_")
+
         def cap(word):
-            if word.lower() == 'id':
+            if word.lower() == "id":
                 return word.upper()
             else:
                 return word.capitalize()
+
         return words[0] + "".join(map(cap, words[1:]))
 
 
@@ -184,15 +203,16 @@ class Record(object):
 
     @classmethod
     def _primaryKeyComparison(cls, primaryKey):
-        return (cls._primaryKeyExpression() ==
-                Tuple(map(Constant, primaryKey)))
+        return cls._primaryKeyExpression() == Tuple(map(Constant, primaryKey))
 
 
     @classmethod
     @inlineCallbacks
     def load(cls, transaction, *primaryKey):
-        results = (yield cls.query(transaction,
-                                cls._primaryKeyComparison(primaryKey)))
+        results = yield cls.query(
+            transaction,
+            cls._primaryKeyComparison(primaryKey)
+        )
         if len(results) != 1:
             raise NoSuchRecord()
         else:
@@ -207,7 +227,7 @@ class Record(object):
 
         Used like this::
 
-            MyRecord.create(transaction, column1=1, column2=u'two')
+            MyRecord.create(transaction, column1=1, column2=u"two")
         """
         self = cls()
         colmap = {}
@@ -222,11 +242,14 @@ class Record(object):
                 colmap[col] = k.pop(attr)
             else:
                 if col.model.needsValue():
-                    raise TypeError("required attribute " + repr(attr) +
-                                    " not passed")
+                    raise TypeError(
+                        "required attribute {0!r} not passed"
+                        .format(attr)
+                    )
                 else:
                     needsCols.append(col)
                     needsAttrs.append(attr)
+
         if k:
             raise TypeError("received unknown attribute{0}: {1}".format(
                 "s" if len(k) > 1 else "", ", ".join(sorted(k))
@@ -235,7 +258,9 @@ class Record(object):
                         .on(transaction))
         if needsCols:
             self._attributesFromRow(zip(needsAttrs, result[0]))
+
         self.transaction = transaction
+
         returnValue(self)
 
 
@@ -262,9 +287,10 @@ class Record(object):
             has been deleted, or fails with L{NoSuchRecord} if the underlying
             row was already deleted.
         """
-        return Delete(From=self.table,
-                      Where=self._primaryKeyComparison(self._primaryKeyValue())
-                      ).on(self.transaction, raiseOnZeroRowCount=NoSuchRecord)
+        return Delete(
+            From=self.table,
+            Where=self._primaryKeyComparison(self._primaryKeyValue())
+        ).on(self.transaction, raiseOnZeroRowCount=NoSuchRecord)
 
 
     @inlineCallbacks
@@ -278,9 +304,12 @@ class Record(object):
         colmap = {}
         for k, v in kw.iteritems():
             colmap[self.__attrmap__[k]] = v
-        yield (Update(colmap,
-                      Where=self._primaryKeyComparison(self._primaryKeyValue()))
-                .on(self.transaction))
+
+        yield Update(
+            colmap,
+            Where=self._primaryKeyComparison(self._primaryKeyValue())
+        ).on(self.transaction)
+
         self.__dict__.update(kw)
 
 
@@ -295,9 +324,13 @@ class Record(object):
         @rtype: L{Deferred}
         """
         return cls._rowsFromQuery(
-            transaction, Delete(Where=cls._primaryKeyComparison(primaryKey),
-                        From=cls.table, Return=list(cls.table)),
-            lambda : NoSuchRecord()
+            transaction,
+            Delete(
+                Where=cls._primaryKeyComparison(primaryKey),
+                From=cls.table,
+                Return=list(cls.table)
+            ),
+            lambda: NoSuchRecord()
         ).addCallback(lambda x: x[0])
 
 
@@ -326,9 +359,11 @@ class Record(object):
             kw.update(OrderBy=order, Ascending=ascending)
         if group is not None:
             kw.update(GroupBy=group)
-        return cls._rowsFromQuery(transaction, Select(list(cls.table),
-                                                      From=cls.table,
-                                                      Where=expr, **kw), None)
+        return cls._rowsFromQuery(
+            transaction,
+            Select(list(cls.table), From=cls.table, Where=expr, **kw),
+            None
+        )
 
 
     @classmethod
@@ -337,11 +372,15 @@ class Record(object):
         Load all rows from the table that corresponds to C{cls} and return
         instances of C{cls} corresponding to all.
         """
-        return cls._rowsFromQuery(transaction,
-                                  Select(list(cls.table),
-                                         From=cls.table,
-                                         OrderBy=cls._primaryKeyExpression()),
-                                  None)
+        return cls._rowsFromQuery(
+            transaction,
+            Select(
+                list(cls.table),
+                From=cls.table,
+                OrderBy=cls._primaryKeyExpression()
+            ),
+            None
+        )
 
 
     @classmethod
@@ -354,7 +393,7 @@ class Record(object):
         @param transaction: an L{IAsyncTransaction} to execute the query on.
 
         @param qry: a L{_DMLStatement} (XXX: maybe _DMLStatement or some
-            interface that defines 'on' should be public?) whose results are
+            interface that defines "on" should be public?) whose results are
             the list of columns in C{self.table}.
 
         @param rozrc: The C{raiseOnZeroRowCount} argument.
@@ -371,11 +410,3 @@ class Record(object):
             self.transaction = transaction
             selves.append(self)
         returnValue(selves)
-
-
-
-__all__ = [
-    "ReadOnly",
-    "fromTable",
-    "NoSuchRecord",
-]

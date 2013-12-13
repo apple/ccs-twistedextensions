@@ -26,13 +26,15 @@ from twext.enterprise.dal.syntax import (
     Savepoint, RollbackToSavepoint, ReleaseSavepoint, SavepointAction,
     Union, Intersect, Except, SetExpression, DALError,
     ResultAliasSyntax, Count, QueryGenerator, ALL_COLUMNS,
-    DatabaseLock, DatabaseUnlock)
+    DatabaseLock, DatabaseUnlock
+)
 from twext.enterprise.dal.syntax import FixedPlaceholder, NumericPlaceholder
 from twext.enterprise.dal.syntax import Function
 from twext.enterprise.dal.syntax import SchemaSyntax
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
-from twext.enterprise.ienterprise import (POSTGRES_DIALECT, ORACLE_DIALECT,
-                                          SQLITE_DIALECT)
+from twext.enterprise.ienterprise import (
+    POSTGRES_DIALECT, ORACLE_DIALECT, SQLITE_DIALECT
+)
 from twext.enterprise.test.test_adbapi2 import ConnectionPoolHelper
 from twext.enterprise.test.test_adbapi2 import NetworkedPoolHelper
 from twext.enterprise.test.test_adbapi2 import resultOf, AssertResultHelper
@@ -50,15 +52,15 @@ class _FakeTransaction(object):
     """
 
     def __init__(self, paramstyle):
-        self.paramstyle = 'qmark'
+        self.paramstyle = "qmark"
 
 
 
 class FakeCXOracleModule(object):
-    NUMBER = 'the NUMBER type'
-    STRING = 'a string type (for varchars)'
-    NCLOB = 'the NCLOB type. (for text)'
-    TIMESTAMP = 'for timestamps!'
+    NUMBER = "the NUMBER type"
+    STRING = "a string type (for varchars)"
+    NCLOB = "the NCLOB type. (for text)"
+    TIMESTAMP = "for timestamps!"
 
 
 
@@ -68,11 +70,11 @@ class CatchSQL(object):
     """
     counter = 0
 
-    def __init__(self, dialect=SQLITE_DIALECT, paramstyle='numeric'):
+    def __init__(self, dialect=SQLITE_DIALECT, paramstyle="numeric"):
         self.execed = []
         self.pendingResults = []
         self.dialect = SQLITE_DIALECT
-        self.paramstyle = 'numeric'
+        self.paramstyle = "numeric"
 
 
     def nextResult(self, result):
@@ -104,10 +106,11 @@ class NullTestingOracleTxn(object):
     """
 
     dialect = ORACLE_DIALECT
-    paramstyle = 'numeric'
+    paramstyle = "numeric"
 
     def execSQL(self, text, params, exc):
         return succeed([[None, None]])
+
 
 
 EXAMPLE_SCHEMA = """
@@ -122,6 +125,8 @@ create table LEVELS (ACCESS integer,
 create table NULLCHECK (ASTRING varchar(255) not null,
                         ANUMBER integer);
 """
+
+
 
 class ExampleSchemaHelper(SchemaTestHelper):
     """
@@ -140,11 +145,13 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_simplestSelect(self):
         """
-        L{Select} generates a 'select' statement, by default, asking for all
+        L{Select} generates a C{select} statement, by default, asking for all
         rows in a table.
         """
-        self.assertEquals(Select(From=self.schema.FOO).toSQL(),
-                          SQLFragment("select * from FOO", []))
+        self.assertEquals(
+            Select(From=self.schema.FOO).toSQL(),
+            SQLFragment("select * from FOO", [])
+        )
 
 
     def test_tableSyntaxFromSchemaSyntaxCompare(self):
@@ -158,34 +165,44 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_simpleWhereClause(self):
         """
-        L{Select} generates a 'select' statement with a 'where' clause
+        L{Select} generates a C{select} statement with a C{where} clause
         containing an expression.
         """
-        self.assertEquals(Select(From=self.schema.FOO,
-                                 Where=self.schema.FOO.BAR == 1).toSQL(),
-                          SQLFragment("select * from FOO where BAR = ?", [1]))
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR == 1
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR = ?", [1])
+        )
 
 
     def test_alternateMetadata(self):
         """
-        L{Select} generates a 'select' statement with the specified placeholder
-        syntax when explicitly given L{ConnectionMetadata} which specifies a
-        placeholder.
+        L{Select} generates a C{select} statement with the specified
+        placeholder syntax when explicitly given L{ConnectionMetadata} which
+        specifies a placeholder.
         """
-        self.assertEquals(Select(From=self.schema.FOO,
-                                 Where=self.schema.FOO.BAR == 1).toSQL(
-                                 QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("$$"))),
-                          SQLFragment("select * from FOO where BAR = $$", [1]))
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR == 1
+            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("$$"))),
+            SQLFragment("select * from FOO where BAR = $$", [1])
+        )
 
 
     def test_columnComparison(self):
         """
-        L{Select} generates a 'select' statement which compares columns.
+        L{Select} generates a C{select} statement which compares columns.
         """
-        self.assertEquals(Select(From=self.schema.FOO,
-                                 Where=self.schema.FOO.BAR ==
-                                 self.schema.FOO.BAZ).toSQL(),
-                          SQLFragment("select * from FOO where BAR = BAZ", []))
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR == self.schema.FOO.BAZ
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR = BAZ", [])
+        )
 
 
     def test_comparisonTestErrorPrevention(self):
@@ -199,55 +216,65 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         """
         def sampleComparison():
             if self.schema.FOO.BAR > self.schema.FOO.BAZ:
-                return 'comparison should not succeed'
+                return "comparison should not succeed"
         self.assertRaises(DALError, sampleComparison)
 
 
     def test_compareWithNULL(self):
         """
-        Comparing a column with None results in the generation of an 'is null'
-        or 'is not null' SQL statement.
+        Comparing a column with None results in the generation of an C{is null}
+        or C{is not null} SQL statement.
         """
-        self.assertEquals(Select(From=self.schema.FOO,
-                                 Where=self.schema.FOO.BAR ==
-                                 None).toSQL(),
-                          SQLFragment(
-                              "select * from FOO where BAR is null", []))
-        self.assertEquals(Select(From=self.schema.FOO,
-                                 Where=self.schema.FOO.BAR !=
-                                 None).toSQL(),
-                          SQLFragment(
-                              "select * from FOO where BAR is not null", []))
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR == None
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR is null", [])
+        )
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR != None
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR is not null", [])
+        )
 
 
     def test_compareWithEmptyStringOracleSpecialCase(self):
         """
-        Oracle considers the empty string to be a NULL value, so comparisons
-        with the empty string should be 'is NULL' comparisons.
+        Oracle considers the empty string to be a C{NULL} value, so comparisons
+        with the empty string should be C{is NULL} comparisons.
         """
         # Sanity check: let's make sure that the non-oracle case looks normal.
-        self.assertEquals(Select(
-            From=self.schema.FOO,
-            Where=self.schema.FOO.BAR == '').toSQL(),
-            SQLFragment(
-                "select * from FOO where BAR = ?", [""]))
-        self.assertEquals(Select(
-            From=self.schema.FOO,
-            Where=self.schema.FOO.BAR != '').toSQL(),
-            SQLFragment(
-                "select * from FOO where BAR != ?", [""]))
-        self.assertEquals(Select(
-            From=self.schema.FOO,
-            Where=self.schema.FOO.BAR == ''
-        ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
-            SQLFragment(
-                "select * from FOO where BAR is null", []))
-        self.assertEquals(Select(
-            From=self.schema.FOO,
-            Where=self.schema.FOO.BAR != ''
-        ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
-            SQLFragment(
-                "select * from FOO where BAR is not null", []))
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR == ""
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR = ?", [""])
+        )
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR != ""
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR != ?", [""])
+        )
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR == ""
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
+            SQLFragment("select * from FOO where BAR is null", [])
+        )
+        self.assertEquals(
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR != ""
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
+            SQLFragment("select * from FOO where BAR is not null", [])
+        )
 
 
     def test_compoundWhere(self):
@@ -255,20 +282,24 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         L{Select.And} and L{Select.Or} will return compound columns.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   Where=(self.schema.FOO.BAR < 2).Or(
-                          self.schema.FOO.BAR > 5)).toSQL(),
-            SQLFragment("select * from FOO where BAR < ? or BAR > ?", [2, 5]))
+            Select(
+                From=self.schema.FOO,
+                Where=(self.schema.FOO.BAR < 2).Or(self.schema.FOO.BAR > 5)
+            ).toSQL(),
+            SQLFragment("select * from FOO where BAR < ? or BAR > ?", [2, 5])
+        )
 
 
     def test_orderBy(self):
         """
-        L{Select}'s L{OrderBy} parameter generates an 'order by' clause for a
-        'select' statement.
+        L{Select}'s L{OrderBy} parameter generates an C{order by} clause for a
+        C{select} statement.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   OrderBy=self.schema.FOO.BAR).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                OrderBy=self.schema.FOO.BAR
+            ).toSQL(),
             SQLFragment("select * from FOO order by BAR")
         )
 
@@ -279,23 +310,29 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         order for query results with an OrderBy clause.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   OrderBy=self.schema.FOO.BAR,
-                   Ascending=False).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                OrderBy=self.schema.FOO.BAR,
+                Ascending=False
+            ).toSQL(),
             SQLFragment("select * from FOO order by BAR desc")
         )
 
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   OrderBy=self.schema.FOO.BAR,
-                   Ascending=True).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                OrderBy=self.schema.FOO.BAR,
+                Ascending=True
+            ).toSQL(),
             SQLFragment("select * from FOO order by BAR asc")
         )
 
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   OrderBy=[self.schema.FOO.BAR, self.schema.FOO.BAZ],
-                   Ascending=True).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                OrderBy=[self.schema.FOO.BAR, self.schema.FOO.BAZ],
+                Ascending=True
+            ).toSQL(),
             SQLFragment("select * from FOO order by BAR, BAZ asc")
         )
 
@@ -308,16 +345,17 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         columns.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   OrderBy=Tuple([self.schema.FOO.BAR,
-                                  self.schema.FOO.BAZ])).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                OrderBy=Tuple([self.schema.FOO.BAR, self.schema.FOO.BAZ])
+            ).toSQL(),
             SQLFragment("select * from FOO order by BAR, BAZ")
         )
 
 
     def test_forUpdate(self):
         """
-        L{Select}'s L{ForUpdate} parameter generates a 'for update' clause at
+        L{Select}'s L{ForUpdate} parameter generates a C{for update} clause at
         the end of the query.
         """
         self.assertEquals(
@@ -328,12 +366,14 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_groupBy(self):
         """
-        L{Select}'s L{GroupBy} parameter generates a 'group by' clause for a
-        'select' statement.
+        L{Select}'s L{GroupBy} parameter generates a C{group by} clause for a
+        C{select} statement.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   GroupBy=self.schema.FOO.BAR).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                GroupBy=self.schema.FOO.BAR
+            ).toSQL(),
             SQLFragment("select * from FOO group by BAR")
         )
 
@@ -343,29 +383,34 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         L{Select}'s L{GroupBy} parameter can accept multiple columns in a list.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   GroupBy=[self.schema.FOO.BAR,
-                            self.schema.FOO.BAZ]).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                GroupBy=[self.schema.FOO.BAR, self.schema.FOO.BAZ]
+            ).toSQL(),
             SQLFragment("select * from FOO group by BAR, BAZ")
         )
 
 
     def test_joinClause(self):
         """
-        A table's .join() method returns a join statement in a SELECT.
+        A table's C{.join()} method returns a join statement in a C{SELECT}.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO.join(
-                self.schema.BOZ, self.schema.FOO.BAR ==
-                self.schema.BOZ.QUX)).toSQL(),
+            Select(
+                From=self.schema.FOO.join(
+                    self.schema.BOZ,
+                    self.schema.FOO.BAR == self.schema.BOZ.QUX
+                )
+            ).toSQL(),
             SQLFragment("select * from FOO join BOZ on BAR = QUX", [])
         )
 
 
     def test_crossJoin(self):
         """
-        A join with no clause specified will generate a cross join.  (This is an
-        explicit synonym for an implicit join: i.e. 'select * from FOO, BAR'.)
+        A join with no clause specified will generate a cross join.  (This is
+        AN explicit synonym for an implicit join: i.e. C{select * from FOO,
+        BAR}.)
         """
         self.assertEquals(
             Select(From=self.schema.FOO.join(self.schema.BOZ)).toSQL(),
@@ -378,32 +423,39 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         L{Join.join} will result in a multi-table join.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR,
-                    self.schema.BOZ.QUX],
-                   From=self.schema.FOO
-                   .join(self.schema.BOZ).join(self.schema.OTHER)).toSQL(),
+            Select(
+                [self.schema.FOO.BAR, self.schema.BOZ.QUX],
+                From=self.schema.FOO
+                .join(self.schema.BOZ)
+                .join(self.schema.OTHER)
+            ).toSQL(),
             SQLFragment(
-                "select FOO.BAR, QUX from FOO "
-                "cross join BOZ cross join OTHER")
+                "select FOO.BAR, QUX from FOO cross join BOZ cross join OTHER"
+            )
         )
 
 
     def test_multiJoin(self):
         """
         L{Join.join} has the same signature as L{TableSyntax.join} and supports
-        the same 'on' and 'type' arguments.
+        the same C{on} and C{type} arguments.
         """
 
         self.assertEquals(
-            Select([self.schema.FOO.BAR],
-                   From=self.schema.FOO.join(
-                       self.schema.BOZ).join(
-                           self.schema.OTHER,
-                           self.schema.OTHER.BAR == self.schema.FOO.BAR,
-                           'left outer')).toSQL(),
+            Select(
+                [self.schema.FOO.BAR],
+                From=self.schema.FOO.join(
+                    self.schema.BOZ
+                ).join(
+                    self.schema.OTHER,
+                    self.schema.OTHER.BAR == self.schema.FOO.BAR,
+                    "left outer"
+                )
+            ).toSQL(),
             SQLFragment(
                 "select FOO.BAR from FOO cross join BOZ left outer join OTHER "
-                "on OTHER.BAR = FOO.BAR")
+                "on OTHER.BAR = FOO.BAR"
+            )
         )
 
 
@@ -441,10 +493,14 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         fooPrime = foo.alias()
         fooPrimePrime = foo.alias()
         self.assertEquals(
-            Select([fooPrime.BAR, fooPrimePrime.BAR],
-                   From=fooPrime.join(fooPrimePrime)).toSQL(),
-            SQLFragment("select alias1.BAR, alias2.BAR "
-                        "from FOO alias1 cross join FOO alias2")
+            Select(
+                [fooPrime.BAR, fooPrimePrime.BAR],
+                From=fooPrime.join(fooPrimePrime)
+            ).toSQL(),
+            SQLFragment(
+                "select alias1.BAR, alias2.BAR "
+                "from FOO alias1 cross join FOO alias2"
+            )
         )
 
 
@@ -454,8 +510,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         output by the SQL statement rather than the all-columns wildcard.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR],
-                   From=self.schema.FOO).toSQL(),
+            Select([self.schema.FOO.BAR], From=self.schema.FOO).toSQL(),
             SQLFragment("select BAR from FOO")
         )
 
@@ -465,8 +520,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         Iterating a L{TableSyntax} iterates its columns, in the order that they
         are defined.
         """
-        self.assertEquals(list(self.schema.FOO),
-                          [self.schema.FOO.BAR, self.schema.FOO.BAZ])
+        self.assertEquals(
+            list(self.schema.FOO),
+            [self.schema.FOO.BAR, self.schema.FOO.BAZ]
+        )
 
 
     def test_noColumn(self):
@@ -474,8 +531,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         Accessing an attribute that is not a defined column on a L{TableSyntax}
         raises an L{AttributeError}.
         """
-        self.assertRaises(AttributeError,
-                          lambda : self.schema.FOO.NOT_A_COLUMN)
+        self.assertRaises(AttributeError, lambda: self.schema.FOO.NOT_A_COLUMN)
 
 
     def test_columnAliases(self):
@@ -486,14 +542,21 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         """
         self.assertEquals(self.schema.FOO.columnAliases(), {})
         self.schema.FOO.ALIAS = self.schema.FOO.BAR
-        # you comparing ColumnSyntax object results in a ColumnComparison, which
-        # you can't test for truth.
-        fixedForEquality = dict([(k, v.model) for k, v in
-                                 self.schema.FOO.columnAliases().items()])
-        self.assertEquals(fixedForEquality,
-                          {'ALIAS': self.schema.FOO.BAR.model})
-        self.assertIdentical(self.schema.FOO.ALIAS.model,
-                             self.schema.FOO.BAR.model)
+
+        # you comparing ColumnSyntax object results in a ColumnComparison,
+        # which you can't test for truth.
+        fixedForEquality = dict([
+            (k, v.model) for k, v in self.schema.FOO.columnAliases().items()
+        ])
+
+        self.assertEquals(
+            fixedForEquality,
+            {"ALIAS": self.schema.FOO.BAR.model}
+        )
+        self.assertIdentical(
+            self.schema.FOO.ALIAS.model,
+            self.schema.FOO.BAR.model
+        )
 
 
     def test_multiColumnSelection(self):
@@ -503,51 +566,61 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         wildcard.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAZ,
-                    self.schema.FOO.BAR],
-                   From=self.schema.FOO).toSQL(),
+            Select(
+                [self.schema.FOO.BAZ, self.schema.FOO.BAR],
+                From=self.schema.FOO
+            ).toSQL(),
             SQLFragment("select BAZ, BAR from FOO")
         )
 
 
     def test_joinColumnSelection(self):
         """
-        If multiple columns are specified by the argument to L{Select} that uses
-        a L{TableSyntax.join}, those will be output by the SQL statement.
+        If multiple columns are specified by the argument to L{Select} that
+        uses a L{TableSyntax.join}, those will be output by the SQL statement.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAZ,
-                    self.schema.BOZ.QUX],
-                   From=self.schema.FOO.join(self.schema.BOZ,
-                                             self.schema.FOO.BAR ==
-                                             self.schema.BOZ.QUX)).toSQL(),
+            Select(
+                [self.schema.FOO.BAZ, self.schema.BOZ.QUX],
+                From=self.schema.FOO.join(
+                    self.schema.BOZ,
+                    self.schema.FOO.BAR == self.schema.BOZ.QUX
+                )
+            ).toSQL(),
             SQLFragment("select BAZ, QUX from FOO join BOZ on BAR = QUX")
         )
 
 
     def test_tableMismatch(self):
         """
-        When a column in the 'columns' argument does not match the table from
-        the 'From' argument, L{Select} raises a L{TableMismatch}.
+        When a column in the C{columns} argument does not match the table from
+        the C{From} argument, L{Select} raises a L{TableMismatch}.
         """
-        self.assertRaises(TableMismatch, Select, [self.schema.BOZ.QUX],
-                          From=self.schema.FOO)
+        self.assertRaises(
+            TableMismatch,
+            Select, [self.schema.BOZ.QUX], From=self.schema.FOO
+        )
 
 
     def test_qualifyNames(self):
         """
-        When two columns in the FROM clause requested from different tables have
-        the same name, the emitted SQL should explicitly disambiguate them.
+        When two columns in the C{from} clause requested from different tables
+        have the same name, the emitted SQL should explicitly disambiguate
+        them.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR,
-                    self.schema.OTHER.BAR],
-                   From=self.schema.FOO.join(self.schema.OTHER,
-                                             self.schema.OTHER.FOO_BAR ==
-                                             self.schema.FOO.BAR)).toSQL(),
+            Select(
+                [self.schema.FOO.BAR, self.schema.OTHER.BAR],
+                From=self.schema.FOO.join(
+                    self.schema.OTHER,
+                    self.schema.OTHER.FOO_BAR == self.schema.FOO.BAR
+                )
+            ).toSQL(),
             SQLFragment(
                 "select FOO.BAR, OTHER.BAR from FOO "
-                "join OTHER on FOO_BAR = FOO.BAR"))
+                "join OTHER on FOO_BAR = FOO.BAR"
+            )
+        )
 
 
     def test_bindParameters(self):
@@ -556,13 +629,16 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         L{Parameter} objects in its parameter list replaced with the keyword
         arguments to C{bind}.
         """
-
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   Where=(self.schema.FOO.BAR > Parameter("testing")).And(
-                   self.schema.FOO.BAZ < 7)).toSQL().bind(testing=173),
-            SQLFragment("select * from FOO where BAR > ? and BAZ < ?",
-                         [173, 7]))
+            Select(
+                From=self.schema.FOO,
+                Where=(self.schema.FOO.BAR > Parameter("testing"))
+                .And(self.schema.FOO.BAZ < 7)
+            ).toSQL().bind(testing=173),
+            SQLFragment(
+                "select * from FOO where BAR > ? and BAZ < ?", [173, 7]
+            )
+        )
 
 
     def test_rightHandSideExpression(self):
@@ -571,9 +647,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         comparison operation.
         """
         self.assertEquals(
-            Select(From=self.schema.FOO,
-                   Where=self.schema.FOO.BAR >
-                   (self.schema.FOO.BAZ + 3)).toSQL(),
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR > (self.schema.FOO.BAZ + 3)
+            ).toSQL(),
             SQLFragment("select * from FOO where BAR > (BAZ + ?)", [3])
         )
 
@@ -595,7 +672,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 ),
             ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                "(select * from FOO where BAR = ?) UNION (select * from FOO where BAR = ?)", [1, 2]))
+                "(select * from FOO where BAR = ?) "
+                "UNION (select * from FOO where BAR = ?)", [1, 2]
+            )
+        )
 
         # Simple INTERSECT ALL
         self.assertEquals(
@@ -611,7 +691,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 ),
             ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                "(select * from FOO where BAR = ?) INTERSECT ALL (select * from FOO where BAR = ?)", [1, 2]))
+                "(select * from FOO where BAR = ?) "
+                "INTERSECT ALL (select * from FOO where BAR = ?)", [1, 2]
+            )
+        )
 
         # Multiple EXCEPTs, not nested, Postgres dialect
         self.assertEquals(
@@ -632,7 +715,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 ),
             ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                "(select * from FOO) EXCEPT DISTINCT (select * from FOO where BAR = ?) EXCEPT DISTINCT (select * from FOO where BAR = ?)", [2, 3]))
+                "(select * from FOO) "
+                "EXCEPT DISTINCT (select * from FOO where BAR = ?) "
+                "EXCEPT DISTINCT (select * from FOO where BAR = ?)", [2, 3]
+            )
+        )
 
         # Nested EXCEPTs, Oracle dialect
         self.assertEquals(
@@ -652,7 +739,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 ),
             ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                "(select * from FOO) MINUS ((select * from FOO where BAR = ?) MINUS (select * from FOO where BAR = ?))", [2, 3]))
+                "(select * from FOO) MINUS ((select * from FOO where BAR = ?) "
+                "MINUS (select * from FOO where BAR = ?))", [2, 3]
+            )
+        )
 
         # UNION with order by
         self.assertEquals(
@@ -668,42 +758,49 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 OrderBy=self.schema.FOO.BAR,
             ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                "(select * from FOO where BAR = ?) UNION (select * from FOO where BAR = ?) order by BAR", [1, 2]))
+                "(select * from FOO where BAR = ?) "
+                "UNION (select * from FOO where BAR = ?) order by BAR", [1, 2]
+            )
+        )
 
 
     def test_simpleSubSelects(self):
         """
-        L{Max}C{(column)} produces an object in the 'columns' clause that
-        renders the 'max' aggregate in SQL.
+        L{Max}C{(column)} produces an object in the C{columns} clause that
+        renders the C{max} aggregate in SQL.
         """
         self.assertEquals(
             Select(
                 [Max(self.schema.BOZ.QUX)],
                 From=(Select([self.schema.BOZ.QUX], From=self.schema.BOZ))
             ).toSQL(),
-            SQLFragment(
-                "select max(QUX) from (select QUX from BOZ) genid_1"))
+            SQLFragment("select max(QUX) from (select QUX from BOZ) genid_1")
+        )
 
         self.assertEquals(
             Select(
                 [Count(self.schema.BOZ.QUX)],
                 From=(Select([self.schema.BOZ.QUX], From=self.schema.BOZ))
             ).toSQL(),
-            SQLFragment(
-                "select count(QUX) from (select QUX from BOZ) genid_1"))
+            SQLFragment("select count(QUX) from (select QUX from BOZ) genid_1")
+        )
 
         self.assertEquals(
             Select(
                 [Max(self.schema.BOZ.QUX)],
-                From=(Select([self.schema.BOZ.QUX], From=self.schema.BOZ, As="alias_BAR")),
+                From=(Select(
+                    [self.schema.BOZ.QUX],
+                    From=self.schema.BOZ,
+                    As="alias_BAR"
+                )),
             ).toSQL(),
-            SQLFragment(
-                "select max(QUX) from (select QUX from BOZ) alias_BAR"))
+            SQLFragment("select max(QUX) from (select QUX from BOZ) alias_BAR")
+        )
 
 
     def test_setSubSelects(self):
         """
-        L{SetExpression} in a From sub-select.
+        L{SetExpression} in a C{From} sub-select.
         """
         # Simple UNION
         self.assertEquals(
@@ -723,7 +820,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 )
             ).toSQL(),
             SQLFragment(
-                "select max(BAR) from ((select BAR from FOO where BAR = ?) UNION (select BAR from FOO where BAR = ?)) genid_1", [1, 2]))
+                "select max(BAR) from ((select BAR from FOO where BAR = ?) "
+                "UNION (select BAR from FOO where BAR = ?)) genid_1", [1, 2]
+            )
+        )
 
 
     def test_selectColumnAliases(self):
@@ -735,101 +835,143 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 [ResultAliasSyntax(self.schema.BOZ.QUX, "BOZ_QUX")],
                 From=self.schema.BOZ
             ).toSQL(),
-            SQLFragment("select QUX BOZ_QUX from BOZ"))
+            SQLFragment("select QUX BOZ_QUX from BOZ")
+        )
 
         self.assertEquals(
             Select(
                 [ResultAliasSyntax(Max(self.schema.BOZ.QUX))],
                 From=self.schema.BOZ
             ).toSQL(),
-            SQLFragment("select max(QUX) genid_1 from BOZ"))
+            SQLFragment("select max(QUX) genid_1 from BOZ")
+        )
 
         alias = ResultAliasSyntax(Max(self.schema.BOZ.QUX))
         self.assertEquals(
-            Select([alias.columnReference()],
-                From=Select(
-                    [alias],
-                    From=self.schema.BOZ)
+            Select(
+                [alias.columnReference()],
+                From=Select([alias], From=self.schema.BOZ)
             ).toSQL(),
-            SQLFragment("select genid_1 from (select max(QUX) genid_1 from BOZ) genid_2"))
+            SQLFragment(
+                "select genid_1 from "
+                "(select max(QUX) genid_1 from BOZ) genid_2"
+            )
+        )
 
         alias = ResultAliasSyntax(Len(self.schema.BOZ.QUX))
         self.assertEquals(
-            Select([alias.columnReference()],
-                From=Select(
-                    [alias],
-                    From=self.schema.BOZ)
+            Select(
+                [alias.columnReference()],
+                From=Select([alias], From=self.schema.BOZ)
             ).toSQL(),
-            SQLFragment("select genid_1 from (select character_length(QUX) genid_1 from BOZ) genid_2"))
+            SQLFragment(
+                "select genid_1 from "
+                "(select character_length(QUX) genid_1 from BOZ) genid_2"
+            )
+        )
 
 
     def test_inSubSelect(self):
         """
-        L{ColumnSyntax.In} returns a sub-expression using the SQL 'in' syntax
+        L{ColumnSyntax.In} returns a sub-expression using the SQL C{in} syntax
         with a sub-select.
         """
-        wherein = (self.schema.FOO.BAR.In(
-                    Select([self.schema.BOZ.QUX], From=self.schema.BOZ)))
+        wherein = self.schema.FOO.BAR.In(
+            Select([self.schema.BOZ.QUX], From=self.schema.BOZ)
+        )
         self.assertEquals(
             Select(From=self.schema.FOO, Where=wherein).toSQL(),
             SQLFragment(
-                "select * from FOO where BAR in (select QUX from BOZ)"))
+                "select * from FOO where BAR in (select QUX from BOZ)"
+            )
+        )
 
 
     def test_inParameter(self):
         """
-        L{ColumnSyntax.In} returns a sub-expression using the SQL 'in' syntax
+        L{ColumnSyntax.In} returns a sub-expression using the SQL C{in} syntax
         with parameter list.
         """
         # One item with IN only
-        items = set(('A',))
+        items = set(("A",))
         self.assertEquals(
-            Select(From=self.schema.FOO, Where=self.schema.FOO.BAR.In(Parameter("names", len(items)))).toSQL().bind(names=items),
-            SQLFragment(
-                "select * from FOO where BAR in (?)", ['A']))
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR.In(
+                    Parameter("names", len(items))
+                )
+            ).toSQL().bind(names=items),
+            SQLFragment("select * from FOO where BAR in (?)", ["A"])
+        )
 
         # Two items with IN only
-        items = set(('A', 'B'))
+        items = set(("A", "B"))
         self.assertEquals(
-            Select(From=self.schema.FOO, Where=self.schema.FOO.BAR.In(Parameter("names", len(items)))).toSQL().bind(names=items),
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR.In(
+                    Parameter("names", len(items))
+                )
+            ).toSQL().bind(names=items),
             SQLFragment(
-                "select * from FOO where BAR in (?, ?)", ['A', 'B']))
+                "select * from FOO where BAR in (?, ?)", ["A", "B"]
+            )
+        )
 
         # Two items with preceding AND
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(self.schema.FOO.BAZ == Parameter('P1')).And(
-                    self.schema.FOO.BAR.In(Parameter("names", len(items))
-                ))
+                Where=(
+                    (
+                        self.schema.FOO.BAZ == Parameter("P1")
+                    ).And(
+                        self.schema.FOO.BAR.In(Parameter("names", len(items)))
+                    )
+                )
             ).toSQL().bind(P1="P1", names=items),
             SQLFragment(
-                "select * from FOO where BAZ = ? and BAR in (?, ?)", ['P1', 'A', 'B']),
+                "select * from FOO where BAZ = ? and BAR in (?, ?)",
+                ["P1", "A", "B"]
+            ),
         )
 
         # Two items with following AND
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(self.schema.FOO.BAR.In(Parameter("names", len(items))).And(
-                    self.schema.FOO.BAZ == Parameter('P2')
-                ))
+                Where=(
+                    (
+                        self.schema.FOO.BAR.In(Parameter("names", len(items)))
+                    ).And(
+                        self.schema.FOO.BAZ == Parameter("P2")
+                    )
+                )
             ).toSQL().bind(P2="P2", names=items),
             SQLFragment(
-                "select * from FOO where BAR in (?, ?) and BAZ = ?", ['A', 'B', 'P2']),
+                "select * from FOO where BAR in (?, ?) and BAZ = ?",
+                ["A", "B", "P2"]
+            ),
         )
 
         # Two items with preceding OR and following AND
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(self.schema.FOO.BAZ == Parameter('P1')).Or(
-                    self.schema.FOO.BAR.In(Parameter("names", len(items))).And(
-                        self.schema.FOO.BAZ == Parameter('P2')
-                ))
+                Where=(
+                    (
+                        self.schema.FOO.BAZ == Parameter("P1")
+                    ).Or(
+                        self.schema.FOO.BAR.In(Parameter("names", len(items)))
+                    ).And(
+                        self.schema.FOO.BAZ == Parameter("P2")
+                    )
+                )
             ).toSQL().bind(P1="P1", P2="P2", names=items),
             SQLFragment(
-                "select * from FOO where BAZ = ? or BAR in (?, ?) and BAZ = ?", ['P1', 'A', 'B', 'P2']),
+                "select * from FOO where BAZ = ? or BAR in (?, ?) and BAZ = ?",
+                ["P1", "A", "B", "P2"]
+            ),
         )
 
         # Check various error situations
@@ -843,67 +985,78 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         # Mismatched count and len(items)
         self.assertRaises(
             DALError,
-            Select(From=self.schema.FOO, Where=self.schema.FOO.BAR.In(Parameter("names", len(items)))).toSQL().bind,
-            names=["a", "b", "c", ]
+            Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR.In(Parameter("names", len(items)))
+            ).toSQL().bind,
+            names=["a", "b", "c"]
         )
 
 
     def test_max(self):
         """
-        L{Max}C{(column)} produces an object in the 'columns' clause that
-        renders the 'max' aggregate in SQL.
+        L{Max}C{(column)} produces an object in the C{columns} clause that
+        renders the C{max} aggregate in SQL.
         """
         self.assertEquals(
             Select([Max(self.schema.BOZ.QUX)], From=self.schema.BOZ).toSQL(),
-            SQLFragment(
-                "select max(QUX) from BOZ"))
+            SQLFragment("select max(QUX) from BOZ")
+        )
 
 
     def test_countAllCoumns(self):
         """
-        L{Count}C{(ALL_COLUMNS)} produces an object in the 'columns' clause that
-        renders the 'count' in SQL.
+        L{Count}C{(ALL_COLUMNS)} produces an object in the C{columns} clause
+        that renders the C{count} in SQL.
         """
         self.assertEquals(
             Select([Count(ALL_COLUMNS)], From=self.schema.BOZ).toSQL(),
-            SQLFragment(
-                "select count(*) from BOZ"))
+            SQLFragment("select count(*) from BOZ")
+        )
 
 
     def test_aggregateComparison(self):
         """
-        L{Max}C{(column) > constant} produces an object in the 'columns' clause
-        that renders a comparison to the 'max' aggregate in SQL.
+        L{Max}C{(column) > constant} produces an object in the C{columns}
+        clause that renders a comparison to the C{max} aggregate in SQL.
         """
-        self.assertEquals(Select([Max(self.schema.BOZ.QUX) + 12],
-                                From=self.schema.BOZ).toSQL(),
-                          SQLFragment("select max(QUX) + ? from BOZ", [12]))
+        self.assertEquals(
+            Select(
+                [Max(self.schema.BOZ.QUX) + 12],
+                From=self.schema.BOZ
+            ).toSQL(),
+            SQLFragment("select max(QUX) + ? from BOZ", [12])
+        )
 
 
     def test_multiColumnExpression(self):
         """
-        Multiple columns may be provided in an expression in the 'columns'
-        portion of a Select() statement.  All arithmetic operators are
+        Multiple columns may be provided in an expression in the C{columns}
+        portion of a C{Select()} statement.  All arithmetic operators are
         supported.
         """
         self.assertEquals(
-            Select([((self.schema.FOO.BAR + self.schema.FOO.BAZ) / 3) * 7],
-                   From=self.schema.FOO).toSQL(),
+            Select(
+                [((self.schema.FOO.BAR + self.schema.FOO.BAZ) / 3) * 7],
+                From=self.schema.FOO
+            ).toSQL(),
             SQLFragment("select ((BAR + BAZ) / ?) * ? from FOO", [3, 7])
         )
 
 
     def test_len(self):
         """
-        Test for the 'Len' function for determining character length of a
+        Test for the L{Len} function for determining character length of a
         column.  (Note that this should be updated to use different techniques
         as necessary in different databases.)
         """
         self.assertEquals(
-            Select([Len(self.schema.TEXTUAL.MYTEXT)],
-                    From=self.schema.TEXTUAL).toSQL(),
-            SQLFragment(
-                "select character_length(MYTEXT) from TEXTUAL"))
+            Select(
+                [Len(self.schema.TEXTUAL.MYTEXT)],
+                From=self.schema.TEXTUAL
+            ).toSQL(),
+            SQLFragment("select character_length(MYTEXT) from TEXTUAL")
+        )
 
 
     def test_startswith(self):
@@ -913,8 +1066,8 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         as necessary in different databases.)
         """
         self.assertEquals(
-            Select([
-                self.schema.TEXTUAL.MYTEXT],
+            Select(
+                [self.schema.TEXTUAL.MYTEXT],
                 From=self.schema.TEXTUAL,
                 Where=self.schema.TEXTUAL.MYTEXT.StartsWith("test"),
             ).toSQL(),
@@ -932,8 +1085,8 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         as necessary in different databases.)
         """
         self.assertEquals(
-            Select([
-                self.schema.TEXTUAL.MYTEXT],
+            Select(
+                [self.schema.TEXTUAL.MYTEXT],
                 From=self.schema.TEXTUAL,
                 Where=self.schema.TEXTUAL.MYTEXT.EndsWith("test"),
             ).toSQL(),
@@ -951,8 +1104,8 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         as necessary in different databases.)
         """
         self.assertEquals(
-            Select([
-                self.schema.TEXTUAL.MYTEXT],
+            Select(
+                [self.schema.TEXTUAL.MYTEXT],
                 From=self.schema.TEXTUAL,
                 Where=self.schema.TEXTUAL.MYTEXT.Contains("test"),
             ).toSQL(),
@@ -965,13 +1118,15 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_insert(self):
         """
-        L{Insert.toSQL} generates an 'insert' statement with all the relevant
+        L{Insert.toSQL} generates an C{insert} statement with all the relevant
         columns.
         """
         self.assertEquals(
-            Insert({self.schema.FOO.BAR: 23,
-                    self.schema.FOO.BAZ: 9}).toSQL(),
-            SQLFragment("insert into FOO (BAR, BAZ) values (?, ?)", [23, 9]))
+            Insert(
+                {self.schema.FOO.BAR: 23, self.schema.FOO.BAZ: 9}
+            ).toSQL(),
+            SQLFragment("insert into FOO (BAR, BAZ) values (?, ?)", [23, 9])
+        )
 
 
     def test_insertNotEnough(self):
@@ -987,49 +1142,52 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_insertReturning(self):
         """
-        L{Insert}'s C{Return} argument will insert an SQL 'returning' clause.
+        L{Insert}'s C{Return} argument will insert an SQL C{returning} clause.
         """
         self.assertEquals(
-            Insert({self.schema.FOO.BAR: 23,
-                    self.schema.FOO.BAZ: 9},
-                   Return=self.schema.FOO.BAR).toSQL(),
+            Insert(
+                {self.schema.FOO.BAR: 23, self.schema.FOO.BAZ: 9},
+                Return=self.schema.FOO.BAR
+            ).toSQL(),
             SQLFragment(
                 "insert into FOO (BAR, BAZ) values (?, ?) returning BAR",
-                [23, 9])
+                [23, 9]
+            )
         )
 
 
     def test_insertMultiReturn(self):
         """
-        L{Insert}'s C{Return} argument can also be a C{tuple}, which will insert
-        an SQL 'returning' clause with multiple columns.
+        L{Insert}'s C{Return} argument can also be a C{tuple}, which will
+        insert an SQL C{returning} clause with multiple columns.
         """
         self.assertEquals(
-            Insert({self.schema.FOO.BAR: 23,
-                    self.schema.FOO.BAZ: 9},
-                   Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)).toSQL(),
+            Insert(
+                {self.schema.FOO.BAR: 23, self.schema.FOO.BAZ: 9},
+                Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
+            ).toSQL(),
             SQLFragment(
                 "insert into FOO (BAR, BAZ) values (?, ?) returning BAR, BAZ",
-                [23, 9])
+                [23, 9]
+            )
         )
 
 
     def test_insertMultiReturnOracle(self):
         """
-        In Oracle's SQL dialect, the 'returning' clause requires an 'into'
+        In Oracle's SQL dialect, the C{returning} clause requires an C{into}
         clause indicating where to put the results, as they can't be simply
-        relayed to the cursor.  Further, additional bound variables are required
-        to capture the output parameters.
+        relayed to the cursor.  Further, additional bound variables are
+        required to capture the output parameters.
         """
         self.assertEquals(
-            Insert({self.schema.FOO.BAR: 40,
-                    self.schema.FOO.BAZ: 50},
-                   Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)).toSQL(
-                       QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())
-                   ),
+            Insert(
+                {self.schema.FOO.BAR: 40, self.schema.FOO.BAZ: 50},
+                Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
             SQLFragment(
-                "insert into FOO (BAR, BAZ) values (:1, :2) returning BAR, BAZ"
-                " into :3, :4",
+                "insert into FOO (BAR, BAZ) values (:1, :2) "
+                "returning BAR, BAZ into :3, :4",
                 [40, 50, Parameter("oracle_out_0"), Parameter("oracle_out_1")]
             )
         )
@@ -1037,21 +1195,21 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_insertMultiReturnSQLite(self):
         """
-        In SQLite's SQL dialect, there is no 'returning' clause, but given that
-        SQLite serializes all SQL transactions, you can rely upon 'select'
-        after a write operation to reliably give you exactly what was just
-        modified.  Therefore, although 'toSQL' won't include any indication of
-        the return value, the 'on' method will execute a 'select' statement
-        following the insert to retrieve the value.
+        In SQLite's SQL dialect, there is no C{returning} clause, but given
+        that SQLite serializes all SQL transactions, you can rely upon
+        C{select} after a write operation to reliably give you exactly what was
+        just modified.  Therefore, although C{toSQL} won't include any
+        indication of the return value, the C{on} method will execute a
+        C{select} statement following the insert to retrieve the value.
         """
-        insertStatement = Insert({self.schema.FOO.BAR: 39,
-                    self.schema.FOO.BAZ: 82},
-                   Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
+        insertStatement = Insert(
+            {self.schema.FOO.BAR: 39, self.schema.FOO.BAZ: 82},
+            Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
         )
-        qg = lambda : QueryGenerator(SQLITE_DIALECT, NumericPlaceholder())
-        self.assertEquals(insertStatement.toSQL(qg()),
-            SQLFragment("insert into FOO (BAR, BAZ) values (:1, :2)",
-                        [39, 82])
+        qg = lambda: QueryGenerator(SQLITE_DIALECT, NumericPlaceholder())
+        self.assertEquals(
+            insertStatement.toSQL(qg()),
+            SQLFragment("insert into FOO (BAR, BAZ) values (:1, :2)", [39, 82])
         )
         result = []
         csql = CatchSQL()
@@ -1059,8 +1217,17 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEqual(result, [2])
         self.assertEqual(
             csql.execed,
-            [["insert into FOO (BAR, BAZ) values (:1, :2)", [39, 82]],
-             ["select BAR, BAZ from FOO where rowid = last_insert_rowid()", []]]
+            [
+                [
+                    "insert into FOO (BAR, BAZ) values (:1, :2)",
+                    [39, 82]
+                ],
+                [
+                    "select BAR, BAZ from FOO "
+                    "where rowid = last_insert_rowid()",
+                    []
+                ],
+            ]
         )
 
 
@@ -1069,8 +1236,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         Insert a row I{without} a C{Return=} parameter should also work as
         normal in sqlite.
         """
-        statement = Insert({self.schema.FOO.BAR: 12,
-                            self.schema.FOO.BAZ: 48})
+        statement = Insert(
+            {self.schema.FOO.BAR: 12, self.schema.FOO.BAZ: 48}
+        )
         csql = CatchSQL()
         statement.on(csql)
         self.assertEqual(
@@ -1081,23 +1249,27 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_updateReturningSQLite(self):
         """
-        Since SQLite does not support the SQL 'returning' syntax extension, in
+        Since SQLite does not support the SQL C{returning} syntax extension, in
         order to preserve the rows that will be modified during an UPDATE
         statement, we must first find the rows that will be affected, then
         update them, then return the rows that were affected.  Since we might
-        be changing even part of the primary key, we use the internal 'rowid'
+        be changing even part of the primary key, we use the internal C{rowid}
         column to uniquely and reliably identify rows in the sqlite database
         that have been modified.
         """
         csql = CatchSQL()
-        stmt = Update({self.schema.FOO.BAR: 4321},
-                      Where=self.schema.FOO.BAZ == 1234,
-                      Return=self.schema.FOO.BAR)
+        stmt = Update(
+            {self.schema.FOO.BAR: 4321},
+            Where=self.schema.FOO.BAZ == 1234,
+            Return=self.schema.FOO.BAR
+        )
         csql.nextResult([["sample row id"]])
         result = resultOf(stmt.on(csql))
-        # Three statements were executed; make sure that the result returned was
-        # the result of executing the 3rd (and final) one.
+
+        # Three statements were executed; make sure that the result returned
+        # was the result of executing the 3rd (and final) one.
         self.assertResultList(result, 3)
+
         # Check that they were the right statements.
         self.assertEqual(len(csql.execed), 3)
         self.assertEqual(
@@ -1117,18 +1289,22 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
     def test_updateReturningMultipleValuesSQLite(self):
         """
         When SQLite updates multiple values, it must embed the row ID of each
-        subsequent value into its second 'where' clause, as there is no way to
+        subsequent value into its second C{where} clause, as there is no way to
         pass a list of values to a single statement..
         """
         csql = CatchSQL()
-        stmt = Update({self.schema.FOO.BAR: 4321},
-                      Where=self.schema.FOO.BAZ == 1234,
-                      Return=self.schema.FOO.BAR)
+        stmt = Update(
+            {self.schema.FOO.BAR: 4321},
+            Where=self.schema.FOO.BAZ == 1234,
+            Return=self.schema.FOO.BAR
+        )
         csql.nextResult([["one row id"], ["and another"], ["and one more"]])
         result = resultOf(stmt.on(csql))
-        # Three statements were executed; make sure that the result returned was
-        # the result of executing the 3rd (and final) one.
+
+        # Three statements were executed; make sure that the result returned
+        # was the result of executing the 3rd (and final) one.
         self.assertResultList(result, 3)
+
         # Check that they were the right statements.
         self.assertEqual(len(csql.execed), 3)
         self.assertEqual(
@@ -1141,8 +1317,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
         self.assertEqual(
             csql.execed[2],
-            ["select BAR from FOO where rowid = :1 or rowid = :2 or rowid = :3",
-             ["one row id", "and another", "and one more"]]
+            [
+                "select BAR from FOO "
+                "where rowid = :1 or rowid = :2 or rowid = :3",
+                ["one row id", "and another", "and one more"]
+            ]
         )
 
 
@@ -1151,8 +1330,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         When SQLite deletes a value, ...
         """
         csql = CatchSQL()
-        stmt = Delete(From=self.schema.FOO, Where=self.schema.FOO.BAZ == 1234,
-                      Return=self.schema.FOO.BAR)
+        stmt = Delete(
+            From=self.schema.FOO,
+            Where=self.schema.FOO.BAZ == 1234,
+            Return=self.schema.FOO.BAR
+        )
         result = resultOf(stmt.on(csql))
         self.assertResultList(result, 1)
         self.assertEqual(len(csql.execed), 2)
@@ -1173,48 +1355,61 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         """
         self.assertRaises(
             TableMismatch,
-            Insert, {self.schema.FOO.BAR: 23,
-                     self.schema.FOO.BAZ: 9,
-                     self.schema.TEXTUAL.MYTEXT: 'hello'}
+            Insert, {
+                self.schema.FOO.BAR: 23,
+                self.schema.FOO.BAZ: 9,
+                self.schema.TEXTUAL.MYTEXT: "hello"
+            }
         )
 
 
     def test_quotingOnKeywordConflict(self):
         """
-        'access' is a keyword, so although our schema parser will leniently
-        accept it, it must be quoted in any outgoing SQL.  (This is only done in
-        the Oracle dialect, because it isn't necessary in postgres, and
+        "access" is a keyword, so although our schema parser will leniently
+        accept it, it must be quoted in any outgoing SQL.  (This is only done
+        in the Oracle dialect, because it isn't necessary in postgres, and
         idiosyncratic case-folding rules make it challenging to do it in both.)
         """
         self.assertEquals(
-            Insert({self.schema.LEVELS.ACCESS: 1,
-                    self.schema.LEVELS.USERNAME:
-                    "hi"}).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            Insert(
+                {
+                    self.schema.LEVELS.ACCESS: 1,
+                    self.schema.LEVELS.USERNAME: "hi"
+                }
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                'insert into LEVELS ("ACCESS", USERNAME) values (?, ?)',
-                [1, "hi"])
+                """insert into LEVELS ("ACCESS", USERNAME) values (?, ?)""",
+                [1, "hi"]
+            )
         )
         self.assertEquals(
-            Insert({self.schema.LEVELS.ACCESS: 1,
-                    self.schema.LEVELS.USERNAME:
-                    "hi"}).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
+            Insert(
+                {
+                    self.schema.LEVELS.ACCESS: 1,
+                    self.schema.LEVELS.USERNAME: "hi"
+                }
+            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
-                'insert into LEVELS (ACCESS, USERNAME) values (?, ?)',
-                [1, "hi"])
+                "insert into LEVELS (ACCESS, USERNAME) values (?, ?)",
+                [1, "hi"]
+            )
         )
 
 
     def test_updateReturning(self):
         """
-        L{update}'s C{Return} argument will update an SQL 'returning' clause.
+        L{update}'s C{Return} argument will update an SQL C{returning} clause.
         """
         self.assertEquals(
-            Update({self.schema.FOO.BAR: 23},
-                   self.schema.FOO.BAZ == 43,
-                   Return=self.schema.FOO.BAR).toSQL(),
+            Update(
+                {self.schema.FOO.BAR: 23},
+                self.schema.FOO.BAZ == 43,
+                Return=self.schema.FOO.BAR
+            ).toSQL(),
             SQLFragment(
                 "update FOO set BAR = ? where BAZ = ? returning BAR",
-                [23, 43])
+                [23, 43]
+            )
         )
 
 
@@ -1225,9 +1420,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         """
         self.assertRaises(
             TableMismatch,
-            Update, {self.schema.FOO.BAR: 23,
-                     self.schema.FOO.BAZ: 9,
-                     self.schema.TEXTUAL.MYTEXT: 'hello'},
+            Update, {
+                self.schema.FOO.BAR: 23,
+                self.schema.FOO.BAZ: 9,
+                self.schema.TEXTUAL.MYTEXT: "hello"
+            },
             Where=self.schema.FOO.BAZ == 9
         )
 
@@ -1240,12 +1437,12 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         sqlfunc = Function("hello")
         self.assertEquals(
             Update(
-                {self.schema.FOO.BAR: 23,
-                 self.schema.FOO.BAZ: sqlfunc()},
+                {self.schema.FOO.BAR: 23, self.schema.FOO.BAZ: sqlfunc()},
                 Where=self.schema.FOO.BAZ == 9
             ).toSQL(),
-            SQLFragment("update FOO set BAR = ?, BAZ = hello() "
-                        "where BAZ = ?", [23, 9])
+            SQLFragment(
+                "update FOO set BAR = ?, BAZ = hello() where BAZ = ?", [23, 9]
+            )
         )
 
 
@@ -1257,165 +1454,186 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         sqlfunc = Function("hello")
         self.assertEquals(
             Insert(
-                {self.schema.FOO.BAR: 23,
-                 self.schema.FOO.BAZ: sqlfunc()},
+                {self.schema.FOO.BAR: 23, self.schema.FOO.BAZ: sqlfunc()},
             ).toSQL(),
-            SQLFragment("insert into FOO (BAR, BAZ) "
-                        "values (?, hello())", [23])
+            SQLFragment("insert into FOO (BAR, BAZ) values (?, hello())", [23])
         )
 
 
     def test_deleteReturning(self):
         """
-        L{Delete}'s C{Return} argument will delete an SQL 'returning' clause.
+        L{Delete}'s C{Return} argument will delete an SQL C{returning} clause.
         """
         self.assertEquals(
-            Delete(self.schema.FOO,
-                   Where=self.schema.FOO.BAR == 7,
-                   Return=self.schema.FOO.BAZ).toSQL(),
-            SQLFragment(
-                "delete from FOO where BAR = ? returning BAZ", [7])
+            Delete(
+                self.schema.FOO,
+                Where=self.schema.FOO.BAR == 7,
+                Return=self.schema.FOO.BAZ
+            ).toSQL(),
+            SQLFragment("delete from FOO where BAR = ? returning BAZ", [7])
         )
 
 
     def test_update(self):
         """
-        L{Update.toSQL} generates an 'update' statement.
+        L{Update.toSQL} generates an C{update} statement.
         """
         self.assertEquals(
-            Update({self.schema.FOO.BAR: 4321},
-                    self.schema.FOO.BAZ == 1234).toSQL(),
-            SQLFragment("update FOO set BAR = ? where BAZ = ?", [4321, 1234]))
+            Update(
+                {self.schema.FOO.BAR: 4321},
+                self.schema.FOO.BAZ == 1234
+            ).toSQL(),
+            SQLFragment("update FOO set BAR = ? where BAZ = ?", [4321, 1234])
+        )
 
 
     def test_delete(self):
         """
-        L{Delete} generates an SQL 'delete' statement.
+        L{Delete} generates an SQL C{delete} statement.
         """
         self.assertEquals(
-            Delete(self.schema.FOO,
-                   Where=self.schema.FOO.BAR == 12).toSQL(),
-            SQLFragment(
-                "delete from FOO where BAR = ?", [12])
+            Delete(self.schema.FOO, Where=self.schema.FOO.BAR == 12).toSQL(),
+            SQLFragment("delete from FOO where BAR = ?", [12])
         )
 
         self.assertEquals(
-            Delete(self.schema.FOO,
-                   Where=None).toSQL(),
+            Delete(self.schema.FOO, Where=None).toSQL(),
             SQLFragment("delete from FOO")
         )
 
 
     def test_lock(self):
         """
-        L{Lock.exclusive} generates a ('lock table') statement, locking the
+        L{Lock.exclusive} generates a C{lock table} statement, locking the
         table in the specified mode.
         """
-        self.assertEquals(Lock.exclusive(self.schema.FOO).toSQL(),
-                          SQLFragment("lock table FOO in exclusive mode"))
+        self.assertEquals(
+            Lock.exclusive(self.schema.FOO).toSQL(),
+            SQLFragment("lock table FOO in exclusive mode")
+        )
 
 
     def test_databaseLock(self):
         """
-        L{DatabaseLock} generates a ('pg_advisory_lock') statement
+        L{DatabaseLock} generates a C{pg_advisory_lock} statement
         """
-        self.assertEquals(DatabaseLock().toSQL(),
-                          SQLFragment("select pg_advisory_lock(1)"))
+        self.assertEquals(
+            DatabaseLock().toSQL(),
+            SQLFragment("select pg_advisory_lock(1)")
+        )
 
 
     def test_databaseUnlock(self):
         """
-        L{DatabaseUnlock} generates a ('pg_advisory_unlock') statement
+        L{DatabaseUnlock} generates a C{pg_advisory_unlock} statement
         """
-        self.assertEquals(DatabaseUnlock().toSQL(),
-                          SQLFragment("select pg_advisory_unlock(1)"))
+        self.assertEquals(
+            DatabaseUnlock().toSQL(),
+            SQLFragment("select pg_advisory_unlock(1)")
+        )
 
 
     def test_savepoint(self):
         """
-        L{Savepoint} generates a ('savepoint') statement.
+        L{Savepoint} generates a C{savepoint} statement.
         """
-        self.assertEquals(Savepoint("test").toSQL(),
-                          SQLFragment("savepoint test"))
+        self.assertEquals(
+            Savepoint("test").toSQL(),
+            SQLFragment("savepoint test")
+        )
 
 
     def test_rollbacktosavepoint(self):
         """
-        L{RollbackToSavepoint} generates a ('rollback to savepoint') statement.
+        L{RollbackToSavepoint} generates a C{rollback to savepoint} statement.
         """
-        self.assertEquals(RollbackToSavepoint("test").toSQL(),
-                          SQLFragment("rollback to savepoint test"))
+        self.assertEquals(
+            RollbackToSavepoint("test").toSQL(),
+            SQLFragment("rollback to savepoint test")
+        )
 
 
     def test_releasesavepoint(self):
         """
-        L{ReleaseSavepoint} generates a ('release savepoint') statement.
+        L{ReleaseSavepoint} generates a C{release savepoint} statement.
         """
-        self.assertEquals(ReleaseSavepoint("test").toSQL(),
-                          SQLFragment("release savepoint test"))
+        self.assertEquals(
+            ReleaseSavepoint("test").toSQL(),
+            SQLFragment("release savepoint test")
+        )
 
 
     def test_savepointaction(self):
         """
-        L{SavepointAction} generates a ('savepoint') statement.
+        L{SavepointAction} generates a C{savepoint} statement.
         """
         self.assertEquals(SavepointAction("test")._name, "test")
 
 
     def test_limit(self):
         """
-        A L{Select} object with a 'Limit' keyword parameter will generate
-        a SQL statement with a 'limit' clause.
+        A L{Select} object with a C{Limit} keyword parameter will generate
+        a SQL statement with a C{limit} clause.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR],
-                   From=self.schema.FOO,
-                   Limit=123).toSQL(),
-            SQLFragment(
-                "select BAR from FOO limit ?", [123]))
+            Select(
+                [self.schema.FOO.BAR],
+                From=self.schema.FOO,
+                Limit=123
+            ).toSQL(),
+            SQLFragment("select BAR from FOO limit ?", [123])
+        )
 
 
     def test_limitOracle(self):
         """
-        A L{Select} object with a 'Limit' keyword parameter will generate a SQL
-        statement using a ROWNUM subquery for Oracle.
+        A L{Select} object with a C{Limit} keyword parameter will generate a
+        SQL statement using a ROWNUM subquery for Oracle.
 
         See U{this "ask tom" article from 2006 for more
         information
         <http://www.oracle.com/technetwork/issue-archive/2006/06-sep/o56asktom-086197.html>}.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR],
-                   From=self.schema.FOO,
-                   Limit=123).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            Select(
+                [self.schema.FOO.BAR],
+                From=self.schema.FOO,
+                Limit=123
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
             SQLFragment(
                 "select * from (select BAR from FOO) "
-                "where ROWNUM <= ?", [123])
+                "where ROWNUM <= ?", [123]
+            )
         )
 
 
     def test_having(self):
         """
-        A L{Select} object with a 'Having' keyword parameter will generate
-        a SQL statement with a 'having' expression.
+        A L{Select} object with a C{Having} keyword parameter will generate
+        a SQL statement with a C{having} expression.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR],
-                   From=self.schema.FOO,
-                   Having=Max(self.schema.FOO.BAZ) < 7).toSQL(),
+            Select(
+                [self.schema.FOO.BAR],
+                From=self.schema.FOO,
+                Having=Max(self.schema.FOO.BAZ) < 7
+            ).toSQL(),
             SQLFragment("select BAR from FOO having max(BAZ) < ?", [7])
         )
 
 
     def test_distinct(self):
         """
-        A L{Select} object with a 'Disinct' keyword parameter with a value of
-        C{True} will generate a SQL statement with a 'distinct' keyword
+        A L{Select} object with a C{Disinct} keyword parameter with a value of
+        C{True} will generate a SQL statement with a C{distinct} keyword
         preceding its list of columns.
         """
         self.assertEquals(
-            Select([self.schema.FOO.BAR], From=self.schema.FOO,
-                   Distinct=True).toSQL(),
+            Select(
+                [self.schema.FOO.BAR],
+                From=self.schema.FOO,
+                Distinct=True
+            ).toSQL(),
             SQLFragment("select distinct BAR from FOO")
         )
 
@@ -1423,25 +1641,26 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
     def test_nextSequenceValue(self):
         """
         When a sequence is used as a value in an expression, it renders as the
-        call to 'nextval' that will produce its next value.
+        call to C{nextval} that will produce its next value.
         """
         self.assertEquals(
-            Insert({self.schema.BOZ.QUX:
-                    self.schema.A_SEQ}).toSQL(),
-            SQLFragment("insert into BOZ (QUX) values (nextval('A_SEQ'))", []))
+            Insert({self.schema.BOZ.QUX: self.schema.A_SEQ}).toSQL(),
+            SQLFragment("insert into BOZ (QUX) values (nextval('A_SEQ'))", [])
+        )
 
 
     def test_nextSequenceValueOracle(self):
         """
         When a sequence is used as a value in an expression in the Oracle
-        dialect, it renders as the 'nextval' attribute of the appropriate
+        dialect, it renders as the C{nextval} attribute of the appropriate
         sequence.
         """
         self.assertEquals(
-            Insert({self.schema.BOZ.QUX:
-                    self.schema.A_SEQ}).toSQL(
-                        QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
-            SQLFragment("insert into BOZ (QUX) values (A_SEQ.nextval)", []))
+            Insert(
+                {self.schema.BOZ.QUX: self.schema.A_SEQ}
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            SQLFragment("insert into BOZ (QUX) values (A_SEQ.nextval)", [])
+        )
 
 
     def test_nextSequenceDefaultImplicitExplicitOracle(self):
@@ -1452,68 +1671,80 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         """
         addSQLToSchema(
             schema=self.schema.model,
-            schemaData="create table DFLTR (a varchar(255), "
-            "b integer default nextval('A_SEQ'));"
+            schemaData=(
+                "create table DFLTR (a varchar(255), "
+                "b integer default nextval('A_SEQ'));"
+            )
         )
         self.assertEquals(
-            Insert({self.schema.DFLTR.a: 'hello'}).toSQL(
+            Insert({self.schema.DFLTR.a: "hello"}).toSQL(
                 QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))
             ),
             SQLFragment("insert into DFLTR (a, b) values "
-                        "(?, A_SEQ.nextval)", ['hello']),
+                        "(?, A_SEQ.nextval)", ["hello"]),
         )
         # Should be the same if it's explicitly specified.
         self.assertEquals(
-            Insert({self.schema.DFLTR.a: 'hello',
-                    self.schema.DFLTR.b: self.schema.A_SEQ}).toSQL(
+            Insert(
+                {
+                    self.schema.DFLTR.a: "hello",
+                    self.schema.DFLTR.b: self.schema.A_SEQ
+                }
+            ).toSQL(
                 QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))
             ),
-            SQLFragment("insert into DFLTR (a, b) values "
-                        "(?, A_SEQ.nextval)", ['hello']),
+            SQLFragment(
+                "insert into DFLTR (a, b) values (?, A_SEQ.nextval)", ["hello"]
+            ),
         )
 
 
     def test_numericParams(self):
         """
-        An L{IAsyncTransaction} with the 'numeric' paramstyle attribute will
-        cause statements to be generated with parameters in the style of :1 :2
-        :3, as per the DB-API.
+        An L{IAsyncTransaction} with the C{numeric} paramstyle attribute will
+        cause statements to be generated with parameters in the style of
+        C{:1 :2 :3}, as per the DB-API.
         """
         stmts = []
+
         class FakeOracleTxn(object):
             def execSQL(self, text, params, exc):
                 stmts.append((text, params))
             dialect = ORACLE_DIALECT
-            paramstyle = 'numeric'
-        Select([self.schema.FOO.BAR],
-               From=self.schema.FOO,
-               Where=(self.schema.FOO.BAR == 7).And(
-                   self.schema.FOO.BAZ == 9)
-              ).on(FakeOracleTxn())
+            paramstyle = "numeric"
+
+        Select(
+            [self.schema.FOO.BAR],
+            From=self.schema.FOO,
+            Where=(self.schema.FOO.BAR == 7).And(self.schema.FOO.BAZ == 9)
+        ).on(FakeOracleTxn())
+
         self.assertEquals(
-            stmts, [("select BAR from FOO where BAR = :1 and BAZ = :2",
-                     [7, 9])]
+            stmts,
+            [("select BAR from FOO where BAR = :1 and BAZ = :2", [7, 9])]
         )
 
 
     def test_rewriteOracleNULLs_Select(self):
         """
         Oracle databases cannot distinguish between the empty string and
-        C{NULL}.  When you insert an empty string, C{cx_Oracle} therefore treats
-        it as a C{None} and will return that when you select it back again.  We
-        address this in the schema by dropping 'not null' constraints.
+        C{NULL}.  When you insert an empty string, C{cx_Oracle} therefore
+        treats it as a C{None} and will return that when you select it back
+        again.  We address this in the schema by dropping C{not null}
+        constraints.
 
         Therefore, when executing a statement which includes a string column,
-        'on' should rewrite None return values from C{cx_Oracle} to be empty
+        C{on} should rewrite None return values from C{cx_Oracle} to be empty
         bytestrings, but only for string columns.
         """
-
         rows = resultOf(
-            Select([self.schema.NULLCHECK.ASTRING,
-                    self.schema.NULLCHECK.ANUMBER],
-                   From=self.schema.NULLCHECK).on(NullTestingOracleTxn()))[0]
+            Select(
+                [self.schema.NULLCHECK.ASTRING, self.schema.NULLCHECK.ANUMBER],
+                From=self.schema.NULLCHECK
+            ).on(NullTestingOracleTxn())
+        )[0]
 
-        self.assertEquals(rows, [['', None]])
+        self.assertEquals(rows, [["", None]])
 
 
     def test_rewriteOracleNULLs_SelectAllColumns(self):
@@ -1524,56 +1755,92 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         rows = resultOf(
             Select(From=self.schema.NULLCHECK).on(NullTestingOracleTxn())
         )[0]
-        self.assertEquals(rows, [['', None]])
+        self.assertEquals(rows, [["", None]])
 
 
     def test_nestedLogicalExpressions(self):
         """
         Make sure that logical operator precedence inserts proper parenthesis
-        when needed.  e.g. 'a.And(b.Or(c))' needs to be 'a and (b or c)' not 'a
-        and b or c'.
+        when needed.  e.g. C{a.And(b.Or(c))} needs to be C{a and (b or c)} not
+        C{a and b or c}.
         """
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(self.schema.FOO.BAR != 7).
-                    And(self.schema.FOO.BAZ != 8).
-                    And((self.schema.FOO.BAR == 8).Or(self.schema.FOO.BAZ == 0))
+                Where=(
+                    (
+                        self.schema.FOO.BAR != 7
+                    ).And(
+                        self.schema.FOO.BAZ != 8
+                    ).And(
+                        (self.schema.FOO.BAR == 8).Or(self.schema.FOO.BAZ == 0)
+                    )
+                )
             ).toSQL(),
-            SQLFragment("select * from FOO where BAR != ? and BAZ != ? and "
-                        "(BAR = ? or BAZ = ?)", [7, 8, 8, 0]))
+            SQLFragment(
+                "select * from FOO where BAR != ? and BAZ != ? and "
+                "(BAR = ? or BAZ = ?)",
+                [7, 8, 8, 0]
+            )
+        )
 
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(self.schema.FOO.BAR != 7).
-                    Or(self.schema.FOO.BAZ != 8).
-                    Or((self.schema.FOO.BAR == 8).And(self.schema.FOO.BAZ == 0))
+                Where=(
+                    (
+                        self.schema.FOO.BAR != 7
+                    ).Or(
+                        self.schema.FOO.BAZ != 8
+                    ).Or(
+                        (
+                            self.schema.FOO.BAR == 8
+                        ).And(
+                            self.schema.FOO.BAZ == 0
+                        )
+                    )
+                )
             ).toSQL(),
-            SQLFragment("select * from FOO where BAR != ? or BAZ != ? or "
-                        "BAR = ? and BAZ = ?", [7, 8, 8, 0]))
+            SQLFragment(
+                "select * from FOO where BAR != ? or BAZ != ? or "
+                "BAR = ? and BAZ = ?",
+                [7, 8, 8, 0]
+            )
+        )
 
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(self.schema.FOO.BAR != 7).
-                    Or(self.schema.FOO.BAZ != 8).
-                    And((self.schema.FOO.BAR == 8).Or(self.schema.FOO.BAZ == 0))
+                Where=(
+                    (
+                        self.schema.FOO.BAR != 7
+                    ).Or(
+                        self.schema.FOO.BAZ != 8
+                    ).And(
+                        (self.schema.FOO.BAR == 8).Or(self.schema.FOO.BAZ == 0)
+                    )
+                )
             ).toSQL(),
-            SQLFragment("select * from FOO where (BAR != ? or BAZ != ?) and "
-                        "(BAR = ? or BAZ = ?)", [7, 8, 8, 0]))
+            SQLFragment(
+                "select * from FOO where (BAR != ? or BAZ != ?) and "
+                "(BAR = ? or BAZ = ?)",
+                [7, 8, 8, 0]
+            )
+        )
 
 
     def test_updateWithNULL(self):
         """
-        As per the DB-API specification, "SQL NULL values are represented by the
-        Python None singleton on input and output."  When a C{None} is provided
-        as a value to an L{Update}, it will be relayed to the database as a
-        parameter.
+        As per the DB-API specification, "SQL NULL values are represented by
+        the Python None singleton on input and output."  When a C{None} is
+        provided as a value to an L{Update}, it will be relayed to the database
+        as a parameter.
         """
         self.assertEquals(
-            Update({self.schema.BOZ.QUX: None},
-                   Where=self.schema.BOZ.QUX == 7).toSQL(),
+            Update(
+                {self.schema.BOZ.QUX: None},
+                Where=self.schema.BOZ.QUX == 7
+            ).toSQL(),
             SQLFragment("update BOZ set QUX = ? where QUX = ?", [None, 7])
         )
 
@@ -1581,20 +1848,27 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
     def test_subSelectComparison(self):
         """
         A comparison of a column to a sub-select in a where clause will result
-        in a parenthetical 'Where' clause.
+        in a parenthetical C{where} clause.
         """
         self.assertEquals(
             Update(
                 {self.schema.BOZ.QUX: 9},
-                Where=self.schema.BOZ.QUX ==
-                Select([self.schema.FOO.BAR], From=self.schema.FOO,
-                       Where=self.schema.FOO.BAZ == 12)).toSQL(),
+                Where=(
+                    self.schema.BOZ.QUX ==
+                    Select(
+                        [self.schema.FOO.BAR],
+                        From=self.schema.FOO,
+                        Where=self.schema.FOO.BAZ == 12
+                    )
+                )
+            ).toSQL(),
             SQLFragment(
                 # NOTE: it's very important that the comparison _always_ go in
-                # this order (column from the UPDATE first, inner SELECT second)
-                # as the other order will be considered a syntax error.
-                "update BOZ set QUX = ? where QUX = ("
-                "select BAR from FOO where BAZ = ?)", [9, 12]
+                # this order (column from the UPDATE first, inner SELECT
+                # second) as the other order will be considered a syntax error.
+                "update BOZ set QUX = ? "
+                "where QUX = (select BAR from FOO where BAZ = ?)",
+                [9, 12]
             )
         )
 
@@ -1610,10 +1884,15 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Update(
                 {self.schema.BOZ.QUX: 1},
-                Where=(self.schema.BOZ.QUX, self.schema.BOZ.QUUX) ==
-                Select([self.schema.FOO.BAR, self.schema.FOO.BAZ],
-                       From=self.schema.FOO,
-                       Where=self.schema.FOO.BAZ == 2)).toSQL(),
+                Where=(
+                    (self.schema.BOZ.QUX, self.schema.BOZ.QUUX) ==
+                    Select(
+                        [self.schema.FOO.BAR, self.schema.FOO.BAZ],
+                        From=self.schema.FOO,
+                        Where=self.schema.FOO.BAZ == 2
+                    )
+                )
+            ).toSQL(),
             SQLFragment(
                 # NOTE: it's very important that the comparison _always_ go in
                 # this order (tuple of columns from the UPDATE first, inner
@@ -1633,8 +1912,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(
                 [self.schema.FOO.BAR],
                 From=self.schema.FOO,
-                Where=(Tuple([self.schema.FOO.BAR, self.schema.FOO.BAZ]) ==
-                       Tuple([Constant(7), Constant(9)]))
+                Where=(
+                    Tuple([self.schema.FOO.BAR, self.schema.FOO.BAZ]) ==
+                    Tuple([Constant(7), Constant(9)])
+                )
             ).toSQL(),
             SQLFragment(
                 "select BAR from FOO where (BAR, BAZ) = ((?, ?))", [7, 9]
@@ -1644,12 +1925,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
     def test_oracleTableTruncation(self):
         """
-        L{Table}'s SQL generation logic will truncate table names if the dialect
-        (i.e. Oracle) demands it.  (See txdav.common.datastore.sql_tables for
-        the schema translator and enforcement of name uniqueness in the derived
-        schema.)
+        L{Table}'s SQL generation logic will truncate table names if the
+        dialect (i.e. Oracle) demands it.
+        (See txdav.common.datastore.sql_tables for the schema translator and
+        enforcement of name uniqueness in the derived schema.)
         """
-
         addSQLToSchema(
             self.schema.model,
             "create table veryveryveryveryveryveryveryverylong "
@@ -1657,18 +1937,20 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
         vvl = self.schema.veryveryveryveryveryveryveryverylong
         self.assertEquals(
-            Insert({vvl.foo: 1}).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            Insert({vvl.foo: 1}).toSQL(
+                QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))
+            ),
             SQLFragment(
-                "insert into veryveryveryveryveryveryveryve (foo) values "
-                "(?)", [1]
+                "insert into veryveryveryveryveryveryveryve (foo) values (?)",
+                [1]
             )
         )
 
 
     def test_columnEqualityTruth(self):
         """
-        Mostly in support of test_columnsAsDictKeys, the 'same' column should
-        compare True to itself and False to other values.
+        Mostly in support of L{test_columnsAsDictKeys}, the "same" column
+        should compare C{True} to itself and C{False} to other values.
         """
         s = self.schema
         self.assertEquals(bool(s.FOO.BAR == s.FOO.BAR), True)
@@ -1679,10 +1961,10 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
     def test_columnsAsDictKeys(self):
         """
         An odd corner of the syntactic sugar provided by the DAL is that the
-        column objects have to participate both in augmented equality comparison
-        ("==" returns an expression object) as well as dictionary keys (for
-        Insert and Update statement objects).  Therefore it should be possible
-        to I{manipulate} dictionaries of keys as well.
+        column objects have to participate both in augmented equality
+        comparison (C{==} returns an expression object) as well as dictionary
+        keys (for Insert and Update statement objects).  Therefore it should be
+        possible to I{manipulate} dictionaries of keys as well.
         """
         values = {self.schema.FOO.BAR: 1}
         self.assertEquals(values, {self.schema.FOO.BAR: 1})
@@ -1695,31 +1977,38 @@ class OracleConnectionMethods(object):
     def test_rewriteOracleNULLs_Insert(self):
         """
         The behavior described in L{test_rewriteOracleNULLs_Select} applies to
-        other statement types as well, specifically those with 'returning'
+        other statement types as well, specifically those with C{returning}
         clauses.
         """
         # Add 2 cursor variable values so that these will be used by
         # FakeVariable.getvalue.
         self.factory.varvals.extend([None, None])
         rows = self.resultOf(
-            Insert({self.schema.NULLCHECK.ASTRING: '',
-                    self.schema.NULLCHECK.ANUMBER: None},
-                   Return=[self.schema.NULLCHECK.ASTRING,
-                           self.schema.NULLCHECK.ANUMBER]
-                  ).on(self.createTransaction()))[0]
-        self.assertEquals(rows, [['', None]])
+            Insert(
+                {
+                    self.schema.NULLCHECK.ASTRING: "",
+                    self.schema.NULLCHECK.ANUMBER: None,
+                },
+                Return=[
+                    self.schema.NULLCHECK.ASTRING,
+                    self.schema.NULLCHECK.ANUMBER,
+                ]
+            ).on(self.createTransaction())
+        )[0]
+        self.assertEquals(rows, [["", None]])
 
 
     def test_insertMultiReturnOnOracleTxn(self):
         """
         As described in L{test_insertMultiReturnOracle}, Oracle deals with
-        'returning' clauses by using out parameters.  However, this is not quite
-        enough, as the code needs to actually retrieve the values from the out
-        parameters.
+        C{returning} clauses by using out parameters.  However, this is not
+        quite enough, as the code needs to actually retrieve the values from
+        the out parameters.
         """
-        i = Insert({self.schema.FOO.BAR: 40,
-                    self.schema.FOO.BAZ: 50},
-                   Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ))
+        i = Insert(
+            {self.schema.FOO.BAR: 40, self.schema.FOO.BAZ: 50},
+            Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
+        )
         self.factory.varvals.extend(["first val!", "second val!"])
         result = self.resultOf(i.on(self.createTransaction()))
         self.assertEquals(result, [[["first val!", "second val!"]]])
@@ -1737,15 +2026,18 @@ class OracleConnectionMethods(object):
         """
         # This statement should return nothing from .fetchall(), so...
         self.factory.hasResults = False
-        i = Insert({self.schema.FOO.BAR: 40,
-                    self.schema.FOO.BAZ: 50})
+        i = Insert(
+            {self.schema.FOO.BAR: 40, self.schema.FOO.BAZ: 50}
+        )
         result = self.resultOf(i.on(self.createTransaction()))
         self.assertEquals(result, [None])
 
 
 
-class OracleConnectionTests(ConnectionPoolHelper, ExampleSchemaHelper,
-                            OracleConnectionMethods, TestCase):
+class OracleConnectionTests(
+    ConnectionPoolHelper, ExampleSchemaHelper, OracleConnectionMethods,
+    TestCase
+):
     """
     Tests which use an oracle connection.
     """
@@ -1754,22 +2046,24 @@ class OracleConnectionTests(ConnectionPoolHelper, ExampleSchemaHelper,
 
     def setUp(self):
         """
-        Create a fake oracle-ish connection pool without using real threads or a
-        real database.
+        Create a fake oracle-ish connection pool without using real threads or
+        a real database.
         """
-        self.patch(syntax, 'cx_Oracle', FakeCXOracleModule)
+        self.patch(syntax, "cx_Oracle", FakeCXOracleModule)
         super(OracleConnectionTests, self).setUp()
         ExampleSchemaHelper.setUp(self)
 
 
 
-class OracleNetConnectionTests(NetworkedPoolHelper, ExampleSchemaHelper,
-                               OracleConnectionMethods, TestCase):
+class OracleNetConnectionTests(
+    NetworkedPoolHelper, ExampleSchemaHelper, OracleConnectionMethods,
+    TestCase
+):
 
     dialect = ORACLE_DIALECT
 
     def setUp(self):
-        self.patch(syntax, 'cx_Oracle', FakeCXOracleModule)
+        self.patch(syntax, "cx_Oracle", FakeCXOracleModule)
         super(OracleNetConnectionTests, self).setUp()
         ExampleSchemaHelper.setUp(self)
         self.pump.client.dialect = ORACLE_DIALECT

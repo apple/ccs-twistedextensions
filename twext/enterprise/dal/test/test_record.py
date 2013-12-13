@@ -37,7 +37,7 @@ from twext.enterprise.fixtures import buildConnectionPool
 
 
 sth = SchemaTestHelper()
-sth.id = lambda : __name__
+sth.id = lambda: __name__
 schemaString = """
 create table ALPHA (BETA integer primary key, GAMMA text);
 create table DELTA (PHI integer primary key default (nextval('myseq')),
@@ -88,10 +88,12 @@ class TestCRUD(TestCase):
         txn = self.pool.connection()
         yield txn.execSQL("insert into ALPHA values (:1, :2)", [234, "one"])
         yield txn.execSQL("insert into ALPHA values (:1, :2)", [456, "two"])
+
         rec = yield TestRecord.load(txn, 456)
         self.assertIsInstance(rec, TestRecord)
         self.assertEquals(rec.beta, 456)
         self.assertEquals(rec.gamma, "two")
+
         rec2 = yield TestRecord.load(txn, 234)
         self.assertIsInstance(rec2, TestRecord)
         self.assertEqual(rec2.beta, 234)
@@ -115,9 +117,11 @@ class TestCRUD(TestCase):
         be created in the database.
         """
         txn = self.pool.connection()
+
         rec = yield TestRecord.create(txn, beta=3, gamma=u'epsilon')
         self.assertEquals(rec.beta, 3)
         self.assertEqual(rec.gamma, u'epsilon')
+
         rows = yield txn.execSQL("select BETA, GAMMA from ALPHA")
         self.assertEqual(rows, [tuple([3, u'epsilon'])])
 
@@ -129,11 +133,14 @@ class TestCRUD(TestCase):
         be deleted in the database.
         """
         txn = self.pool.connection()
+
         def mkrow(beta, gamma):
             return txn.execSQL("insert into ALPHA values (:1, :2)",
                                [beta, gamma])
-        yield gatherResults([mkrow(123, u"one"), mkrow(234, u"two"),
-                             mkrow(345, u"three")])
+
+        yield gatherResults(
+            [mkrow(123, u"one"), mkrow(234, u"two"), mkrow(345, u"three")]
+        )
         tr = yield TestRecord.load(txn, 234)
         yield tr.delete()
         rows = yield txn.execSQL("select BETA, GAMMA from ALPHA order by BETA")
@@ -185,12 +192,19 @@ class TestCRUD(TestCase):
         txn = self.pool.connection()
         # Create ...
         rec = yield TestAutoRecord.create(txn, epsilon=1)
-        self.assertEquals(rec.zeta, datetime.datetime(2012, 12, 12, 12, 12, 12))
+        self.assertEquals(
+            rec.zeta,
+            datetime.datetime(2012, 12, 12, 12, 12, 12)
+        )
         yield txn.commit()
         # ... should have the same effect as loading.
+
         txn = self.pool.connection()
         rec = (yield TestAutoRecord.all(txn))[0]
-        self.assertEquals(rec.zeta, datetime.datetime(2012, 12, 12, 12, 12, 12))
+        self.assertEquals(
+            rec.zeta,
+            datetime.datetime(2012, 12, 12, 12, 12, 12)
+        )
 
 
     @inlineCallbacks
@@ -200,11 +214,14 @@ class TestCRUD(TestCase):
         don't map to any column), it raises a L{TypeError}.
         """
         txn = self.pool.connection()
-        te = yield self.failUnlessFailure(TestRecord.create(
-                                        txn, beta=3, gamma=u'three',
-                                        extraBonusAttribute=u'nope',
-                                        otherBonusAttribute=4321,
-                                    ), TypeError)
+        te = yield self.failUnlessFailure(
+            TestRecord.create(
+                txn, beta=3, gamma=u'three',
+                extraBonusAttribute=u'nope',
+                otherBonusAttribute=4321,
+            ),
+            TypeError
+        )
         self.assertIn("extraBonusAttribute, otherBonusAttribute", str(te))
 
 
@@ -233,8 +250,10 @@ class TestCRUD(TestCase):
         """
         txn = self.pool.connection()
         rec = yield TestRecord.create(txn, beta=7, gamma=u'what')
+
         def setit():
             rec.beta = 12
+
         ro = self.assertRaises(ReadOnly, setit)
         self.assertEqual(rec.beta, 7)
         self.assertIn("SQL-backed attribute 'TestRecord.beta' is read-only. "
@@ -318,11 +337,14 @@ class TestCRUD(TestCase):
             yield txn.execSQL("insert into ALPHA values (:1, :2)",
                               [beta, gamma])
 
-        records = yield TestRecord.query(txn, TestRecord.gamma == u"three",
-                                         TestRecord.beta)
+        records = yield TestRecord.query(
+            txn, TestRecord.gamma == u"three", TestRecord.beta
+        )
         self.assertEqual([record.beta for record in records], [345, 356])
-        records = yield TestRecord.query(txn, TestRecord.gamma == u"three",
-                                         TestRecord.beta, ascending=False)
+
+        records = yield TestRecord.query(
+            txn, TestRecord.gamma == u"three", TestRecord.beta, ascending=False
+        )
         self.assertEqual([record.beta for record in records], [356, 345])
 
 
@@ -332,15 +354,25 @@ class TestCRUD(TestCase):
         A L{Record} may be loaded and deleted atomically, with L{Record.pop}.
         """
         txn = self.pool.connection()
-        for beta, gamma in [(123, u"one"), (234, u"two"), (345, u"three"),
-                            (356, u"three"), (456, u"four")]:
-            yield txn.execSQL("insert into ALPHA values (:1, :2)",
-                              [beta, gamma])
+        for beta, gamma in [
+            (123, u"one"),
+            (234, u"two"),
+            (345, u"three"),
+            (356, u"three"),
+            (456, u"four"),
+        ]:
+            yield txn.execSQL(
+                "insert into ALPHA values (:1, :2)", [beta, gamma]
+            )
+
         rec = yield TestRecord.pop(txn, 234)
         self.assertEqual(rec.gamma, u'two')
-        self.assertEqual((yield txn.execSQL("select count(*) from ALPHA "
-                                            "where BETA = :1", [234])),
-                         [tuple([0])])
+        self.assertEqual(
+            (yield txn.execSQL(
+                "select count(*) from ALPHA where BETA = :1", [234]
+            )),
+            [tuple([0])]
+        )
         yield self.failUnlessFailure(TestRecord.pop(txn, 234), NoSuchRecord)
 
 
@@ -349,6 +381,15 @@ class TestCRUD(TestCase):
         The naming convention maps columns C{LIKE_THIS} to be attributes
         C{likeThis}.
         """
-        self.assertEqual(Record.namingConvention(u"like_this"), "likeThis")
-        self.assertEqual(Record.namingConvention(u"LIKE_THIS"), "likeThis")
-        self.assertEqual(Record.namingConvention(u"LIKE_THIS_ID"), "likeThisID")
+        self.assertEqual(
+            Record.namingConvention(u"like_this"),
+            "likeThis"
+        )
+        self.assertEqual(
+            Record.namingConvention(u"LIKE_THIS"),
+            "likeThis"
+        )
+        self.assertEqual(
+            Record.namingConvention(u"LIKE_THIS_ID"),
+            "likeThisID"
+        )

@@ -50,9 +50,9 @@ class ConnectionError(Exception):
 
 
 
-POSTGRES_DIALECT = 'postgres-dialect'
-ORACLE_DIALECT = 'oracle-dialect'
-SQLITE_DIALECT = 'sqlite-dialect'
+POSTGRES_DIALECT = "postgres-dialect"
+ORACLE_DIALECT = "oracle-dialect"
+SQLITE_DIALECT = "sqlite-dialect"
 ORACLE_TABLE_NAME_MAX = 30
 
 
@@ -64,14 +64,16 @@ class ISQLExecutor(Interface):
 
     paramstyle = Attribute(
         """
-        A copy of the 'paramstyle' attribute from a DB-API 2.0 module.
-        """)
+        A copy of the C{paramstyle} attribute from a DB-API 2.0 module.
+        """
+    )
 
     dialect = Attribute(
         """
-        A copy of the 'dialect' attribute from the connection pool.  One of the
-        C{*_DIALECT} constants in this module, such as C{POSTGRES_DIALECT}.
-        """)
+        A copy of the C{dialect} attribute from the connection pool.  One of
+        the C{*_DIALECT} constants in this module, such as L{POSTGRES_DIALECT}.
+        """
+    )
 
 
     def execSQL(sql, args=(), raiseOnZeroRowCount=None):

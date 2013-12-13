@@ -20,6 +20,19 @@ from __future__ import print_function
 Parser for SQL schema.
 """
 
+__all__ = [
+    "tableFromCreateStatement",
+    "schemaFromPath",
+    "schemaFromString",
+    "addSQLToSchema",
+    "ViolatedExpectation",
+    "nameOrIdentifier",
+    "expectSingle",
+    "expect",
+    "significant",
+    "iterSignificant",
+]
+
 from itertools import chain
 
 from sqlparse import parse, keywords
@@ -41,12 +54,12 @@ from twext.enterprise.dal.syntax import (
 def _fixKeywords():
     """
     Work around bugs in SQLParse, adding SEQUENCE as a keyword (since it is
-    treated as one in postgres) and removing ACCESS and SIZE (since we use those
-    as column names).  Technically those are keywords in SQL, but they aren't
-    treated as such by postgres's parser.
+    treated as one in postgres) and removing ACCESS and SIZE (since we use
+    those as column names).  Technically those are keywords in SQL, but they
+    aren't treated as such by postgres's parser.
     """
-    keywords.KEYWORDS['SEQUENCE'] = Keyword
-    for columnNameKeyword in ['ACCESS', 'SIZE']:
+    keywords.KEYWORDS["SEQUENCE"] = Keyword
+    for columnNameKeyword in ["ACCESS", "SIZE"]:
         del keywords.KEYWORDS[columnNameKeyword]
 
 _fixKeywords()
@@ -58,19 +71,17 @@ def tableFromCreateStatement(schema, stmt):
     Add a table from a CREATE TABLE sqlparse statement object.
 
     @param schema: The schema to add the table statement to.
-
     @type schema: L{Schema}
 
     @param stmt: The C{CREATE TABLE} statement object.
-
     @type stmt: L{Statement}
     """
     i = iterSignificant(stmt)
-    expect(i, ttype=Keyword.DDL, value='CREATE')
-    expect(i, ttype=Keyword, value='TABLE')
+    expect(i, ttype=Keyword.DDL, value="CREATE")
+    expect(i, ttype=Keyword, value="TABLE")
     function = expect(i, cls=Function)
     i = iterSignificant(function)
-    name = expect(i, cls=Identifier).get_name().encode('utf-8')
+    name = expect(i, cls=Identifier).get_name().encode("utf-8")
     self = Table(schema, name)
     parens = expect(i, cls=Parenthesis)
     cp = _ColumnParser(self, iterSignificant(parens), parens)
@@ -115,79 +126,105 @@ def addSQLToSchema(schema, schemaData):
     Add new SQL to an existing schema.
 
     @param schema: The schema to add the new SQL to.
-
     @type schema: L{Schema}
 
     @param schemaData: A string containing some SQL statements.
-
     @type schemaData: C{str}
 
     @return: the C{schema} argument
     """
     parsed = parse(schemaData)
+
     for stmt in parsed:
-        preface = ''
+        preface = ""
+
         while stmt.tokens and not significant(stmt.tokens[0]):
             preface += str(stmt.tokens.pop(0))
+
         if not stmt.tokens:
             continue
-        if stmt.get_type() == 'CREATE':
+
+        if stmt.get_type() == "CREATE":
             createType = stmt.token_next(1, True).value.upper()
-            if createType == u'TABLE':
+
+            if createType == u"TABLE":
                 t = tableFromCreateStatement(schema, stmt)
                 t.addComment(preface)
-            elif createType == u'SEQUENCE':
-                Sequence(schema,
-                         stmt.token_next(2, True).get_name().encode('utf-8'))
-            elif createType in (u'INDEX', u'UNIQUE'):
+
+            elif createType == u"SEQUENCE":
+                Sequence(
+                    schema,
+                    stmt.token_next(2, True).get_name().encode("utf-8")
+                )
+
+            elif createType in (u"INDEX", u"UNIQUE"):
                 signifindex = iterSignificant(stmt)
-                expect(signifindex, ttype=Keyword.DDL, value='CREATE')
+                expect(signifindex, ttype=Keyword.DDL, value="CREATE")
                 token = signifindex.next()
                 unique = False
+
                 if token.match(Keyword, "UNIQUE"):
                     unique = True
                     token = signifindex.next()
+
                 if not token.match(Keyword, "INDEX"):
                     raise ViolatedExpectation("INDEX or UNQIUE", token.value)
+
                 indexName = nameOrIdentifier(signifindex.next())
-                expect(signifindex, ttype=Keyword, value='ON')
+                expect(signifindex, ttype=Keyword, value="ON")
                 token = signifindex.next()
+
                 if isinstance(token, Function):
                     [tableName, columnArgs] = iterSignificant(token)
                 else:
                     tableName = token
                     token = signifindex.next()
+
                     if token.match(Keyword, "USING"):
-                        [_ignore, columnArgs] = iterSignificant(expect(signifindex, cls=Function))
+                        [_ignore, columnArgs] = iterSignificant(
+                            expect(signifindex, cls=Function)
+                        )
                     else:
-                        raise ViolatedExpectation('USING', token)
+                        raise ViolatedExpectation("USING", token)
+
                 tableName = nameOrIdentifier(tableName)
                 arggetter = iterSignificant(columnArgs)
 
-                expect(arggetter, ttype=Punctuation, value=u'(')
+                expect(arggetter, ttype=Punctuation, value=u"(")
                 valueOrValues = arggetter.next()
+
                 if isinstance(valueOrValues, IdentifierList):
                     valuelist = valueOrValues.get_identifiers()
                 else:
                     valuelist = [valueOrValues]
-                expect(arggetter, ttype=Punctuation, value=u')')
 
-                idx = Index(schema, indexName, schema.tableNamed(tableName), unique)
+                expect(arggetter, ttype=Punctuation, value=u")")
+
+                idx = Index(
+                    schema, indexName, schema.tableNamed(tableName), unique
+                )
+
                 for token in valuelist:
                     columnName = nameOrIdentifier(token)
                     idx.addColumn(idx.table.columnNamed(columnName))
-        elif stmt.get_type() == 'INSERT':
+
+        elif stmt.get_type() == "INSERT":
             insertTokens = iterSignificant(stmt)
-            expect(insertTokens, ttype=Keyword.DML, value='INSERT')
-            expect(insertTokens, ttype=Keyword, value='INTO')
+            expect(insertTokens, ttype=Keyword.DML, value="INSERT")
+            expect(insertTokens, ttype=Keyword, value="INTO")
+
             tableName = expect(insertTokens, cls=Identifier).get_name()
-            expect(insertTokens, ttype=Keyword, value='VALUES')
+            expect(insertTokens, ttype=Keyword, value="VALUES")
+
             values = expect(insertTokens, cls=Parenthesis)
             vals = iterSignificant(values)
-            expect(vals, ttype=Punctuation, value='(')
+            expect(vals, ttype=Punctuation, value="(")
+
             valuelist = expect(vals, cls=IdentifierList)
-            expect(vals, ttype=Punctuation, value=')')
+            expect(vals, ttype=Punctuation, value=")")
+
             rowData = []
+
             for ident in valuelist.get_identifiers():
                 rowData.append(
                     {Number.Integer: int,
@@ -196,8 +233,10 @@ def addSQLToSchema(schema, schemaData):
                 )
 
             schema.tableNamed(tableName).insertSchemaRow(rowData)
+
         else:
-            print('unknown type:', stmt.get_type())
+            print("unknown type:", stmt.get_type())
+
     return schema
 
 
@@ -276,12 +315,14 @@ class _ColumnParser(object):
         parens = iterSignificant(parens)
         expect(parens, ttype=Punctuation, value="(")
         idorids = parens.next()
+
         if isinstance(idorids, Identifier):
             idnames = [idorids.get_name()]
         elif isinstance(idorids, IdentifierList):
             idnames = [x.get_name() for x in idorids.get_identifiers()]
         else:
             raise ViolatedExpectation("identifier or list", repr(idorids))
+
         expect(parens, ttype=Punctuation, value=")")
         return idnames
 
@@ -295,11 +336,15 @@ class _ColumnParser(object):
         parens = iterSignificant(parens)
         expect(parens, ttype=Punctuation, value="(")
         nexttok = parens.next()
+
         if isinstance(nexttok, Comparison):
             lhs, op, rhs = list(iterSignificant(nexttok))
-            result = CompoundComparison(self.nameOrValue(lhs),
-                                        op.value.encode("ascii"),
-                                        self.nameOrValue(rhs))
+            result = CompoundComparison(
+                self.nameOrValue(lhs),
+                op.value.encode("ascii"),
+                self.nameOrValue(rhs)
+            )
+
         elif isinstance(nexttok, Identifier):
             # our version of SQLParse seems to break down and not create a nice
             # "Comparison" object when a keyword is present.  This is just a
@@ -331,26 +376,29 @@ class _ColumnParser(object):
 
     def parseConstraint(self, constraintType):
         """
-        Parse a 'free' constraint, described explicitly in the table as opposed
-        to being implicitly associated with a column by being placed after it.
+        Parse a C{free} constraint, described explicitly in the table as
+        opposed to being implicitly associated with a column by being placed
+        after it.
         """
         ident = None
         # TODO: make use of identifier in tableConstraint, currently only used
         # for checkConstraint.
-        if constraintType.match(Keyword, 'CONSTRAINT'):
+        if constraintType.match(Keyword, "CONSTRAINT"):
             ident = expect(self, cls=Identifier).get_name()
             constraintType = expect(self, ttype=Keyword)
-        if constraintType.match(Keyword, 'PRIMARY'):
-            expect(self, ttype=Keyword, value='KEY')
+
+        if constraintType.match(Keyword, "PRIMARY"):
+            expect(self, ttype=Keyword, value="KEY")
             names = self.namesInParens(expect(self, cls=Parenthesis))
             self.table.primaryKey = [self.table.columnNamed(n) for n in names]
-        elif constraintType.match(Keyword, 'UNIQUE'):
+        elif constraintType.match(Keyword, "UNIQUE"):
             names = self.namesInParens(expect(self, cls=Parenthesis))
             self.table.tableConstraint(Constraint.UNIQUE, names)
-        elif constraintType.match(Keyword, 'CHECK'):
+        elif constraintType.match(Keyword, "CHECK"):
             self.table.checkConstraint(self.readExpression(self.next()), ident)
         else:
-            raise ViolatedExpectation('PRIMARY or UNIQUE', constraintType)
+            raise ViolatedExpectation("PRIMARY or UNIQUE", constraintType)
+
         return self.checkEnd(self.next())
 
 
@@ -375,9 +423,13 @@ class _ColumnParser(object):
             [funcIdent, args] = iterSignificant(typeName)
             typeName = funcIdent
             arggetter = iterSignificant(args)
-            expect(arggetter, value=u'(')
-            typeLength = int(expect(arggetter,
-                                    ttype=Number.Integer).value.encode('utf-8'))
+            expect(arggetter, value=u"(")
+            typeLength = int(
+                expect(
+                    arggetter,
+                    ttype=Number.Integer
+                ).value.encode("utf-8")
+            )
         else:
             maybeTypeArgs = self.next()
             if isinstance(maybeTypeArgs, Parenthesis):
@@ -389,98 +441,153 @@ class _ColumnParser(object):
                 # something else
                 typeLength = None
                 self.pushback(maybeTypeArgs)
+
         theType = SQLType(typeName.value.encode("utf-8"), typeLength)
         theColumn = self.table.addColumn(
             name=name.encode("utf-8"), type=theType
         )
+
         for val in self:
             if val.ttype == Punctuation:
                 return self.checkEnd(val)
             else:
                 expected = True
+
                 def oneConstraint(t):
                     self.table.tableConstraint(t, [theColumn.name])
 
-                if val.match(Keyword, 'PRIMARY'):
-                    expect(self, ttype=Keyword, value='KEY')
+                if val.match(Keyword, "PRIMARY"):
+                    expect(self, ttype=Keyword, value="KEY")
                     # XXX check to make sure there's no other primary key yet
                     self.table.primaryKey = [theColumn]
-                elif val.match(Keyword, 'UNIQUE'):
+
+                elif val.match(Keyword, "UNIQUE"):
                     # XXX add UNIQUE constraint
                     oneConstraint(Constraint.UNIQUE)
-                elif val.match(Keyword, 'NOT'):
-                    # possibly not necessary, as 'NOT NULL' is a single keyword
+
+                elif val.match(Keyword, "NOT"):
+                    # possibly not necessary, as "NOT NULL" is a single keyword
                     # in sqlparse as of 0.1.2
-                    expect(self, ttype=Keyword, value='NULL')
+                    expect(self, ttype=Keyword, value="NULL")
                     oneConstraint(Constraint.NOT_NULL)
-                elif val.match(Keyword, 'NOT NULL'):
+
+                elif val.match(Keyword, "NOT NULL"):
                     oneConstraint(Constraint.NOT_NULL)
-                elif val.match(Keyword, 'CHECK'):
-                    self.table.checkConstraint(self.readExpression(self.next()))
-                elif val.match(Keyword, 'DEFAULT'):
+
+                elif val.match(Keyword, "CHECK"):
+                    self.table.checkConstraint(
+                        self.readExpression(self.next())
+                    )
+
+                elif val.match(Keyword, "DEFAULT"):
                     theDefault = self.next()
+
                     if isinstance(theDefault, Parenthesis):
                         iDefault = iterSignificant(theDefault)
                         expect(iDefault, ttype=Punctuation, value="(")
                         theDefault = iDefault.next()
+
                     if isinstance(theDefault, Function):
                         thingo = theDefault.tokens[0].get_name()
                         parens = expectSingle(
                             theDefault.tokens[-1], cls=Parenthesis
                         )
                         pareniter = iterSignificant(parens)
-                        if thingo.upper() == 'NEXTVAL':
+                        if thingo.upper() == "NEXTVAL":
                             expect(pareniter, ttype=Punctuation, value="(")
                             seqname = _destringify(
-                                expect(pareniter, ttype=String.Single).value)
+                                expect(pareniter, ttype=String.Single).value
+                            )
                             defaultValue = self.table.schema.sequenceNamed(
                                 seqname
                             )
                             defaultValue.referringColumns.append(theColumn)
                         else:
-                            defaultValue = ProcedureCall(thingo.encode('utf-8'),
-                                                         parens)
+                            defaultValue = ProcedureCall(
+                                thingo.encode("utf-8"), parens
+                            )
+
                     elif theDefault.ttype == Number.Integer:
                         defaultValue = int(theDefault.value)
-                    elif (theDefault.ttype == Keyword and
-                          theDefault.value.lower() == 'false'):
+
+                    elif (
+                        theDefault.ttype == Keyword and
+                        theDefault.value.lower() == "false"
+                    ):
                         defaultValue = False
-                    elif (theDefault.ttype == Keyword and
-                          theDefault.value.lower() == 'true'):
+
+                    elif (
+                        theDefault.ttype == Keyword and
+                        theDefault.value.lower() == "true"
+                    ):
                         defaultValue = True
-                    elif (theDefault.ttype == Keyword and
-                          theDefault.value.lower() == 'null'):
+
+                    elif (
+                        theDefault.ttype == Keyword and
+                        theDefault.value.lower() == "null"
+                    ):
                         defaultValue = None
+
                     elif theDefault.ttype == String.Single:
                         defaultValue = _destringify(theDefault.value)
+
                     else:
                         raise RuntimeError(
-                            "not sure what to do: default %r" % (
-                            theDefault))
+                            "not sure what to do: default %r"
+                            % (theDefault,)
+                        )
+
                     theColumn.setDefaultValue(defaultValue)
-                elif val.match(Keyword, 'REFERENCES'):
+
+                elif val.match(Keyword, "REFERENCES"):
                     target = nameOrIdentifier(self.next())
                     theColumn.doesReferenceName(target)
-                elif val.match(Keyword, 'ON'):
-                    expect(self, ttype=Keyword.DML, value='DELETE')
+
+                elif val.match(Keyword, "ON"):
+                    expect(self, ttype=Keyword.DML, value="DELETE")
                     refAction = self.next()
-                    if refAction.ttype == Keyword and refAction.value.upper() == 'CASCADE':
-                        theColumn.deleteAction = 'cascade'
-                    elif refAction.ttype == Keyword and refAction.value.upper() == 'SET':
+
+                    if (
+                        refAction.ttype == Keyword and
+                        refAction.value.upper() == "CASCADE"
+                    ):
+                        theColumn.deleteAction = "cascade"
+
+                    elif (
+                        refAction.ttype == Keyword and
+                        refAction.value.upper() == "SET"
+                    ):
                         setAction = self.next()
-                        if setAction.ttype == Keyword and setAction.value.upper() == 'NULL':
-                            theColumn.deleteAction = 'set null'
-                        elif setAction.ttype == Keyword and setAction.value.upper() == 'DEFAULT':
-                            theColumn.deleteAction = 'set default'
+
+                        if (
+                            setAction.ttype == Keyword and
+                            setAction.value.upper() == "NULL"
+                        ):
+                            theColumn.deleteAction = "set null"
+
+                        elif (
+                            setAction.ttype == Keyword and
+                            setAction.value.upper() == "DEFAULT"
+                        ):
+                            theColumn.deleteAction = "set default"
+
                         else:
-                            raise RuntimeError("Invalid on delete set %r" % (setAction.value,))
+                            raise RuntimeError(
+                                "Invalid on delete set %r"
+                                % (setAction.value,)
+                            )
+
                     else:
-                        raise RuntimeError("Invalid on delete %r" % (refAction.value,))
+                        raise RuntimeError(
+                            "Invalid on delete %r"
+                            % (refAction.value,)
+                        )
 
                 else:
                     expected = False
+
                 if not expected:
-                    print('UNEXPECTED TOKEN:', repr(val), theColumn)
+                    print("UNEXPECTED TOKEN:", repr(val), theColumn)
                     print(self.parens)
                     import pprint
                     pprint.pprint(self.parens.tokens)
@@ -534,14 +641,17 @@ def expectSingle(nextval, ttype=None, value=None, cls=None):
     """
     if ttype is not None:
         if nextval.ttype != ttype:
-            raise ViolatedExpectation(ttype, '%s:%r' % (nextval.ttype, nextval))
+            raise ViolatedExpectation(
+                ttype, "%s:%r" % (nextval.ttype, nextval)
+            )
     if value is not None:
         if nextval.value.upper() != value.upper():
             raise ViolatedExpectation(value, nextval.value)
     if cls is not None:
         if nextval.__class__ != cls:
-            raise ViolatedExpectation(cls, '%s:%r' %
-                                      (nextval.__class__.__name__, nextval))
+            raise ViolatedExpectation(
+                cls, "%s:%r" % (nextval.__class__.__name__, nextval)
+            )
     return nextval
 
 
@@ -560,10 +670,10 @@ def expect(iterator, **kw):
 
 def significant(token):
     """
-    Determine if the token is 'significant', i.e. that it is not a comment and
+    Determine if the token is "significant", i.e. that it is not a comment and
     not whitespace.
     """
-    # comment has 'None' is_whitespace() result.  intentional?
+    # comment has None is_whitespace() result.  intentional?
     return (not isinstance(token, Comment) and not token.is_whitespace())
 
 

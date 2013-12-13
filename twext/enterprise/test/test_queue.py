@@ -38,7 +38,7 @@ from twext.enterprise.queue import (
 from twisted.trial.unittest import TestCase
 from twisted.python.failure import Failure
 from twisted.internet.defer import (
-    Deferred, inlineCallbacks, gatherResults, passthru#, returnValue
+    Deferred, inlineCallbacks, gatherResults, passthru
 )
 
 from twisted.application.service import Service, MultiService
@@ -61,6 +61,8 @@ from twext.enterprise.fixtures import ConnectionPoolHelper
 
 from twext.enterprise.queue import _BaseQueuer, NonPerformingQueuer
 import twext.enterprise.queue
+
+
 
 class Clock(_Clock):
     """
@@ -122,31 +124,39 @@ class UtilityTests(TestCase):
             def __init__(self):
                 self.commits = []
                 self.aborts = []
+
             def commit(self):
                 self.commits.append(Deferred())
                 return self.commits[-1]
+
             def abort(self):
                 self.aborts.append(Deferred())
                 return self.aborts[-1]
 
         createdTxns = []
+
         def createTxn():
             createdTxns.append(faketxn())
             return createdTxns[-1]
+
         dfrs = []
+
         def operation(t):
             self.assertIdentical(t, createdTxns[-1])
             dfrs.append(Deferred())
             return dfrs[-1]
+
         d = inTransaction(createTxn, operation)
         x = []
         d.addCallback(x.append)
         self.assertEquals(x, [])
         self.assertEquals(len(dfrs), 1)
         dfrs[0].callback(35)
+
         # Commit in progress, so still no result...
         self.assertEquals(x, [])
         createdTxns[0].commits[0].callback(42)
+
         # Committed, everything's done.
         self.assertEquals(x, [35])
 
@@ -154,31 +164,39 @@ class UtilityTests(TestCase):
 
 class SimpleSchemaHelper(SchemaTestHelper):
     def id(self):
-        return 'worker'
+        return "worker"
+
+
 
 SQL = passthru
 
-schemaText = SQL("""
+schemaText = SQL(
+    """
     create table DUMMY_WORK_ITEM (WORK_ID integer primary key,
                                   NOT_BEFORE timestamp,
                                   A integer, B integer,
                                   DELETE_ON_LOAD integer default 0);
     create table DUMMY_WORK_DONE (WORK_ID integer primary key,
                                   A_PLUS_B integer);
-""")
+    """
+)
 
-nodeSchema = SQL("""
+nodeSchema = SQL(
+    """
     create table NODE_INFO (HOSTNAME varchar(255) not null,
                             PID integer not null,
                             PORT integer not null,
                             TIME timestamp default current_timestamp not null,
                             primary key (HOSTNAME, PORT));
-""")
+    """
+)
 
 schema = SchemaSyntax(SimpleSchemaHelper().schemaFromString(schemaText))
 
-dropSQL = ["drop table {name}".format(name=table.model.name)
-           for table in schema]
+dropSQL = [
+    "drop table {name}".format(name=table.model.name)
+    for table in schema
+]
 
 
 class DummyWorkDone(Record, fromTable(schema.DUMMY_WORK_DONE)):
@@ -228,13 +246,16 @@ class SchemaAMPTests(TestCase):
         L{TableSyntaxByName}.
         """
         client = SchemaAMP(schema)
+
         class SampleCommand(Command):
-            arguments = [('table', TableSyntaxByName())]
+            arguments = [("table", TableSyntaxByName())]
+
         class Receiver(SchemaAMP):
             @SampleCommand.responder
             def gotIt(self, table):
                 self.it = table
                 return {}
+
         server = Receiver(schema)
         clientT = StringTransport()
         serverT = StringTransport()
@@ -393,20 +414,25 @@ class PeerConnectionPoolUnitTests(TestCase):
         connection = Connection(local, remote)
         connection.start()
         d = Deferred()
+
         class DummyPerformer(object):
             def performWork(self, table, workID):
                 self.table = table
                 self.workID = workID
                 return d
+
         # Doing real database I/O in this test would be tedious so fake the
         # first method in the call stack which actually talks to the DB.
         dummy = DummyPerformer()
+
         def chooseDummy(onlyLocally=False):
             return dummy
+
         peer.choosePerformer = chooseDummy
         performed = local.performWork(schema.DUMMY_WORK_ITEM, 7384)
         performResult = []
         performed.addCallback(performResult.append)
+
         # Sanity check.
         self.assertEquals(performResult, [])
         connection.flush()
@@ -460,9 +486,11 @@ class PeerConnectionPoolUnitTests(TestCase):
             )
         yield setup
         yield qpool._periodicLostWorkCheck()
+
         @transactionally(dbpool.connection)
         def check(txn):
             return DummyWorkDone.all(txn)
+
         every = yield check
         self.assertEquals([x.aPlusB for x in every], [7])
 
@@ -482,11 +510,14 @@ class PeerConnectionPoolUnitTests(TestCase):
         qpool = PeerConnectionPool(clock, dbpool.connection, 0, schema)
         realChoosePerformer = qpool.choosePerformer
         performerChosen = []
+
         def catchPerformerChoice():
             result = realChoosePerformer()
             performerChosen.append(True)
             return result
+
         qpool.choosePerformer = catchPerformerChoice
+
         @transactionally(dbpool.connection)
         def check(txn):
             return qpool.enqueueWork(
@@ -529,17 +560,21 @@ class PeerConnectionPoolUnitTests(TestCase):
         qpool = PeerConnectionPool(clock, dbpool.connection, 0, schema)
         realChoosePerformer = qpool.choosePerformer
         performerChosen = []
+
         def catchPerformerChoice():
             result = realChoosePerformer()
             performerChosen.append(True)
             return result
+
         qpool.choosePerformer = catchPerformerChoice
+
         @transactionally(dbpool.connection)
         def check(txn):
             return qpool.enqueueWork(
                 txn, DummyWorkItem, a=3, b=9,
                 notBefore=datetime.datetime(2012, 12, 12, 12, 12, 0)
             ).whenProposed()
+
         proposal = yield check
 
         clock.advance(1000)
@@ -558,13 +593,16 @@ class PeerConnectionPoolUnitTests(TestCase):
         clock = Clock()
         peerPool = PeerConnectionPool(clock, None, 4322, schema)
         factory = peerPool.workerListenerFactory()
+
         def peer():
             p = factory.buildProtocol(None)
             t = StringTransport()
             p.makeConnection(t)
             return p, t
+
         worker1, _ignore_trans1 = peer()
         worker2, _ignore_trans2 = peer()
+
         # Ask the worker to do something.
         worker1.performWork(schema.DUMMY_WORK_ITEM, 1)
         self.assertEquals(worker1.currentLoad, 1)
@@ -587,11 +625,13 @@ class PeerConnectionPoolUnitTests(TestCase):
         cph.setUp(self)
         pcp = PeerConnectionPool(reactor, cph.pool.connection, 4321, schema)
         now = then + datetime.timedelta(seconds=pcp.queueProcessTimeout * 2)
+
         @transactionally(cph.pool.connection)
         def createOldWork(txn):
             one = DummyWorkItem.create(txn, workID=1, a=3, b=4, notBefore=then)
             two = DummyWorkItem.create(txn, workID=2, a=7, b=9, notBefore=now)
             return gatherResults([one, two])
+
         pcp.startService()
         cph.flushHolders()
         reactor.advance(pcp.queueProcessTimeout * 2)
@@ -696,23 +736,29 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         L{PeerConnectionPool} requires access to a database and the reactor.
         """
         self.store = yield buildStore(self, None)
+
         def doit(txn):
             return txn.execSQL(schemaText)
-        yield inTransaction(lambda: self.store.newTransaction("bonus schema"),
-                            doit)
+
+        yield inTransaction(
+            lambda: self.store.newTransaction("bonus schema"), doit
+        )
+
         def indirectedTransactionFactory(*a):
             """
-            Allow tests to replace 'self.store.newTransaction' to provide
+            Allow tests to replace "self.store.newTransaction" to provide
             fixtures with extra methods on a test-by-test basis.
             """
             return self.store.newTransaction(*a)
+
         def deschema():
             @inlineCallbacks
             def deletestuff(txn):
                 for stmt in dropSQL:
                     yield txn.execSQL(stmt)
-            return inTransaction(lambda *a: self.store.newTransaction(*a),
-                                 deletestuff)
+            return inTransaction(
+                lambda *a: self.store.newTransaction(*a), deletestuff
+            )
         self.addCleanup(deschema)
 
         from twisted.internet import reactor
@@ -725,8 +771,10 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             def __init__(self, d):
                 super(FireMeService, self).__init__()
                 self.d = d
+
             def startService(self):
                 self.d.callback(None)
+
         d1 = Deferred()
         d2 = Deferred()
         FireMeService(d1).setServiceParent(self.node1)
@@ -762,7 +810,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         """
         # TODO: this exact test should run against LocalQueuer as well.
         def operation(txn):
-            # TODO: how does 'enqueue' get associated with the transaction?
+            # TODO: how does "enqueue" get associated with the transaction?
             # This is not the fact with a raw t.w.enterprise transaction.
             # Should probably do something with components.
             return txn.enqueue(DummyWorkItem, a=3, b=4, workID=4321,
@@ -770,10 +818,16 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         result = yield inTransaction(self.store.newTransaction, operation)
         # Wait for it to be executed.  Hopefully this does not time out :-\.
         yield result.whenExecuted()
+
         def op2(txn):
-            return Select([schema.DUMMY_WORK_DONE.WORK_ID,
-                           schema.DUMMY_WORK_DONE.A_PLUS_B],
-                          From=schema.DUMMY_WORK_DONE).on(txn)
+            return Select(
+                [
+                    schema.DUMMY_WORK_DONE.WORK_ID,
+                    schema.DUMMY_WORK_DONE.A_PLUS_B,
+                ],
+                From=schema.DUMMY_WORK_DONE
+            ).on(txn)
+
         rows = yield inTransaction(self.store.newTransaction, op2)
         self.assertEquals(rows, [[4321, 7]])
 
@@ -784,30 +838,45 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         When a L{WorkItem} is concurrently deleted by another transaction, it
         should I{not} perform its work.
         """
-        # Provide access to a method called 'concurrently' everything using
+        # Provide access to a method called "concurrently" everything using
         original = self.store.newTransaction
+
         def decorate(*a, **k):
             result = original(*a, **k)
             result.concurrently = self.store.newTransaction
             return result
+
         self.store.newTransaction = decorate
 
         def operation(txn):
-            return txn.enqueue(DummyWorkItem, a=30, b=40, workID=5678,
-                               deleteOnLoad=1,
-                               notBefore=datetime.datetime.utcnow())
+            return txn.enqueue(
+                DummyWorkItem, a=30, b=40, workID=5678,
+                deleteOnLoad=1,
+                notBefore=datetime.datetime.utcnow()
+            )
+
         proposal = yield inTransaction(self.store.newTransaction, operation)
         yield proposal.whenExecuted()
+
         # Sanity check on the concurrent deletion.
         def op2(txn):
-            return Select([schema.DUMMY_WORK_ITEM.WORK_ID],
-                          From=schema.DUMMY_WORK_ITEM).on(txn)
+            return Select(
+                [schema.DUMMY_WORK_ITEM.WORK_ID],
+                From=schema.DUMMY_WORK_ITEM
+            ).on(txn)
+
         rows = yield inTransaction(self.store.newTransaction, op2)
         self.assertEquals(rows, [])
+
         def op3(txn):
-            return Select([schema.DUMMY_WORK_DONE.WORK_ID,
-                           schema.DUMMY_WORK_DONE.A_PLUS_B],
-                          From=schema.DUMMY_WORK_DONE).on(txn)
+            return Select(
+                [
+                    schema.DUMMY_WORK_DONE.WORK_ID,
+                    schema.DUMMY_WORK_DONE.A_PLUS_B,
+                ],
+                From=schema.DUMMY_WORK_DONE
+            ).on(txn)
+
         rows = yield inTransaction(self.store.newTransaction, op3)
         self.assertEquals(rows, [])
 

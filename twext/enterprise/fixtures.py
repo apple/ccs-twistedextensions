@@ -38,6 +38,7 @@ from twext.enterprise.adbapi2 import DEFAULT_PARAM_STYLE
 from twext.internet.threadutils import ThreadHolder
 
 
+
 def buildConnectionPool(testCase, schemaText="", dialect=SQLITE_DIALECT):
     """
     Build a L{ConnectionPool} for testing purposes, with the given C{testCase}.
@@ -56,17 +57,21 @@ def buildConnectionPool(testCase, schemaText="", dialect=SQLITE_DIALECT):
     """
     sqlitename = testCase.mktemp()
     seqs = {}
+
     def connectionFactory(label=testCase.id()):
         conn = sqlite3.connect(sqlitename)
+
         def nextval(seq):
             result = seqs[seq] = seqs.get(seq, 0) + 1
             return result
+
         conn.create_function("nextval", 1, nextval)
         return conn
+
     con = connectionFactory()
     con.executescript(schemaText)
     con.commit()
-    pool = ConnectionPool(connectionFactory, paramstyle='numeric',
+    pool = ConnectionPool(connectionFactory, paramstyle="numeric",
                           dialect=SQLITE_DIALECT)
     pool.startService()
     testCase.addCleanup(pool.stopService)
@@ -77,16 +82,18 @@ def buildConnectionPool(testCase, schemaText="", dialect=SQLITE_DIALECT):
 def resultOf(deferred, propagate=False):
     """
     Add a callback and errback which will capture the result of a L{Deferred}
-    in a list, and return that list.  If 'propagate' is True, pass through the
+    in a list, and return that list.  If C{propagate} is True, pass through the
     results.
     """
     results = []
+
     if propagate:
         def cb(r):
             results.append(r)
             return r
     else:
         cb = results.append
+
     deferred.addBoth(cb)
     return results
 
@@ -128,12 +135,15 @@ class FakeThreadHolder(ThreadHolder):
             oget = newq.get
             newq.get = lambda: oget(timeout=0)
             oput = newq.put
+
             def putit(x):
                 p = oput(x)
                 if not self.test.paused:
                     self.flush()
                 return p
+
             newq.put = putit
+
         self._q_ = newq
 
 
@@ -184,7 +194,7 @@ class ClockWithThreads(Clock):
 
     def suggestThreadPoolSize(self, size):
         """
-        Approximate the behavior of a 'real' reactor.
+        Approximate the behavior of a "real" reactor.
         """
         self._pool.adjustPoolsize(maxthreads=size)
 
@@ -314,8 +324,10 @@ class SteppablePoolHelper(ConnectionPoolHelper):
 
 def synchronousConnectionFactory(test):
     tmpdb = test.mktemp()
+
     def connect():
         return sqlite3.connect(tmpdb)
+
     return connect
 
 
@@ -561,8 +573,10 @@ class ConnectionFactory(Parent):
         @rtype: L{FakeConnection}
         """
         aConnection = FakeConnection(self)
+
         def thunk():
             return aConnection
+
         self._connectResultQueue.append(thunk)
         return aConnection
 
