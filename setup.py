@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##
+
 from __future__ import print_function
 
 import sys
@@ -23,6 +24,28 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "support"))
 
 from version import version
+
+
+def find_packages():
+    modules = [
+        # "twisted.plugins",
+    ]
+
+    excludes = [
+        ".svn",
+        "_trial_temp",
+        "build",
+    ]
+
+    for root, dirs, files in os.walk("."):
+        for exclude in excludes:
+            if exclude in dirs:
+                dirs.remove(exclude)
+
+        if "__init__.py" in files:
+            modules.append(".".join(root.split(os.path.sep)[1:]))
+
+    return modules
 
 
 #
@@ -85,7 +108,7 @@ def doSetup():
         author_email=None,
         license="Apache License, Version 2.0",
         platforms=["all"],
-        packages=["twext"],
+        packages=find_packages(),
         package_data={},
         scripts=[],
         data_files=[],
