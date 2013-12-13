@@ -28,7 +28,7 @@ from version import version
 
 def find_packages():
     modules = [
-        # "twisted.plugins",
+        "twisted.plugins",
     ]
 
     excludes = [
