@@ -20,48 +20,40 @@ Tests for L{twext.enterprise.queue}.
 
 import datetime
 
-# TODO: There should be a store-building utility within twext.enterprise.
+from zope.interface.verify import verifyObject
 
-from twisted.protocols.amp import Command
-from twisted.internet.task import Clock as _Clock
-
-from txdav.common.datastore.test.util import buildStore
-
-from twext.enterprise.dal.syntax import SchemaSyntax, Select
-from twext.enterprise.dal.record import fromTable
-from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
-
-from twext.enterprise.queue import (
-    inTransaction, PeerConnectionPool, WorkItem, astimestamp
-)
-
-from twisted.trial.unittest import TestCase
 from twisted.python.failure import Failure
+from twisted.trial.unittest import TestCase, SkipTest
+from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.internet.defer import (
-    Deferred, inlineCallbacks, gatherResults, passthru
+    Deferred, inlineCallbacks, gatherResults, passthru, returnValue
 )
-
+from twisted.internet.task import Clock as _Clock
+from twisted.protocols.amp import Command
 from twisted.application.service import Service, MultiService
 
-from twext.enterprise.queue import (
-    LocalPerformer, _IWorkPerformer, WorkerConnectionPool, SchemaAMP,
-    TableSyntaxByName
-)
-
-from twext.enterprise.dal.record import Record
-
-from twext.enterprise.queue import ConnectionFromPeerNode
+from twext.enterprise.dal.syntax import SchemaSyntax, Select
+from twext.enterprise.dal.record import fromTable, Record
+from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
-from zope.interface.verify import verifyObject
-from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twext.enterprise.fixtures import SteppablePoolHelper
-from twisted.internet.defer import returnValue
-from twext.enterprise.queue import LocalQueuer
 from twext.enterprise.fixtures import ConnectionPoolHelper
-
-from twext.enterprise.queue import _BaseQueuer, NonPerformingQueuer
+from twext.enterprise.queue import (
+    inTransaction, PeerConnectionPool, WorkItem, astimestamp,
+    LocalPerformer, _IWorkPerformer, WorkerConnectionPool, SchemaAMP,
+    TableSyntaxByName, ConnectionFromPeerNode, LocalQueuer,
+    _BaseQueuer, NonPerformingQueuer
+)
 import twext.enterprise.queue
 
+# TODO: There should be a store-building utility within twext.enterprise.
+try:
+    from txdav.common.datastore.test.util import buildStore
+except ImportError:
+    def buildStore(*args, **kwargs):
+        raise SkipTest(
+            "buildStore is not available, because it's in txdav; duh."
+        )
 
 
 class Clock(_Clock):
@@ -191,30 +183,40 @@ nodeSchema = SQL(
     """
 )
 
-schema = SchemaSyntax(SimpleSchemaHelper().schemaFromString(schemaText))
+try:
+    schema = SchemaSyntax(SimpleSchemaHelper().schemaFromString(schemaText))
 
-dropSQL = [
-    "drop table {name}".format(name=table.model.name)
-    for table in schema
-]
+    dropSQL = [
+        "drop table {name}".format(name=table.model.name)
+        for table in schema
+    ]
+except SkipTest as e:
+    DummyWorkDone = DummyWorkItem = object
+    skip = e
+else:
+    DummyWorkDone = fromTable(schema.DUMMY_WORK_DONE)
+    DummyWorkItem = fromTable(schema.DUMMY_WORK_ITEM)
+    skip = False
 
 
-class DummyWorkDone(Record, fromTable(schema.DUMMY_WORK_DONE)):
+
+class DummyWorkDone(Record, DummyWorkDone):
     """
     Work result.
     """
 
 
 
-class DummyWorkItem(WorkItem, fromTable(schema.DUMMY_WORK_ITEM)):
+class DummyWorkItem(WorkItem, DummyWorkItem):
     """
     Sample L{WorkItem} subclass that adds two integers together and stores them
     in another table.
     """
 
     def doWork(self):
-        return DummyWorkDone.create(self.transaction, workID=self.workID,
-                                    aPlusB=self.a + self.b)
+        return DummyWorkDone.create(
+            self.transaction, workID=self.workID, aPlusB=self.a + self.b
+        )
 
 
     @classmethod
@@ -277,8 +279,9 @@ class WorkItemTests(TestCase):
         L{WorkItem.forTable} returns L{WorkItem} subclasses mapped to the given
         table.
         """
-        self.assertIdentical(WorkItem.forTable(schema.DUMMY_WORK_ITEM),
-                             DummyWorkItem)
+        self.assertIdentical(
+            WorkItem.forTable(schema.DUMMY_WORK_ITEM), DummyWorkItem
+        )
 
 
 
