@@ -25,11 +25,9 @@ from twext.enterprise.dal.syntax import CompoundComparison, ColumnSyntax
 try:
     from twext.enterprise.dal.parseschema import addSQLToSchema
 except ImportError:
-    skip = "parseschema not available."
-else:
-    skip = False
+    addSQLToSchema = NotImplemented
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SkipTest
 
 
 
@@ -42,6 +40,9 @@ class SchemaTestHelper(object):
         """
         Createa a L{Schema}
         """
+        if addSQLToSchema is NotImplemented:
+            raise SkipTest("addSQLToSchema is not available")
+
         s = Schema(self.id())
         addSQLToSchema(s, string)
         return s
