@@ -28,9 +28,17 @@ from zope.interface import implementer
 
 from twext.internet.sendfdport import InheritedSocketDispatcher
 
-from twext.web2.metafd import ConnectionLimiter
 from twisted.internet.interfaces import IReactorFDSet
 from twisted.trial.unittest import TestCase
+
+try:
+    from txweb2.metafd import ConnectionLimiter
+except ImportError:
+    skip = "We have a very unfortunate dependancy on txweb2 in here..."
+else:
+    skip = False
+
+
 
 def verifiedImplementer(interface):
     def _(cls):
@@ -138,13 +146,17 @@ class InheritedSocketDispatcherTests(TestCase):
         L{IStatusWatcher.closeCountFromStatus}.
         """
         self.dispatcher.statusWatcher = Watcher([])
+
         class SocketForClosing(object):
             blocking = True
             closed = False
+
             def setblocking(self, b):
                 self.blocking = b
+
             def fileno(self):
                 return object()
+
             def close(self):
                 self.closed = True
 
@@ -159,8 +171,10 @@ class InheritedSocketDispatcherTests(TestCase):
         self.dispatcher.sendFileDescriptor(one, "one")
         self.dispatcher.sendFileDescriptor(two, "two")
         self.dispatcher.sendFileDescriptor(three, "three")
+
         def sendfd(unixSocket, tcpSocket, description):
             pass
+
         # Put something into the socket-close queue.
         self.dispatcher._subprocessSockets[0].doWrite(sendfd)
         # Nothing closed yet.
