@@ -17,3 +17,8 @@
 """
 Extensions to the Twisted Framework.
 """
+
+try:
+    from twext.version import version as __version__
+except ImportError:
+    __version__ = None
