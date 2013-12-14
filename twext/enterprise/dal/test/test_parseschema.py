@@ -22,7 +22,12 @@ and L{twext.enterprise.dal.parseschema}.
 from twext.enterprise.dal.model import Schema
 from twext.enterprise.dal.syntax import CompoundComparison, ColumnSyntax
 
-from twext.enterprise.dal.parseschema import addSQLToSchema
+try:
+    from twext.enterprise.dal.parseschema import addSQLToSchema
+except ImportError:
+    skip = "parseschema not available."
+else:
+    skip = False
 
 from twisted.trial.unittest import TestCase
 
