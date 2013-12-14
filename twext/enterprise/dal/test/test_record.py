@@ -20,17 +20,14 @@ Test cases for L{twext.enterprise.dal.record}.
 
 import datetime
 
-from twisted.internet.defer import inlineCallbacks
-
-from twisted.trial.unittest import TestCase
+from twisted.internet.defer import inlineCallbacks, gatherResults, returnValue
+from twisted.trial.unittest import TestCase, SkipTest
 
 from twext.enterprise.dal.record import (
     Record, fromTable, ReadOnly, NoSuchRecord
 )
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.dal.syntax import SchemaSyntax
-from twisted.internet.defer import gatherResults
-from twisted.internet.defer import returnValue
 from twext.enterprise.fixtures import buildConnectionPool
 
 # from twext.enterprise.dal.syntax import
@@ -51,18 +48,26 @@ parseableSchemaString = """
 create sequence myseq;
 """ + schemaString
 
-testSchema = SchemaSyntax(sth.schemaFromString(parseableSchemaString))
+try:
+    testSchema = SchemaSyntax(sth.schemaFromString(parseableSchemaString))
+except SkipTest as e:
+    Alpha = Delta = object
+    skip = e
+else:
+    Alpha = fromTable(testSchema.ALPHA)
+    Delta = fromTable(testSchema.DELTA)
+    skip = False
 
 
 
-class TestRecord(Record, fromTable(testSchema.ALPHA)):
+class TestRecord(Record, Alpha):
     """
     A sample test record.
     """
 
 
 
-class TestAutoRecord(Record, fromTable(testSchema.DELTA)):
+class TestAutoRecord(Record, Delta):
     """
     A sample test record with default values specified.
     """
