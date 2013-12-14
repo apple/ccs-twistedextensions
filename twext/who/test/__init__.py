@@ -15,5 +15,5 @@
 ##
 
 """
-Directory service integration tests
+Tests for L{twext.who}.
 """

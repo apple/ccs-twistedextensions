@@ -15,5 +15,5 @@
 ##
 
 """
-Extensions to twisted.internet.
+Extensions to L{twisted.internet}.
 """

@@ -15,5 +15,5 @@
 ##
 
 """
-Extentions to twisted.protocols
+Extentions to L{twisted.protocols}.
 """

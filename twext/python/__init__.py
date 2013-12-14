@@ -15,5 +15,5 @@
 ##
 
 """
-Extensions to twisted.python.
+Extensions to L{twisted.python}.
 """

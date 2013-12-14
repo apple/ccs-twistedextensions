@@ -15,5 +15,5 @@
 ##
 
 """
-Extensions to twisted.application.
+Extensions to L{twisted.application}.
 """

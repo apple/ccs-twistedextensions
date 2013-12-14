@@ -15,5 +15,5 @@
 ##
 
 """
-Extentions to twisted.protocols
+Tests for L{twext.protocols}.
 """

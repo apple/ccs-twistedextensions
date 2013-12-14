@@ -15,6 +15,6 @@
 ##
 
 """
-Extensions in the spirit of Twisted's "enterprise" package; things related to
-database connectivity and management.
+Extensions to L{twisted.enterprise};
+things related to database connectivity and management.
 """

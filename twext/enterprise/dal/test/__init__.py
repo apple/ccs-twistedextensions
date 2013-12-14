@@ -15,5 +15,5 @@
 ##
 
 """
-Tests for twext.enterprise.dal.
+Tests for L{twext.enterprise.dal}.
 """

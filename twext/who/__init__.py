@@ -16,5 +16,5 @@
 ##
 
 """
-Directory service integration
+Directory service integration.
 """

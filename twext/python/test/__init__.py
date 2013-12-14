@@ -15,5 +15,5 @@
 ##
 
 """
-Test extensions to twisted.python.
+Tests for L{twext.python}.
 """
