@@ -20,20 +20,18 @@ Extend L{twisted.python.filepath} to provide performance enhancements for
 calendar server.
 """
 
-from os import listdir as _listdir
+__all__ = ["CachingFilePath"]
 
-from os.path import (join as _joinpath,
-                     basename as _basename,
-                     exists as _exists,
-                     dirname as _dirname)
-
-from time import sleep as _sleep
+from os import listdir as listdir
+from os.path import join, basename, exists, dirname
+from time import sleep
 from types import FunctionType, MethodType
 from errno import EINVAL
+from stat import S_ISDIR
 
 from twisted.python.filepath import FilePath as _FilePath
 
-from stat import S_ISDIR
+
 
 class CachingFilePath(_FilePath, object):
     """
@@ -41,11 +39,10 @@ class CachingFilePath(_FilePath, object):
     policy.
     """
 
-    _listdir = _listdir         # integration points for tests
-    _sleep = _sleep
+    _listdir = listdir  # integration points for tests
+    _sleep = sleep
 
-    BACKOFF_MAX = 5.0           # Maximum time to wait between calls to
-                                # listdir()
+    BACKOFF_MAX = 5.0  # Maximum time to wait between calls to listdir()
 
     def __init__(self, path, alwaysCreate=False):
         super(CachingFilePath, self).__init__(path, alwaysCreate)
@@ -56,16 +53,22 @@ class CachingFilePath(_FilePath, object):
     @property
     def siblingExtensionSearch(self):
         """
-        Dynamically create a version of L{_FilePath.siblingExtensionSearch} that
-        uses a pluggable 'listdir' implementation.
+        Dynamically create a version of L{_FilePath.siblingExtensionSearch}
+        that uses a pluggable L{listdir} implementation.
         """
-        return MethodType(FunctionType(
+        return MethodType(
+            FunctionType(
                 _FilePath.siblingExtensionSearch.im_func.func_code,
-                {'listdir': self._retryListdir,
-                 'basename': _basename,
-                 'dirname': _dirname,
-                 'joinpath': _joinpath,
-                 'exists': _exists}), self, self.__class__)
+                {
+                    "listdir": self._retryListdir,
+                    "basename": basename,
+                    "dirname": dirname,
+                    "joinpath": join,
+                    "exists": exists
+                }
+            ),
+            self, self.__class__
+        )
 
 
     def changed(self):
@@ -84,6 +87,7 @@ class CachingFilePath(_FilePath, object):
         C{siblingExtensionSearch}.
         """
         delay = 0.1
+
         while True:
             try:
                 return self._listdir(pathname)
@@ -93,7 +97,8 @@ class CachingFilePath(_FilePath, object):
                     delay = min(self.BACKOFF_MAX, delay * 2.0)
                 else:
                     raise
-        raise RuntimeError("unreachable code.")
+
+        raise AssertionError("unreachable code.")
 
 
     def listdir(self):
@@ -126,9 +131,11 @@ class CachingFilePath(_FilePath, object):
         """
         result = super(CachingFilePath, self).moveTo(destination, followLinks)
         self.changed()
-        # Work with vanilla FilePath destinations to pacify the tests. 
+
+        # Work with vanilla FilePath destinations to pacify the tests.
         if hasattr(destination, "changed"):
             destination.changed()
+
         return result
 
 
@@ -142,6 +149,6 @@ class CachingFilePath(_FilePath, object):
         finally:
             self.changed()
 
-CachingFilePath.clonePath = CachingFilePath
 
-__all__ = ["CachingFilePath"]
+
+CachingFilePath.clonePath = CachingFilePath

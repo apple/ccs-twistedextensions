@@ -18,6 +18,10 @@
 A small utility for defining static class properties.
 """
 
+__all__ = ["classproperty"]
+
+
+
 class classproperty(object):
     """
     Decorator for a method that wants to return a static class property.  The
@@ -38,11 +42,13 @@ class classproperty(object):
     def __get__(self, instance, owner):
         if not self.cache:
             return self.thunk(owner)
+
         cc = self._classcache
+
         if owner in cc:
             cached = cc[owner]
         else:
             cached = self.thunk(owner)
             cc[owner] = cached
-        return cached
 
+        return cached
