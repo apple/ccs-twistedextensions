@@ -18,15 +18,17 @@
 from struct import pack, unpack, calcsize
 from socket import SOL_SOCKET
 
-from twext.python.sendmsg import sendmsg, recvmsg, SCM_RIGHTS
+from twisted.python.sendmsg import send1msg, recv1msg, SCM_RIGHTS
+
+
 
 def sendfd(socketfd, fd, description):
     """
-    Send the given FD to another process via L{sendmsg} on the given C{AF_UNIX}
-    socket.
+    Send the given FD to another process via L{send1msg} on the given
+    C{AF_UNIX} socket.
 
     @param socketfd: An C{AF_UNIX} socket, attached to another process waiting
-        to receive sockets via the ancillary data mechanism in L{sendmsg}.
+        to receive sockets via the ancillary data mechanism in L{send1msg}.
 
     @type socketfd: C{int}
 
@@ -38,7 +40,7 @@ def sendfd(socketfd, fd, description):
 
     @type description: C{str}
     """
-    sendmsg(
+    send1msg(
         socketfd, description, 0, [(SOL_SOCKET, SCM_RIGHTS, pack("i", fd))]
     )
 
@@ -46,11 +48,11 @@ def sendfd(socketfd, fd, description):
 
 def recvfd(socketfd):
     """
-    Receive a file descriptor from a L{sendmsg} message on the given C{AF_UNIX}
-    socket.
+    Receive a file descriptor from a L{send1msg} message on the given
+    C{AF_UNIX} socket.
 
     @param socketfd: An C{AF_UNIX} socket, attached to another process waiting
-        to send sockets via the ancillary data mechanism in L{sendmsg}.
+        to send sockets via the ancillary data mechanism in L{send1msg}.
 
     @param fd: C{int}
 
@@ -58,15 +60,18 @@ def recvfd(socketfd):
 
     @rtype: 2-tuple of (C{int}, C{str})
     """
-    data, _ignore_flags, ancillary = recvmsg(socketfd)
+    data, _ignore_flags, ancillary = recv1msg(socketfd)
     [(_ignore_cmsg_level, _ignore_cmsg_type, packedFD)] = ancillary
+
     # cmsg_level and cmsg_type really need to be SOL_SOCKET / SCM_RIGHTS, but
     # since those are the *only* standard values, there's not much point in
     # checking.
     unpackedFD = 0
     int_size = calcsize("i")
-    if len(packedFD) > int_size:       # [ar]happens on 64 bit architecture (FreeBSD)
+
+    if len(packedFD) > int_size:       # [ar]happens on 64 bit arch (FreeBSD)
         [unpackedFD] = unpack("i", packedFD[0:int_size])
     else:
         [unpackedFD] = unpack("i", packedFD)
+
     return (unpackedFD, data)

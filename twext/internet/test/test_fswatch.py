@@ -18,8 +18,9 @@
 Tests for L{twext.internet.fswatch}.
 """
 
-from twext.internet.fswatch import DirectoryChangeListener, patchReactor, \
-    IDirectoryChangeListenee
+from twext.internet.fswatch import (
+    DirectoryChangeListener, patchReactor, IDirectoryChangeListenee
+)
 from twisted.internet.kqreactor import KQueueReactor
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase

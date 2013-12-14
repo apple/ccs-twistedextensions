@@ -16,24 +16,24 @@
 ##
 
 """
-Implementation of a TCP/SSL port that uses sendmsg/recvmsg as implemented by
-L{twext.python.sendfd}.
+Implementation of a TCP/SSL port that uses send1msg/recv1msg as implemented by
+L{twisted.python.sendfd}.
 """
 
 from os import close
 from errno import EAGAIN, ENOBUFS
-from socket import (socketpair, fromfd, error as SocketError, AF_UNIX,
-                    SOCK_STREAM, SOCK_DGRAM)
+from socket import (
+    socketpair, fromfd, error as SocketError, AF_UNIX, SOCK_STREAM, SOCK_DGRAM
+)
 
 from zope.interface import Interface
 
+from twisted.python.sendmsg import send1msg, recv1msg, getsockfam
 from twisted.internet.abstract import FileDescriptor
 from twisted.internet.protocol import Protocol, Factory
 
 from twext.python.log import Logger
-from twext.python.sendmsg import sendmsg, recvmsg
 from twext.python.sendfd import sendfd, recvfd
-from twext.python.sendmsg import getsockfam
 
 log = Logger()
 
@@ -94,7 +94,7 @@ class _SubprocessSocket(FileDescriptor, object):
     A socket in the master process pointing at a file descriptor that can be
     used to transmit sockets to a subprocess.
 
-    @ivar outSocket: the UNIX socket used as the sendmsg() transport.
+    @ivar outSocket: the UNIX socket used as the send1msg() transport.
     @type outSocket: L{socket.socket}
 
     @ivar outgoingSocketQueue: an outgoing queue of sockets to send to the
@@ -104,10 +104,11 @@ class _SubprocessSocket(FileDescriptor, object):
     @ivar outgoingSocketQueue: a C{list} of 2-tuples of C{(socket-object,
         bytes)}
 
-    @ivar status: a record of the last status message received (via recvmsg)
-        from the subprocess: this is an application-specific indication of how
-        ready this subprocess is to receive more connections.  A typical usage
-        would be to count the open connections: this is what is passed to
+    @ivar status: a record of the last status message received (via
+        L{recv1msg}) from the subprocess: this is an application-specific
+        indication of how ready this subprocess is to receive more connections.
+        A typical usage would be to count the open connections: this is what is
+        passed to
     @type status: See L{IStatusWatcher} for an explanation of which methods
         determine this type.
 
@@ -134,12 +135,14 @@ class _SubprocessSocket(FileDescriptor, object):
         self.startWriting()
 
 
-    def doRead(self, recvmsg=recvmsg):
+    def doRead(self, recvmsg=recv1msg):
         """
         Receive a status / health message and record it.
         """
         try:
-            data, _ignore_flags, _ignore_ancillary = recvmsg(self.outSocket.fileno())
+            data, _ignore_flags, _ignore_ancillary = recvmsg(
+                self.outSocket.fileno()
+            )
         except SocketError, se:
             if se.errno not in (EAGAIN, ENOBUFS):
                 raise
@@ -198,7 +201,7 @@ class IStatusWatcher(Interface):
         than the somewhat more abstract language that would be accurate.
     """
 
-    def initialStatus(): #@NoSelf
+    def initialStatus():
         """
         A new socket was created and added to the dispatcher.  Compute an
         initial value for its status.
@@ -207,7 +210,7 @@ class IStatusWatcher(Interface):
         """
 
 
-    def newConnectionStatus(previousStatus): #@NoSelf
+    def newConnectionStatus(previousStatus):
         """
         A new connection was sent to a given socket.  Compute its status based
         on the previous status of that socket.
@@ -219,7 +222,7 @@ class IStatusWatcher(Interface):
         """
 
 
-    def statusFromMessage(previousStatus, message): #@NoSelf
+    def statusFromMessage(previousStatus, message):
         """
         A status message was received by a worker.  Convert the previous status
         value (returned from L{newConnectionStatus}, L{initialStatus}, or
@@ -233,7 +236,7 @@ class IStatusWatcher(Interface):
         """
 
 
-    def closeCountFromStatus(previousStatus): #@NoSelf
+    def closeCountFromStatus(previousStatus):
         """
         Based on a status previously returned from a method on this
         L{IStatusWatcher}, determine how many sockets may be closed.
@@ -332,7 +335,7 @@ class InheritedSocketDispatcher(object):
 
     def addSocket(self, socketpair=lambda: socketpair(AF_UNIX, SOCK_DGRAM)):
         """
-        Add a C{sendmsg()}-oriented AF_UNIX socket to the pool of sockets being
+        Add a L{send1msg}-oriented AF_UNIX socket to the pool of sockets being
         used for transmitting file descriptors to child processes.
 
         @return: a socket object for the receiving side; pass this object's
@@ -367,13 +370,13 @@ class InheritedPort(FileDescriptor, object):
     """
     An L{InheritedPort} is an L{IReadDescriptor}/L{IWriteDescriptor} created in
     the I{worker process} to handle incoming connections dispatched via
-    C{sendmsg}.
+    L{send1msg}.
     """
 
     def __init__(self, fd, transportFactory, protocolFactory):
         """
         @param fd: the file descriptor representing a UNIX socket connected to
-            a I{master process}.  We will call C{recvmsg} on this socket to
+            a I{master process}.  We will call L{recv1msg} on this socket to
             receive file descriptors.
         @type fd: C{int}
 
@@ -434,7 +437,7 @@ class InheritedPort(FileDescriptor, object):
         while self.statusQueue:
             msg = self.statusQueue.pop(0)
             try:
-                sendmsg(self.fd, msg, 0)
+                send1msg(self.fd, msg, 0)
             except SocketError, se:
                 if se.errno in (EAGAIN, ENOBUFS):
                     self.statusQueue.insert(0, msg)
