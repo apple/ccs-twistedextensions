@@ -24,8 +24,10 @@ from twisted.internet import reactor
 from twisted.python.log import Logger
 
 try:
-    from select import (kevent, KQ_FILTER_VNODE, KQ_EV_ADD, KQ_EV_ENABLE,
-                        KQ_EV_CLEAR, KQ_NOTE_DELETE, KQ_NOTE_RENAME, KQ_EV_EOF)
+    from select import (
+        kevent, KQ_FILTER_VNODE, KQ_EV_ADD, KQ_EV_ENABLE,
+        KQ_EV_CLEAR, KQ_NOTE_DELETE, KQ_NOTE_RENAME, KQ_EV_EOF
+    )
     kqueueSupported = True
 except ImportError:
     # kqueue not supported on this platform
@@ -37,22 +39,22 @@ class IDirectoryChangeListenee(Interface):
     A delegate of DirectoryChangeListener
     """
 
-    def disconnected(): #@NoSelf
+    def disconnected():
         """
         The directory has been unmounted
         """
 
-    def deleted(): #@NoSelf
+    def deleted():
         """
         The directory has been deleted
         """
 
-    def renamed(): #@NoSelf
+    def renamed():
         """
         The directory has been renamed
         """
 
-    def connectionLost(reason): #@NoSelf
+    def connectionLost(reason):
         """
         The file descriptor has been closed
         """
@@ -65,10 +67,12 @@ if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
     def patchReactor(reactor):
         # Wrap _doWriteOrRead to support KQ_FILTER_VNODE
         origDoWriteOrRead = reactor._doWriteOrRead
+
         def _doWriteOrReadOrVNodeEvent(selectable, fd, event):
             origDoWriteOrRead(selectable, fd, event)
             if event.filter == KQ_FILTER_VNODE:
                 selectable.vnodeEventHappened(event)
+
         reactor._doWriteOrRead = _doWriteOrReadOrVNodeEvent
 
     patchReactor(reactor)
@@ -138,8 +142,10 @@ else:
         def __init__(self, reactor, dirname, listenee):
             """
             @param reactor: the reactor
-            @param dirname: the full path to the directory to watch
-            @param listenee: 
+            @param dirname: the full path to the directory to watch; it must
+                already exist
+            @param listenee: the delegate to call
+            @type listenee: IDirectoryChangeListenee
             """
             self._reactor = reactor
             self._fd = os.open(dirname, os.O_RDONLY)
@@ -166,4 +172,3 @@ else:
         def connectionLost(self, reason):
             os.close(self._fd)
             self._listenee.connectionLost(reason)
-
