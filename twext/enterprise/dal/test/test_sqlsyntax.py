@@ -18,8 +18,15 @@
 Tests for L{twext.enterprise.dal.syntax}
 """
 
+from twisted.internet.defer import succeed
+from twisted.trial.unittest import TestCase, SkipTest
+
 from twext.enterprise.dal import syntax
-from twext.enterprise.dal.parseschema import addSQLToSchema
+try:
+    from twext.enterprise.dal.parseschema import addSQLToSchema
+except ImportError:
+    def addSQLToSchema(*args, **kwargs):
+        raise SkipTest("addSQLToSchema is not available")
 from twext.enterprise.dal.syntax import (
     Select, Insert, Update, Delete, Lock, SQLFragment,
     TableMismatch, Parameter, Max, Len, NotEnoughValues,
@@ -38,8 +45,6 @@ from twext.enterprise.ienterprise import (
 from twext.enterprise.test.test_adbapi2 import ConnectionPoolHelper
 from twext.enterprise.test.test_adbapi2 import NetworkedPoolHelper
 from twext.enterprise.test.test_adbapi2 import resultOf, AssertResultHelper
-from twisted.internet.defer import succeed
-from twisted.trial.unittest import TestCase
 from twext.enterprise.dal.syntax import Tuple
 from twext.enterprise.dal.syntax import Constant
 
