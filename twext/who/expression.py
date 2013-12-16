@@ -78,6 +78,9 @@ class MatchType(Names):
     startsWith = NamedConstant()
     startsWith.description = u"starts with"
 
+    endsWith = NamedConstant()
+    startsWith.description = u"ends with"
+
     contains = NamedConstant()
     contains.description = u"contains"
 
@@ -184,6 +187,10 @@ class MatchExpression(object):
         fieldName, fieldValue,
         matchType=MatchType.equals, flags=None
     ):
+        if flags is None:
+            # Gross way to get a FlagsConstant with no flags in it:
+            flags = MatchFlags.NOT & MatchFlags.caseInsensitive
+
         self.fieldName = fieldName
         self.fieldValue = fieldValue
         self.matchType = matchType

@@ -107,10 +107,10 @@ class RecordType(Names):
     """
     Constants for common directory record types.
     """
-    user  = NamedConstant()
-    group = NamedConstant()
-
+    user = NamedConstant()
     user.description  = u"user"
+
+    group = NamedConstant()
     group.description = u"group"
 
 
