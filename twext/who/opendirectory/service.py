@@ -1,4 +1,4 @@
-# -*- test-case-name: twext.who.test.test_util -*-
+# -*- test-case-name: twext.who.opendirectory.test.test_service -*-
 ##
 # Copyright (c) 2013 Apple Inc. All rights reserved.
 #
@@ -328,6 +328,87 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
+    def _queryStringFromExpression(self, expression):
+        """
+        Converts either a MatchExpression or a CompoundExpression into a native
+        OpenDirectory query string.
+
+        @param expression: The expression
+        @type expression: Either L{MatchExpression} or L{CompoundExpression}
+
+        @return: A native OpenDirectory query string
+        @rtype: C{unicode}
+        """
+
+        if isinstance(expression, MatchExpression):
+            matchType = ODMatchType.fromMatchType(expression.matchType)
+            if matchType is None:
+                raise QueryNotSupportedError(
+                    "Unknown match type: {0}".format(matchType)
+                )
+            odAttr = ODAttribute.fromFieldName(expression.fieldName).value
+            queryString = {
+                ODMatchType.equals.value      : u"(%s=%s)",
+                ODMatchType.startsWith.value  : u"(%s=%s*)",
+                ODMatchType.endsWith.value    : u"(%s=*%s)",
+                ODMatchType.contains.value    : u"(%s=*%s*)",
+                ODMatchType.lessThan.value    : u"(%s<%s)",
+                ODMatchType.greaterThan.value : u"(%s>%s)",
+            }.get(matchType.value, u"(%s=*%s*)") % (odAttr, expression.fieldValue,)
+
+        elif isinstance(expression, CompoundExpression):
+            queryString = u""
+            operand = u"&" if expression.operand is Operand.AND else u"|"
+            if len(expression.expressions) > 1:
+                queryString += u"("
+                queryString += operand
+            for subExpression in expression.expressions:
+                queryString += self._queryStringFromExpression(subExpression)
+            if len(expression.expressions) > 1:
+                queryString += u")"
+
+        return queryString
+
+
+    def _queryFromCompoundExpression(self, expression):
+        """
+        Form an OpenDirectory query from a compound expression.
+
+        @param expression: The compound expression.
+        @type expression: L{CompoundExpression}
+
+        @return: A native OpenDirectory query.
+        @rtype: L{ODQuery}
+        """
+
+        queryString = self._queryStringFromExpression(expression)
+
+        recordTypes = [t.value for t in ODRecordType.iterconstants()]
+        attributes = [a.value for a in ODAttribute.iterconstants()]
+        maxResults = 0
+
+        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+            self.node,
+            recordTypes,
+            None,
+            0x210B, # kODMatchCompoundExpression
+            queryString,
+            attributes,
+            maxResults,
+            None
+        )
+
+        if error:
+            self.log.error(
+                "Error while forming OpenDirectory query: {error}",
+                error=error
+            )
+            raise OpenDirectoryQueryError(error)
+
+        return query
+
+
+
     def _queryFromMatchExpression(self, expression):
         """
         Form an OpenDirectory query from a match expression.
@@ -447,6 +528,7 @@ class DirectoryService(BaseDirectoryService):
         @return: The records produced by executing the query.
         @rtype: iterable of L{DirectoryRecord}
         """
+
         odRecords, error = query.resultsAllowingPartial_error_(False, None)
 
         if error:
@@ -460,12 +542,11 @@ class DirectoryService(BaseDirectoryService):
             yield self._adaptODRecord(odRecord)
 
 
-    def recordsFromMatchExpression(self, expression):
-        """
-        Find records matching a match expression.
 
+    def recordsFromExpression(self, expression):
+        """
         @param expression: an expression to apply
-        @type expression: L{MatchExpression}
+        @type expression: L{MatchExpression} or L{CompoundExpression}
 
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
@@ -473,16 +554,15 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{QueryNotSupportedError} if the expression is not
             supported by this directory service.
         """
-        query = self._queryFromMatchExpression(expression)
-        return self._recordsFromQuery(query)
 
-
-    def recordsFromExpression(self, expression):
         try:
             if isinstance(expression, CompoundExpression):
-                raise NotImplementedError(Operand)
+                query = self._queryFromCompoundExpression(expression)
+                return self._recordsFromQuery(query)
+
             elif isinstance(expression, MatchExpression):
-                return self.recordsFromMatchExpression(expression)
+                query = self._queryFromMatchExpression(expression)
+                return self._recordsFromQuery(query)
 
         except QueryNotSupportedError:
             pass
