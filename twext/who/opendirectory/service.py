@@ -29,7 +29,7 @@ __all__ = [
 
 from itertools import chain
 
-import odframework
+from odframework import ODSession, ODNode, ODQuery
 
 from twext.python.log import Logger
 from twisted.python.constants import Names, NamedConstant
@@ -309,9 +309,9 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{OpenDirectoryConnectionError} if unable to connect.
         """
         if not hasattr(self, "_session"):
-            session = odframework.ODSession.defaultSession()
+            session = ODSession.defaultSession()
 
-            node, error = odframework.ODNode.nodeWithSession_name_error_(
+            node, error = ODNode.nodeWithSession_name_error_(
                 session, self.nodeName, None
             )
 
@@ -328,6 +328,15 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _queryFromMatchExpression(self, expression):
+        """
+        Form an OpenDirectory query from a match expression.
+
+        @param expression: The match expression.
+        @type expression: L{MatchExpression}
+
+        @return: A native OpenDirectory query.
+        @rtype: L{ODQuery}
+        """
         if not isinstance(expression, MatchExpression):
             raise TypeError(expression)
 
@@ -350,7 +359,7 @@ class DirectoryService(BaseDirectoryService):
             attributes = [a.value for a in ODAttribute.iterconstants()]
             maxResults = 0
 
-        query, error = odframework.ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
             recordTypes,
             ODAttribute.fromFieldName(expression.fieldName).value,
@@ -372,6 +381,16 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _adaptODRecord(self, odRecord):
+        """
+        Adapt a native OpenDirectory record to a L{DirectoryRecord}.
+
+        @param odRecord: A native OpenDirectory record.
+        @type odRecord: L{ODRecord}
+
+        @return: A directory record with the fields matching the attributes of
+            C{odRecord}.
+        @rtype: L{DirectoryRecord}
+        """
         details, error = odRecord.recordDetailsForAttributes_error_(None, None)
 
         if error:
@@ -418,6 +437,15 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _recordsFromQuery(self, query):
+        """
+        Executes a query and generates directory records from it.
+
+        @param query: A query.
+        @type query: L{ODQuery}
+
+        @return: The records produced by executing the query.
+        @rtype: iterable of L{DirectoryRecord}
+        """
         odRecords, error = query.resultsAllowingPartial_error_(False, None)
 
         if error:
@@ -432,31 +460,35 @@ class DirectoryService(BaseDirectoryService):
 
 
     def recordsFromMatchExpression(self, expression):
+        """
+        Find records matching a match expression.
+
+        @param expression: an expression to apply
+        @type expression: L{MatchExpression}
+
+        @return: The matching records.
+        @rtype: deferred iterable of L{IDirectoryRecord}s
+
+        @raises: L{QueryNotSupportedError} if the expression is not
+            supported by this directory service.
+        """
         query = self._queryFromMatchExpression(expression)
         return self._recordsFromQuery(query)
 
 
     def recordsFromExpression(self, expression):
-        """
-        This implementation can handle L{MatchExpression} expressions; other
-        expressions are passed up to the superclass.
-        """
-        if isinstance(expression, CompoundExpression):
-            raise NotImplementedError(Operand)
-
-        elif isinstance(expression, MatchExpression):
-            try:
+        try:
+            if isinstance(expression, CompoundExpression):
+                raise NotImplementedError(Operand)
+            elif isinstance(expression, MatchExpression):
                 return self.recordsFromMatchExpression(expression)
-            except QueryNotSupportedError:
-                return BaseDirectoryService.recordsFromExpression(
-                    self, expression
-                )
 
-        else:
-            return BaseDirectoryService.recordsFromExpression(
-                self, expression
-            )
+        except QueryNotSupportedError:
+            pass
 
+        return BaseDirectoryService.recordsFromExpression(
+            self, expression
+        )
 
 
 
