@@ -79,7 +79,7 @@ class MatchType(Names):
     startsWith.description = u"starts with"
 
     endsWith = NamedConstant()
-    startsWith.description = u"ends with"
+    endsWith.description = u"ends with"
 
     contains = NamedConstant()
     contains.description = u"contains"
@@ -213,7 +213,7 @@ class MatchExpression(object):
         def describe(constant):
             return getattr(constant, "description", unicode(constant))
 
-        if self.flags is None:
+        if self.flags.value == 0:
             flags = ""
         else:
             flags = " ({0})".format(describe(self.flags))
