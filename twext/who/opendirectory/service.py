@@ -197,6 +197,8 @@ class ODMatchType(Values):
     greaterThanOrEqualTo = ValueConstant(0x2008)
     greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
 
+    compound = ValueConstant(0x210B)
+    compound.matchType = MatchType.compound
 
     @classmethod
     def fromMatchType(cls, matchType):
@@ -391,7 +393,7 @@ class DirectoryService(BaseDirectoryService):
             self.node,
             recordTypes,
             None,
-            0x210B, # kODMatchCompoundExpression
+            ODMatchType.compound.value,
             queryString,
             attributes,
             maxResults,
@@ -615,10 +617,36 @@ if __name__ == "__main__":
     )
 
     for shortName in sys.argv:
-        matchMorgen = MatchExpression(
+        print("=" * 80)
+        matchExpression = MatchExpression(
             service.fieldName.shortNames, shortName,
             matchType=MatchType.equals,
         )
-        for record in service.recordsFromExpression(matchMorgen):
+        queryString = service._queryStringFromExpression(matchExpression)
+        print("{name} via MatchExpression using query {query}".format(
+            name=shortName, query=queryString))
+        for record in service.recordsFromExpression(matchExpression):
+            print("*" * 80)
+            print(record.description())
+
+        print("=" * 80)
+
+        compoundExpression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.shortNames, shortName,
+                    matchType=MatchType.contains
+                ),
+                MatchExpression(
+                    service.fieldName.emailAddresses, shortName,
+                    matchType=MatchType.contains
+                ),
+            ],
+            Operand.OR
+        ) 
+        queryString = service._queryStringFromExpression(compoundExpression)
+        print("{name} via CompoundExpression using query {query}".format(
+            name=shortName, query=queryString))
+        for record in service.recordsFromExpression(compoundExpression):
             print("*" * 80)
             print(record.description())
