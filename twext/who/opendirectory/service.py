@@ -46,7 +46,6 @@ from twext.who.expression import CompoundExpression, Operand
 from twext.who.expression import MatchExpression, MatchType, MatchFlags
 from twext.who.util import iterFlags, ConstantsContainer
 
-import dsattributes
 from opendirectory import (
     ODError, odInit,
     getNodeAttributes,
@@ -71,25 +70,39 @@ class OpenDirectoryError(DirectoryServiceError):
 #
 
 class FieldName(Names):
+    searchPath = NamedConstant()
+    searchPath.description = "search path"
+    searchPath.multiValue = False
+
     metaNodeLocation = NamedConstant()
     metaNodeLocation.description = "source OD node"
     metaNodeLocation.multiValue = False
 
+    metaRecordName = NamedConstant()
+    metaRecordName.description = "meta record name"
+    metaRecordName.multiValue = False
+
 
 #
-# Constants
+# OD Constants
 #
+
+class ODSearchPath(Values):
+    local = ValueConstant("/Local/Default")
+    search = ValueConstant("/Search")
+
+
 
 class ODRecordType(Values):
-    user = ValueConstant(dsattributes.kDSStdRecordTypeUsers)
+    user = ValueConstant("dsRecTypeStandard:Users")
     user.recordType = BaseRecordType.user
 
-    group = ValueConstant(dsattributes.kDSStdRecordTypeGroups)
+    group = ValueConstant("dsRecTypeStandard:Groups")
     group.recordType = BaseRecordType.group
 
 
     @classmethod
-    def recordTypeForRecordType(cls, recordType):
+    def fromRecordType(cls, recordType):
         if not hasattr(cls, "_recordTypeByRecordType"):
             cls._recordTypeByRecordType = dict((
                 (recordType.recordType, recordType)
@@ -101,30 +114,38 @@ class ODRecordType(Values):
 
 
 class ODAttribute(Values):
-    recordType = ValueConstant(dsattributes.kDSNAttrRecordType)
+    searchPath = ValueConstant("dsAttrTypeStandard:SearchPath")
+    searchPath.fieldName = FieldName.searchPath
+
+    recordType = ValueConstant("dsAttrTypeStandard:RecordType")
     recordType.fieldName = BaseFieldName.recordType
 
-    uid = ValueConstant(dsattributes.kDS1AttrGeneratedUID)
+    uid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
     uid.fieldName = BaseFieldName.uid
 
-    guid = ValueConstant(dsattributes.kDS1AttrGeneratedUID)
+    guid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
     guid.fieldName = BaseFieldName.guid
 
-    shortName = ValueConstant(dsattributes.kDSNAttrRecordName)
+    shortName = ValueConstant("dsAttrTypeStandard:RecordName")
     shortName.fieldName = BaseFieldName.shortNames
 
-    fullName = ValueConstant(dsattributes.kDS1AttrDistinguishedName)
+    fullName = ValueConstant("dsAttrTypeStandard:RealName")
     fullName.fieldName = BaseFieldName.fullNames
 
-    emailAddress = ValueConstant(dsattributes.kDSNAttrEMailAddress)
+    emailAddress = ValueConstant("dsAttrTypeStandard:EMailAddress")
     emailAddress.fieldName = BaseFieldName.emailAddresses
 
-    metaNodeLocation = ValueConstant(dsattributes.kDSNAttrMetaNodeLocation)
+    metaNodeLocation = ValueConstant(
+        "dsAttrTypeStandard:AppleMetaNodeLocation"
+    )
     metaNodeLocation.fieldName = FieldName.metaNodeLocation
+
+    metaRecordName = ValueConstant("dsAttrTypeStandard:AppleMetaRecordName")
+    metaRecordName.fieldName = FieldName.metaRecordName
 
 
     @classmethod
-    def attributeForFieldName(cls, fieldName):
+    def fromFieldName(cls, fieldName):
         if not hasattr(cls, "_attributesByFieldName"):
             cls._attributesByFieldName = dict((
                 (attribute.fieldName, attribute)
@@ -137,21 +158,34 @@ class ODAttribute(Values):
 
 
 class ODMatchType(Values):
-    equals = ValueConstant(dsattributes.eDSExact)
+    equals = ValueConstant(0x2001)
     equals.matchType = MatchType.equals
 
-    startsWith = ValueConstant(dsattributes.eDSStartsWith)
+    startsWith = ValueConstant(0x2002)
     startsWith.matchType = MatchType.startsWith
 
-    endsWith = ValueConstant(dsattributes.eDSEndsWith)
+    endsWith = ValueConstant(0x2003)
     endsWith.matchType = MatchType.endsWith
 
-    contains = ValueConstant(dsattributes.eDSContains)
+    contains = ValueConstant(0x2004)
     contains.matchType = MatchType.contains
+
+    lessThan = ValueConstant(0x2005)
+    lessThan.matchType = MatchType.lessThan
+
+    greaterThan = ValueConstant(0x2006)
+    greaterThan.matchType = MatchType.greaterThan
+
+    lessThanOrEqualTo = ValueConstant(0x2007)
+    lessThanOrEqualTo.matchType = MatchType.lessThanOrEqualTo
+
+    greaterThanOrEqualTo = ValueConstant(0x2008)
+    greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
+
 
 
     @classmethod
-    def matchTypeForMatchType(cls, matchType):
+    def fromMatchType(cls, matchType):
         if not hasattr(cls, "_matchTypeByMatchType"):
             cls._matchTypeByMatchType = dict((
                 (matchType.matchType, matchType)
@@ -178,7 +212,7 @@ class DirectoryService(BaseDirectoryService):
     ))
 
 
-    def __init__(self, nodeName="/Search"):
+    def __init__(self, nodeName=ODSearchPath.search.value):
         """
         @param nodeName: the OpenDirectory node to query against.
         @type nodeName: bytes
@@ -222,17 +256,17 @@ class DirectoryService(BaseDirectoryService):
         it specially.
         """
         if not hasattr(self, "_localNode"):
-            if self.nodeName == "/Search":
+            if self.nodeName == ODSearchPath.search.value:
                 result = getNodeAttributes(
-                    self.node, "/Search",
-                    (dsattributes.kDS1AttrSearchPath,)
+                    self.node, ODSearchPath.search.value,
+                    (ODAttribute.searchPath.value,)
                 )
                 if (
-                    "/Local/Default" in
-                    result[dsattributes.kDS1AttrSearchPath]
+                    ODSearchPath.local.value in
+                    result[ODAttribute.searchPath.value]
                 ):
                     try:
-                        self._localNode = odInit("/Local/Default")
+                        self._localNode = odInit(ODSearchPath.local.value)
                     except ODError, e:
                         self.log.error(
                             "Failed to open local node: {error}}",
@@ -242,7 +276,7 @@ class DirectoryService(BaseDirectoryService):
                 else:
                     self._localNode = None
 
-            elif self.nodeName == "/Local/Default":
+            elif self.nodeName == ODSearchPath.local.value:
                 self._localNode = self.node
 
             else:
@@ -255,7 +289,7 @@ class DirectoryService(BaseDirectoryService):
         if not isinstance(expression, MatchExpression):
             raise TypeError(expression)
 
-        matchType = ODMatchType.matchTypeForMatchType(expression.matchType)
+        matchType = ODMatchType.fromMatchType(expression.matchType)
         if matchType is None:
             raise QueryNotSupportedError(
                 "Unknown match type: {0}".format(matchType)
@@ -270,7 +304,7 @@ class DirectoryService(BaseDirectoryService):
         else:
             results = queryRecordsWithAttribute_list(
                 self.node,
-                ODAttribute.attributeForFieldName(expression.fieldName).value,
+                ODAttribute.fromFieldName(expression.fieldName).value,
                 expression.fieldValue.encode("utf-8"),
                 matchType.value,
                 caseInsensitive,
@@ -297,8 +331,8 @@ class DirectoryService(BaseDirectoryService):
             fields = {}
 
             for (key, value) in attributes.iteritems():
-                if key == "dsAttrTypeStandard:AppleMetaRecordName":
-                    # We get this even though we did not ask for it...
+                if key == FieldName.metaRecordName:
+                    # We get this field even though we did not ask for it...
                     continue
 
                 try:

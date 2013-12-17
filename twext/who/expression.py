@@ -84,6 +84,18 @@ class MatchType(Names):
     contains = NamedConstant()
     contains.description = u"contains"
 
+    lessThan = NamedConstant()
+    lessThan.description = u"less than"
+
+    greaterThan = NamedConstant()
+    greaterThan.description = u"greater than"
+
+    lessThanOrEqualTo = NamedConstant()
+    lessThanOrEqualTo.description = u"less than or equal to"
+
+    greaterThanOrEqualTo = NamedConstant()
+    greaterThanOrEqualTo.description = u"greater than or equal to"
+
 
 
 class MatchFlags(Flags):
