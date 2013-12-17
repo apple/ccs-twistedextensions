@@ -183,7 +183,6 @@ class ODMatchType(Values):
     greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
 
 
-
     @classmethod
     def fromMatchType(cls, matchType):
         if not hasattr(cls, "_matchTypeByMatchType"):
