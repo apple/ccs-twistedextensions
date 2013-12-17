@@ -29,6 +29,8 @@ __all__ = [
 
 from itertools import chain
 
+import odframework
+
 from twext.python.log import Logger
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.constants import Values, ValueConstant
@@ -46,12 +48,6 @@ from twext.who.expression import CompoundExpression, Operand
 from twext.who.expression import MatchExpression, MatchType, MatchFlags
 from twext.who.util import iterFlags, ConstantsContainer
 
-from opendirectory import (
-    ODError, odInit,
-    getNodeAttributes,
-    queryRecordsWithAttribute_list,
-)
-
 
 
 #
@@ -61,6 +57,24 @@ from opendirectory import (
 class OpenDirectoryError(DirectoryServiceError):
     """
     OpenDirectory error.
+    """
+
+    def __init__(self, message, odError):
+        super(DirectoryService, self).__init__(message)
+        self.odError = odError
+
+
+
+class OpenDirectoryConnectionError(OpenDirectoryError):
+    """
+    OpenDirectory connection error.
+    """
+
+
+
+class OpenDirectoryQueryError(OpenDirectoryError):
+    """
+    OpenDirectory query error.
     """
 
 
@@ -195,6 +209,11 @@ class ODMatchType(Values):
 
 
 
+class ODMatchFlags(Values):
+    caseInsensitive = ValueConstant(0x100)
+
+
+
 #
 # Directory Service
 #
@@ -230,61 +249,85 @@ class DirectoryService(BaseDirectoryService):
 
 
     @property
+    def session(self):
+        """
+        Get the underlying directory session.
+        """
+        self._connect()
+        return self._session
+
+
+    @property
     def node(self):
         """
         Get the underlying (network) directory node.
         """
-        if not hasattr(self, "_node"):
-            try:
-                self._node = odInit(self.nodeName)
-            except ODError, e:
-                self.log.error(
-                    "OpenDirectory initialization error"
-                    "(node={source.nodeName}): {error}",
-                    error=e
-                )
-                raise OpenDirectoryError(e)
-
+        self._connect()
         return self._node
 
 
-    @property
-    def localNode(self):
+    # @property
+    # def localNode(self):
+    #     """
+    #     Get the local node from the search path (if any), so that we can handle
+    #     it specially.
+    #     """
+    #     if not hasattr(self, "_localNode"):
+    #         if self.nodeName == ODSearchPath.search.value:
+    #             result = getNodeAttributes(
+    #                 self.node, ODSearchPath.search.value,
+    #                 (ODAttribute.searchPath.value,)
+    #             )
+    #             if (
+    #                 ODSearchPath.local.value in
+    #                 result[ODAttribute.searchPath.value]
+    #             ):
+    #                 try:
+    #                     self._localNode = odInit(ODSearchPath.local.value)
+    #                 except ODError, e:
+    #                     self.log.error(
+    #                         "Failed to open local node: {error}}",
+    #                         error=e,
+    #                     )
+    #                     raise OpenDirectoryError(e)
+    #             else:
+    #                 self._localNode = None
+
+    #         elif self.nodeName == ODSearchPath.local.value:
+    #             self._localNode = self.node
+
+    #         else:
+    #             self._localNode = None
+
+    #     return self._localNode
+
+
+    def _connect(self):
         """
-        Get the local node from the search path (if any), so that we can handle
-        it specially.
+        Connect to the directory server.
+
+        @raises: L{OpenDirectoryConnectionError} if unable to connect.
         """
-        if not hasattr(self, "_localNode"):
-            if self.nodeName == ODSearchPath.search.value:
-                result = getNodeAttributes(
-                    self.node, ODSearchPath.search.value,
-                    (ODAttribute.searchPath.value,)
+        if not hasattr(self, "_session"):
+            session = odframework.ODSession.defaultSession()
+
+            node, error = odframework.ODNode.nodeWithSession_name_error_(
+                session, self.nodeName, None
+            )
+
+            if error:
+                self.log.error(
+                    "Error while trying to connect to OpenDirectory node "
+                    "{source.nodeName!r}: {error}",
+                    error=error
                 )
-                if (
-                    ODSearchPath.local.value in
-                    result[ODAttribute.searchPath.value]
-                ):
-                    try:
-                        self._localNode = odInit(ODSearchPath.local.value)
-                    except ODError, e:
-                        self.log.error(
-                            "Failed to open local node: {error}}",
-                            error=e,
-                        )
-                        raise OpenDirectoryError(e)
-                else:
-                    self._localNode = None
+                raise OpenDirectoryConnectionError(error)
 
-            elif self.nodeName == ODSearchPath.local.value:
-                self._localNode = self.node
-
-            else:
-                self._localNode = None
-
-        return self._localNode
+            self._session = session
+            self._node = node
 
 
-    def recordsFromMatchExpression(self, expression):
+    def _queryFromMatchExpression(self, expression):
         if not isinstance(expression, MatchExpression):
             raise TypeError(expression)
 
@@ -294,90 +337,103 @@ class DirectoryService(BaseDirectoryService):
                 "Unknown match type: {0}".format(matchType)
             )
 
-        caseInsensitive = (
-            MatchFlags.caseInsensitive in iterFlags(expression.flags)
-        )
+        if MatchFlags.caseInsensitive in iterFlags(expression.flags):
+            caseInsensitive = 0x100
+        else:
+            caseInsensitive = 0x0
 
         if expression.fieldName is self.fieldName.recordType:
             raise NotImplementedError()
+
         else:
-            results = queryRecordsWithAttribute_list(
-                self.node,
-                ODAttribute.fromFieldName(expression.fieldName).value,
-                expression.fieldValue.encode("utf-8"),
-                matchType.value,
-                caseInsensitive,
-                [
-                    recordType.value
-                    for recordType in ODRecordType.iterconstants()
-                ],
-                [attr.value for attr in ODAttribute.iterconstants()],
+            recordTypes = [t.value for t in ODRecordType.iterconstants()]
+            attributes = [a.value for a in ODAttribute.iterconstants()]
+            maxResults = 0
+
+        query, error = odframework.ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+            self.node,
+            recordTypes,
+            ODAttribute.fromFieldName(expression.fieldName).value,
+            matchType.value | caseInsensitive,
+            expression.fieldValue,
+            attributes,
+            maxResults,
+            None
+        )
+
+        if error:
+            self.log.error(
+                "Error while forming OpenDirectory query: {error}",
+                error=error
             )
+            raise OpenDirectoryQueryError(error)
 
-        # def uniqueTupleFromAttribute(self, attribute):
-        #     if attribute:
-        #         if isinstance(attribute, bytes):
-        #             return (attribute,)
-        #         else:
-        #             s = set()
-        #             return tuple((
-        #                 (s.add(x), x)[1] for x in attribute if x not in s
-        #             ))
-        #     else:
-        #         return ()
-
-        for (shortName, attributes) in results:
-            fields = {}
-
-            for (key, value) in attributes.iteritems():
-                if key == FieldName.metaRecordName:
-                    # We get this field even though we did not ask for it...
-                    continue
-
-                try:
-                    attribute = ODAttribute.lookupByValue(key)
-                except ValueError:
-                    self.log.debug(
-                        "Got back unexpected attribute {attribute} "
-                        "for record with short name {shortName}",
-                        attribute=key, shortName=shortName
-                    )
-                    continue
-                fieldName = attribute.fieldName
-
-                try:
-                    if BaseFieldName.isMultiValue(fieldName):
-                        if type(value) is bytes:
-                            value = (value,)
-                        elif type(value) is not list:
-                            raise TypeError()
-
-                        fields[fieldName] = tuple(
-                            x.decode("utf-8") for x in value
-                        )
-
-                    else:
-                        if type(value) is list:
-                            assert len(value) == 1
-                            value = value[0]
-                        elif type(value) is not bytes:
-                            raise TypeError()
-
-                        if fieldName is self.fieldName.recordType:
-                            fields[fieldName] = ODRecordType.lookupByValue(
-                                value
-                            ).recordType
-                        else:
-                            fields[fieldName] = value.decode("utf-8")
-
-                except TypeError:
-                    raise AssertionError(
-                        "Unexpected type {0} for attribute {1}"
-                        .format(type(value), fieldName)
-                    )
+        return query
 
 
-            yield DirectoryRecord(self, fields)
+    def _adaptODRecord(self, odRecord):
+        details, error = odRecord.recordDetailsForAttributes_error_(None, None)
+
+        if error:
+            self.log.error(
+                "Error while reading OpenDirectory record: {error}",
+                error=error
+            )
+            raise OpenDirectoryQueryError(error)
+
+        fields = {}
+        for name, values in details.iteritems():
+            if name == ODAttribute.metaRecordName.value:
+                # We get this field even though we did not ask for it...
+                continue
+
+            try:
+                attribute = ODAttribute.lookupByValue(name)
+            except ValueError:
+                self.log.debug(
+                    "Unexpected OpenDirectory record attribute: {attribute}",
+                    attribute=name
+                )
+                continue
+            fieldName = attribute.fieldName
+
+            if type(values) is bytes:
+                values = (unicode(values),)
+            else:
+                values = [unicode(v) for v in values]
+
+            if BaseFieldName.isMultiValue(fieldName):
+                fields[fieldName] = values
+            else:
+                assert len(values) == 1
+
+                if fieldName is self.fieldName.recordType:
+                    fields[fieldName] = ODRecordType.lookupByValue(
+                        values[0]
+                    ).recordType
+                else:
+                    fields[fieldName] = values[0]
+
+        return DirectoryRecord(self, fields)
+
+
+    def _recordsFromQuery(self, query):
+        odRecords, error = query.resultsAllowingPartial_error_(False, None)
+
+        if error:
+            self.log.error(
+                "Error while executing OpenDirectory query: {error}",
+                error=error
+            )
+            raise OpenDirectoryQueryError(error)
+
+        for odRecord in odRecords:
+            yield self._adaptODRecord(odRecord)
+
+
+    def recordsFromMatchExpression(self, expression):
+        query = self._queryFromMatchExpression(expression)
+        return self._recordsFromQuery(query)
 
 
     def recordsFromExpression(self, expression):
@@ -434,18 +490,22 @@ class DirectoryRecord(BaseDirectoryRecord):
 
 
 if __name__ == "__main__":
+    import sys
+
     service = DirectoryService()
     print(
         "Service = {service}\n"
+        "Session = {service.session}\n"
         "Node = {service.node}\n"
-        "Local node = {service.localNode}\n"
+        # "Local node = {service.localNode}\n"
         .format(service=service)
     )
 
-    matchMorgen = MatchExpression(
-        service.fieldName.shortNames, u"sagen",
-        matchType=MatchType.equals,
-    )
-    for record in service.recordsFromExpression(matchMorgen):
-        print("*" * 80)
-        print(record.description())
+    for shortName in sys.argv:
+        matchMorgen = MatchExpression(
+            service.fieldName.shortNames, shortName,
+            matchType=MatchType.equals,
+        )
+        for record in service.recordsFromExpression(matchMorgen):
+            print("*" * 80)
+            print(record.description())
