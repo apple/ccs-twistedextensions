@@ -27,12 +27,13 @@ __all__ = [
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
 
-from twext.who.util import ConstantsContainer
-from twext.who.util import uniqueResult
-from twext.who.idirectory import FieldName as BaseFieldName
-from twext.who.expression import MatchExpression, MatchType, MatchFlags
-from twext.who.directory import DirectoryService as BaseDirectoryService
-from twext.who.directory import DirectoryRecord as BaseDirectoryRecord
+from .util import ConstantsContainer, uniqueResult
+from .idirectory import FieldName as BaseFieldName
+from .expression import MatchExpression, MatchType, MatchFlags
+from .directory import (
+    DirectoryService as BaseDirectoryService,
+    DirectoryRecord as BaseDirectoryRecord,
+)
 
 
 

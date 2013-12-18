@@ -28,11 +28,11 @@ from itertools import chain
 
 from twisted.internet.defer import gatherResults, FirstError
 
-from twext.who.idirectory import DirectoryConfigurationError
-from twext.who.idirectory import IDirectoryService
-from twext.who.directory import DirectoryService as BaseDirectoryService
-from twext.who.directory import DirectoryRecord
-from twext.who.util import ConstantsContainer
+from .idirectory import DirectoryConfigurationError, IDirectoryService
+from .directory import (
+    DirectoryService as BaseDirectoryService, DirectoryRecord
+)
+from .util import ConstantsContainer
 
 
 class DirectoryService(BaseDirectoryService):

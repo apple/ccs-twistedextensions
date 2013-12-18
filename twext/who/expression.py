@@ -28,10 +28,11 @@ __all__ = [
     "MatchExpression",
 ]
 
-from twisted.python.constants import Names, NamedConstant
-from twisted.python.constants import Flags, FlagConstant
+from twisted.python.constants import (
+    Names, NamedConstant, Flags, FlagConstant,
+)
 
-from twext.who.util import iterFlags, describe
+from .util import iterFlags, describe
 
 
 #

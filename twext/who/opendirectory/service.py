@@ -25,22 +25,23 @@ from itertools import chain
 
 from odframework import ODSession, ODNode, ODQuery
 
-from twext.python.log import Logger
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.constants import Values, ValueConstant
 
-from twext.who.idirectory import (
+from twext.python.log import Logger
+
+from ..idirectory import (
     DirectoryServiceError, QueryNotSupportedError,
-    FieldName as BaseFieldName,
-    RecordType as BaseRecordType,
+    FieldName as BaseFieldName, RecordType as BaseRecordType,
 )
-from twext.who.directory import (
+from ..directory import (
     DirectoryService as BaseDirectoryService,
     DirectoryRecord as BaseDirectoryRecord,
 )
-from twext.who.expression import CompoundExpression, Operand
-from twext.who.expression import MatchExpression, MatchType, MatchFlags
-from twext.who.util import iterFlags, ConstantsContainer
+from ..expression import (
+    CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags,
+)
+from ..util import iterFlags, ConstantsContainer
 
 
 

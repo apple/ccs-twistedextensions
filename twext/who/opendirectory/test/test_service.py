@@ -19,10 +19,11 @@ OpenDirectory service tests.
 """
 
 from twisted.trial import unittest
-from twext.who.opendirectory import DirectoryService
-from twext.who.expression import (
+
+from ...expression import (
     CompoundExpression, MatchExpression, MatchType, Operand
 )
+from ..service import DirectoryService
 
 
 

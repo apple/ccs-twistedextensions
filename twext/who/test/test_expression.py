@@ -20,8 +20,8 @@ Directory service expression tests.
 
 from twisted.trial import unittest
 
-from twext.who.idirectory import FieldName
-from twext.who.expression import MatchExpression, MatchType, MatchFlags
+from ..idirectory import FieldName
+from ..expression import MatchExpression, MatchType, MatchFlags
 
 
 

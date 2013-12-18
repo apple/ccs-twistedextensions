@@ -26,12 +26,13 @@ from twisted.trial import unittest
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 
-from twext.who.idirectory import NoSuchRecordError
-from twext.who.expression import CompoundExpression, Operand
-from twext.who.expression import MatchExpression, MatchType, MatchFlags
-from twext.who.xml import ParseError
-from twext.who.xml import DirectoryService, DirectoryRecord
-from twext.who.test import test_index
+from ..idirectory import NoSuchRecordError
+from ..expression import (
+    CompoundExpression, Operand,
+    MatchExpression, MatchType, MatchFlags
+)
+from ..xml import ParseError, DirectoryService, DirectoryRecord
+from . import test_index
 
 
 

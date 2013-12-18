@@ -21,13 +21,12 @@ Aggregate directory service tests.
 from twisted.python.components import proxyForInterface
 from twisted.trial import unittest
 
-from twext.who.idirectory import IDirectoryService, DirectoryConfigurationError
-from twext.who.aggregate import DirectoryService, DirectoryRecord
-from twext.who.util import ConstantsContainer
-from twext.who.test import test_directory, test_xml
-from twext.who.test.test_xml import (
-    QueryMixIn, xmlService,
-    TestService as XMLTestService,
+from ..idirectory import IDirectoryService, DirectoryConfigurationError
+from ..aggregate import DirectoryService, DirectoryRecord
+from ..util import ConstantsContainer
+from . import test_directory, test_xml
+from .test_xml import (
+    QueryMixIn, xmlService, TestService as XMLTestService,
     DirectoryServiceConvenienceTestMixIn
 )
 

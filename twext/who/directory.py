@@ -29,12 +29,13 @@ from zope.interface import implementer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.defer import succeed, fail
 
-from twext.who.idirectory import QueryNotSupportedError, NotAllowedError
-from twext.who.idirectory import FieldName, RecordType
-from twext.who.idirectory import IDirectoryService, IDirectoryRecord
-from twext.who.expression import CompoundExpression, Operand
-from twext.who.expression import MatchExpression
-from twext.who.util import uniqueResult, describe
+from .idirectory import (
+    QueryNotSupportedError, NotAllowedError,
+    FieldName, RecordType,
+    IDirectoryService, IDirectoryRecord,
+)
+from .expression import CompoundExpression, Operand, MatchExpression
+from .util import uniqueResult, describe
 
 
 

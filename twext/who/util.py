@@ -26,10 +26,11 @@ __all__ = [
     "iterFlags",
 ]
 
-from twisted.python.constants import Names, Values, Flags
-from twisted.python.constants import NamedConstant, ValueConstant, FlagConstant
+from twisted.python.constants import (
+    Names, Values, Flags, NamedConstant, ValueConstant, FlagConstant,
+)
 
-from twext.who.idirectory import DirectoryServiceError
+from .idirectory import DirectoryServiceError
 
 
 

@@ -28,11 +28,13 @@ from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.defer import succeed
 
-from twext.who.idirectory import QueryNotSupportedError, NotAllowedError
-from twext.who.idirectory import RecordType, FieldName
-from twext.who.idirectory import IDirectoryService, IDirectoryRecord
-from twext.who.expression import CompoundExpression, Operand
-from twext.who.directory import DirectoryService, DirectoryRecord
+from ..idirectory import (
+    QueryNotSupportedError, NotAllowedError,
+    RecordType, FieldName,
+    IDirectoryService, IDirectoryRecord,
+)
+from ..expression import CompoundExpression, Operand
+from ..directory import DirectoryService, DirectoryRecord
 
 
 

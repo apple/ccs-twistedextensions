@@ -21,12 +21,11 @@ Indexed directory service base implementation tests.
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks, returnValue
 
-from twext.who.idirectory import FieldName as BaseFieldName
-from twext.who.idirectory import QueryNotSupportedError
-from twext.who.expression import MatchExpression, MatchType
-from twext.who.index import DirectoryService, DirectoryRecord
-from twext.who.test import test_directory
-from twext.who.test.test_directory import RecordStorage
+from ..idirectory import FieldName as BaseFieldName, QueryNotSupportedError
+from ..expression import MatchExpression, MatchType
+from ..index import DirectoryService, DirectoryRecord
+from . import test_directory
+from .test_directory import RecordStorage
 
 
 

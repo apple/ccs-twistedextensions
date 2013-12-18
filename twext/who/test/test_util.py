@@ -21,12 +21,12 @@ Directory service utility tests.
 from itertools import chain
 
 from twisted.trial import unittest
-from twisted.python.constants import Names, NamedConstant
-from twisted.python.constants import Flags, FlagConstant
+from twisted.python.constants import (
+    Names, NamedConstant, Flags, FlagConstant,
+)
 
-from twext.who.idirectory import DirectoryServiceError
-from twext.who.util import ConstantsContainer
-from twext.who.util import uniqueResult, describe
+from ..idirectory import DirectoryServiceError
+from ..util import ConstantsContainer, uniqueResult, describe
 
 
 

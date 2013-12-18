@@ -30,20 +30,23 @@ __all__ = [
 from time import time
 from uuid import UUID
 
-from xml.etree.ElementTree import parse as parseXML
-from xml.etree.ElementTree import ParseError as XMLParseError
-from xml.etree.ElementTree import tostring as etreeToString
-from xml.etree.ElementTree import Element as XMLElement
+from xml.etree.ElementTree import (
+    parse as parseXML, ParseError as XMLParseError,
+    tostring as etreeToString, Element as XMLElement,
+)
 
 from twisted.python.constants import Values, ValueConstant
 from twisted.internet.defer import fail
 
-from twext.who.idirectory import DirectoryServiceError
-from twext.who.idirectory import NoSuchRecordError, UnknownRecordTypeError
-from twext.who.idirectory import RecordType, FieldName as BaseFieldName
-from twext.who.index import DirectoryService as BaseDirectoryService
-from twext.who.index import DirectoryRecord
-from twext.who.index import FieldName as IndexFieldName
+from .idirectory import (
+    DirectoryServiceError,
+    NoSuchRecordError, UnknownRecordTypeError,
+    RecordType, FieldName as BaseFieldName,
+)
+from .index import (
+    DirectoryService as BaseDirectoryService,
+    DirectoryRecord, FieldName as IndexFieldName,
+)
 
 
 
