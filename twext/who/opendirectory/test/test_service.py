@@ -33,7 +33,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     Tests for L{DirectoryService}.
     """
 
-    def test_queryFromExpression(self):
+    def test_queryStringFromExpression(self):
         service = DirectoryService()
         expression = MatchExpression(
             service.fieldName.shortNames, u"xyzzy",
