@@ -194,6 +194,7 @@ class ODMatchType(Values):
     compound = ValueConstant(0x210B)
     compound.matchType = MatchType.compound
 
+
     @classmethod
     def fromMatchType(cls, matchType):
         if not hasattr(cls, "_matchTypeByMatchType"):

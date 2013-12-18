@@ -87,7 +87,7 @@ class DirectoryService(object):
     """
 
     recordType = RecordType
-    fieldName  = FieldName
+    fieldName = FieldName
 
     normalizedFields = {
         FieldName.emailAddresses: lambda e: bytes(e).lower(),

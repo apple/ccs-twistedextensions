@@ -119,7 +119,7 @@ class FieldName(Names):
     """
     Constants for common directory record field names.
 
-    Fields as assciated with either a single value or an iterable of values.
+    Fields as associated with either a single value or an iterable of values.
 
     @cvar uid: The primary unique identifier for a directory record.
         The associated value must be a L{unicode}.

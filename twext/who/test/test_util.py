@@ -18,6 +18,8 @@
 Directory service utility tests.
 """
 
+from itertools import chain
+
 from twisted.trial import unittest
 from twisted.python.constants import Names, NamedConstant
 from twisted.python.constants import Flags, FlagConstant
@@ -35,6 +37,11 @@ class Tools(Names):
     hammer.description = u"nail pounder"
     screwdriver.description = u"screw twister"
 
+
+class MoreTools(Names):
+    saw = NamedConstant()
+
+    saw.description = u"z maker"
 
 
 class Instruments(Names):
@@ -57,14 +64,66 @@ class Switches(Flags):
 
 
 class ConstantsContainerTest(unittest.TestCase):
-    def test_conflict(self):
-        constants = set((Tools.hammer, Instruments.hammer))
-        self.assertRaises(ValueError, ConstantsContainer, constants)
+    """
+    Tests for L{ConstantsContainer}.
+    """
+
+    def test_constants_from_constants(self):
+        """
+        Initialize a container from some constants.
+        """
+        constants = set((Tools.hammer, Tools.screwdriver, Instruments.chisel))
+        self.assertEquals(
+            set(ConstantsContainer(constants).iterconstants()),
+            constants,
+        )
+
+
+    def test_constants_from_containers(self):
+        """
+        Initialize a container from other containers.
+        """
+        self.assertEquals(
+            set(ConstantsContainer((Tools, MoreTools)).iterconstants()),
+            set(chain(Tools.iterconstants(), MoreTools.iterconstants())),
+        )
+
+
+    def test_constants_from_iterables(self):
+        """
+        Initialize a container from iterables of constants.
+        """
+        self.assertEquals(
+            set(
+                ConstantsContainer((
+                    Tools.iterconstants(), MoreTools.iterconstants()
+                )).iterconstants()
+            ),
+            set(chain(Tools.iterconstants(), MoreTools.iterconstants())),
+        )
+
+
+    def test_conflictingClasses(self):
+        """
+        A container can't contain two constants with the same name.
+        """
+        self.assertRaises(TypeError, ConstantsContainer, (Tools, Switches))
+
+
+    def test_conflictingNames(self):
+        """
+        A container can't contain two constants with the same name.
+        """
+        self.assertRaises(ValueError, ConstantsContainer, (Tools, Instruments))
 
 
     def test_attrs(self):
-        constants = set((Tools.hammer, Tools.screwdriver, Instruments.chisel))
-        container = ConstantsContainer(constants)
+        """
+        Constants are assessible via attributes.
+        """
+        container = ConstantsContainer((
+            Tools.hammer, Tools.screwdriver, Instruments.chisel
+        ))
 
         self.assertEquals(container.hammer, Tools.hammer)
         self.assertEquals(container.screwdriver, Tools.screwdriver)
@@ -73,6 +132,10 @@ class ConstantsContainerTest(unittest.TestCase):
 
 
     def test_iterconstants(self):
+        """
+        L{ConstantsContainer.iterconstants}C{()} produces the contained
+        constants.
+        """
         constants = set((Tools.hammer, Tools.screwdriver, Instruments.chisel))
         container = ConstantsContainer(constants)
 
@@ -81,7 +144,11 @@ class ConstantsContainerTest(unittest.TestCase):
             constants,
         )
 
+
     def test_lookupByName(self):
+        """
+        Constants are assessible via L{ConstantsContainer.lookupByName}.
+        """
         constants = set((
             Instruments.hammer,
             Tools.screwdriver,
@@ -110,13 +177,19 @@ class ConstantsContainerTest(unittest.TestCase):
 
 
 class UtilTest(unittest.TestCase):
+    """
+    Miscellaneous tests.
+    """
+
     def test_uniqueResult(self):
         self.assertEquals(1, uniqueResult((1,)))
         self.assertRaises(DirectoryServiceError, uniqueResult, (1, 2, 3))
 
+
     def test_describe(self):
         self.assertEquals(u"nail pounder", describe(Tools.hammer))
         self.assertEquals(u"hammer", describe(Instruments.hammer))
+
 
     def test_describeFlags(self):
         self.assertEquals(u"blue", describe(Switches.b))

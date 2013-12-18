@@ -24,8 +24,6 @@ __all__ = [
     "DirectoryRecord",
 ]
 
-from itertools import chain
-
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
 
@@ -142,9 +140,8 @@ class DirectoryService(BaseDirectoryService):
         which are indexed.
     """
 
-    fieldName = ConstantsContainer(chain(
-        BaseDirectoryService.fieldName.iterconstants(),
-        FieldName.iterconstants()
+    fieldName = ConstantsContainer((
+        BaseDirectoryService.fieldName, FieldName
     ))
 
     indexedFields = (

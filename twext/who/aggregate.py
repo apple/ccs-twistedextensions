@@ -71,10 +71,10 @@ class DirectoryService(BaseDirectoryService):
     @property
     def recordType(self):
         if not hasattr(self, "_recordType"):
-            self._recordType = ConstantsContainer(chain(*tuple(
+            self._recordType = ConstantsContainer(tuple(
                 s.recordTypes()
                 for s in self.services
-            )))
+            ))
         return self._recordType
 
 

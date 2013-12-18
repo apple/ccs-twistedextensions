@@ -26,7 +26,8 @@ __all__ = [
     "iterFlags",
 ]
 
-from twisted.python.constants import FlagConstant
+from twisted.python.constants import Names, Values, Flags
+from twisted.python.constants import NamedConstant, ValueConstant, FlagConstant
 
 from twext.who.idirectory import DirectoryServiceError
 
@@ -36,14 +37,45 @@ class ConstantsContainer(object):
     """
     A container for constants.
     """
-    def __init__(self, constants):
-        myConstants = {}
-        for constant in constants:
-            if constant.name in myConstants:
-                raise ValueError("Name conflict: {0}".format(constant.name))
-            myConstants[constant.name] = constant
+    def __init__(self, sources):
+        self._constants = {}
 
-        self._constants = myConstants
+        for source in sources:
+            if type(source) is type:
+                if issubclass(
+                    source, (ConstantsContainer, Names, Values, Flags)
+                ):
+                    self._addConstants(source.iterconstants())
+                else:
+                    raise TypeError(
+                        "Unknown constants type: {0}".format(source)
+                    )
+
+            elif isinstance(
+                source, (NamedConstant, ValueConstant, FlagConstant)
+            ):
+                self._addConstants((source,))
+
+            else:
+                self._addConstants(source)
+
+
+    def _addConstants(self, constants):
+        for constant in constants:
+            if hasattr(self, "_constantsClass"):
+                if constant.__class__ != self._constantsClass:
+                    raise TypeError(
+                        "Can't mix constants classes in the "
+                        "same constants container: {0} != {1}"
+                        .format(constant.__class__, self._constantsClass)
+                    )
+            else:
+                self._constantsClass = constant.__class__
+
+            if constant.name in self._constants:
+                raise ValueError("Name conflict: {0}".format(constant.name))
+
+            self._constants[constant.name] = constant
 
 
     def __getattr__(self, name):
