@@ -14,9 +14,23 @@
 # limitations under the License.
 ##
 
+from __future__ import print_function
+
 """
-This module is the shared preamble for all calendarserver shell commands to set
-up their environment properly.  It's explicitly not installed along with the
-code, and is used only to initialize the environment for a development checkout
-of the code.
+This module is the shared preamble for all twext shell commands, to
+set up their environment properly.  It's explicitly not installed
+along with the code, and is used only to initialize the environment
+for a development checkout of the code.
 """
+
+import sys
+from os.path import dirname
+
+bindir = dirname(__file__)
+srcroot = dirname(bindir)
+
+sys.path.insert(0, srcroot)
+
+# print("PYTHONPATH:")
+# for path in sys.path:
+#     print("  ", path)
