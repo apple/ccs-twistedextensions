@@ -14,10 +14,19 @@
 # limitations under the License.
 ##
 
+"""
+OpenDirectory directory service.
+"""
+
 __all__ = [
+    "OpenDirectoryError",
+    "OpenDirectoryConnectionError",
+    "OpenDirectoryQueryError",
     "DirectoryService",
     "DirectoryRecord",
 ]
 
 
+from .service import OpenDirectoryError
+from .service import OpenDirectoryConnectionError, OpenDirectoryQueryError
 from .service import DirectoryService, DirectoryRecord

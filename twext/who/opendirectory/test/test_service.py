@@ -26,8 +26,6 @@ from twext.who.expression import (
 
 
 
-
-
 class OpenDirectoryServiceTestCase(unittest.TestCase):
     """
     Tests for L{DirectoryService}.
@@ -49,8 +47,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 matchType=matchType
             )
             queryString = service._queryStringFromExpression(expression)
-            self.assertEquals(queryString,
-                u"(dsAttrTypeStandard:RecordName{exp})".format(exp=expected))
+            self.assertEquals(
+                queryString,
+                u"(dsAttrTypeStandard:RecordName{exp})".format(exp=expected)
+            )
 
         # CompoundExpressions
 
@@ -78,14 +78,17 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 ),
             ],
             Operand.AND
-        ) 
+        )
         queryString = service._queryStringFromExpression(expression)
-        self.assertEquals(queryString,
-            u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
-             "(dsAttrTypeStandard:GeneratedUID=*b*)"
-             "(dsAttrTypeStandard:RecordName=*c*)"
-             "(dsAttrTypeStandard:EMailAddress=d*)"
-             "(dsAttrTypeStandard:RealName=e))"
+        self.assertEquals(
+            queryString,
+            (
+                u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
+                u"(dsAttrTypeStandard:GeneratedUID=*b*)"
+                u"(dsAttrTypeStandard:RecordName=*c*)"
+                u"(dsAttrTypeStandard:EMailAddress=d*)"
+                u"(dsAttrTypeStandard:RealName=e))"
+            )
         )
 
         expression = CompoundExpression(
@@ -104,10 +107,13 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 ),
             ],
             Operand.OR
-        ) 
+        )
         queryString = service._queryStringFromExpression(expression)
-        self.assertEquals(queryString,
-            u"(|(dsAttrTypeStandard:RecordName=*a*)"
-             "(dsAttrTypeStandard:EMailAddress=b*)"
-             "(dsAttrTypeStandard:RealName=c))"
+        self.assertEquals(
+            queryString,
+            (
+                u"(|(dsAttrTypeStandard:RecordName=*a*)"
+                u"(dsAttrTypeStandard:EMailAddress=b*)"
+                u"(dsAttrTypeStandard:RealName=c))"
+            )
         )

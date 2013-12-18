@@ -21,12 +21,6 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
-__all__ = [
-    "OpenDirectoryError",
-    "DirectoryService",
-    "DirectoryRecord",
-]
-
 from itertools import chain
 
 from odframework import ODSession, ODNode, ODQuery
@@ -350,13 +344,16 @@ class DirectoryService(BaseDirectoryService):
                 )
             odAttr = ODAttribute.fromFieldName(expression.fieldName).value
             queryString = {
-                ODMatchType.equals.value      : u"(%s=%s)",
-                ODMatchType.startsWith.value  : u"(%s=%s*)",
-                ODMatchType.endsWith.value    : u"(%s=*%s)",
-                ODMatchType.contains.value    : u"(%s=*%s*)",
-                ODMatchType.lessThan.value    : u"(%s<%s)",
-                ODMatchType.greaterThan.value : u"(%s>%s)",
-            }.get(matchType.value, u"(%s=*%s*)") % (odAttr, expression.fieldValue,)
+                ODMatchType.equals.value: u"({attr}={value})",
+                ODMatchType.startsWith.value: u"({attr}={value}*)",
+                ODMatchType.endsWith.value: u"({attr}=*{value})",
+                ODMatchType.contains.value: u"({attr}=*{value}*)",
+                ODMatchType.lessThan.value: u"({attr}<{value})",
+                ODMatchType.greaterThan.value: u"({attr}>{value})",
+            }.get(matchType.value, u"({attr}=*{value}*)").format(
+                attr=odAttr,
+                value=expression.fieldValue
+            )
 
         elif isinstance(expression, CompoundExpression):
             queryString = u""
@@ -615,21 +612,24 @@ if __name__ == "__main__":
         # "Local node = {service.localNode}\n"
         .format(service=service)
     )
+    print("-" * 80)
 
-    for shortName in sys.argv:
-        print("=" * 80)
+    for shortName in sys.argv[1:]:
+        print("Looking up short name: {0}".format(shortName))
+
         matchExpression = MatchExpression(
             service.fieldName.shortNames, shortName,
             matchType=MatchType.equals,
         )
         queryString = service._queryStringFromExpression(matchExpression)
-        print("{name} via MatchExpression using query {query}".format(
-            name=shortName, query=queryString))
-        for record in service.recordsFromExpression(matchExpression):
-            print("*" * 80)
-            print(record.description())
+        print(
+            "\n...via MatchExpression, query={query!r}"
+            .format(query=queryString)
+        )
+        print()
 
-        print("=" * 80)
+        for record in service.recordsFromExpression(matchExpression):
+            print(record.description())
 
         compoundExpression = CompoundExpression(
             [
@@ -643,10 +643,14 @@ if __name__ == "__main__":
                 ),
             ],
             Operand.OR
-        ) 
+        )
         queryString = service._queryStringFromExpression(compoundExpression)
-        print("{name} via CompoundExpression using query {query}".format(
-            name=shortName, query=queryString))
+        print(
+            "\n...via CompoundExpression, query={query!r}"
+            .format(query=queryString)
+        )
+        print()
+
         for record in service.recordsFromExpression(compoundExpression):
-            print("*" * 80)
             print(record.description())
+            print()
