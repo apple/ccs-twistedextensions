@@ -21,8 +21,6 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
-from itertools import chain
-
 from odframework import ODSession, ODNode, ODQuery
 
 from twisted.python.constants import Names, NamedConstant
@@ -237,10 +235,11 @@ class DirectoryService(BaseDirectoryService):
 
     log = Logger()
 
-    fieldName = ConstantsContainer(chain(
-        BaseDirectoryService.fieldName.iterconstants(),
-        FieldName.iterconstants()
+    recordType = ConstantsContainer((
+        BaseRecordType.user, BaseRecordType.group,
     ))
+
+    fieldName = ConstantsContainer((BaseDirectoryService.fieldName, FieldName))
 
 
 
@@ -283,8 +282,8 @@ class DirectoryService(BaseDirectoryService):
     # @property
     # def localNode(self):
     #     """
-    #     Get the local node from the search path (if any), so that we can handle
-    #     it specially.
+    #     Get the local node from the search path (if any), so that we can
+    #     handle it specially.
     #     """
     #     if not hasattr(self, "_localNode"):
     #         if self.nodeName == ODSearchPath.search.value:
