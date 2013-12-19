@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 
-from .service import (
+from ._service import (
     OpenDirectoryError, OpenDirectoryConnectionError, OpenDirectoryQueryError,
     OpenDirectoryDataError,
     DirectoryService, DirectoryRecord,

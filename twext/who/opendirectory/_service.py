@@ -21,8 +21,6 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
-from odframework import ODSession, ODNode, ODQuery
-
 from zope.interface import implements
 
 from twisted.python.constants import (
@@ -50,6 +48,8 @@ from ..expression import (
     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags,
 )
 from ..util import iterFlags, ConstantsContainer
+
+from ._odframework import ODSession, ODNode, ODQuery
 
 
 
