@@ -17,6 +17,14 @@
 
 import md5
 import sha
+from getpass import getpass
+
+from twext.who.opendirectory.service import DirectoryService
+
+from twisted.cred.credentials import UsernamePassword, DigestedCredentials
+from twisted.cred.error import UnauthorizedLogin 
+from twisted.internet.defer import inlineCallbacks
+
 
 algorithms = {
     'md5': md5.new,
@@ -113,3 +121,72 @@ def calcResponse(
     m.update(HA2)
     respHash = m.digest().encode('hex')
     return respHash
+
+
+@inlineCallbacks
+def testAuth(service, username, password):
+
+    # Authenticate using simple password
+
+    creds = UsernamePassword(username, password)
+    try:
+        id = yield service.requestAvatarId(creds)
+        print("OK via UsernamePassword, avatarID: {id}".format(id=id))
+        print("   {name}".format(name=id.fullNames))
+    except UnauthorizedLogin:
+        print("Via UsernamePassword, could not authenticate")
+
+    print()
+
+    # Authenticate using Digest
+
+    algorithm = "md5" # "md5-sess"
+    cnonce    = "/rrD6TqPA3lHRmg+fw/vyU6oWoQgzK7h9yWrsCmv/lE="
+    entity    = "00000000000000000000000000000000"
+    method    = "GET"
+    nc        = "00000001"
+    nonce     = "128446648710842461101646794502"
+    qop       = None
+    realm     = "host.example.com"
+    uri       = "http://host.example.com"
+
+    responseHash = calcResponse(
+        calcHA1(
+            algorithm.lower(), username, realm, password, nonce, cnonce
+        ),
+        algorithm.lower(), nonce, nc, cnonce, qop, method, uri, entity
+    )
+
+    response = (
+        'Digest username="{username}", uri="{uri}", response={hash}'.format(
+            username=username, uri=uri, hash=responseHash
+        )
+    )
+
+    fields = {
+        "realm" : realm,
+        "nonce" : nonce,
+        "response" : response,
+        "algorithm" : algorithm,
+    }
+
+    creds = DigestedCredentials(username, method, realm, fields)
+
+    try:
+        id = yield service.requestAvatarId(creds)
+        print("OK via DigestedCredentials, avatarID: {id}".format(id=id))
+        print("   {name}".format(name=id.fullNames))
+    except UnauthorizedLogin:
+        print("Via DigestedCredentials, could not authenticate")
+
+
+
+if __name__ == "__main__":
+
+    service = DirectoryService()
+
+    username = raw_input("Username: ")
+    if username:
+        password = getpass()
+        if password:
+            testAuth(service, username, password)

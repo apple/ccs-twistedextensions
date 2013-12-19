@@ -48,13 +48,10 @@ from twisted.cred.credentials import IUsernamePassword, IUsernameHashedPassword
 from twisted.cred.error import UnauthorizedLogin 
 
 from zope.interface import implements
-from twisted.internet.defer import inlineCallbacks, returnValue, succeed, fail
+from twisted.internet.defer import succeed, fail
 from twisted.web.guard import DigestCredentialFactory
 from twisted.cred.credentials import UsernamePassword, DigestedCredentials
 
-# For testing:
-from digest import calcResponse, calcHA1
-from getpass import getpass
 
 #
 # Exceptions
@@ -760,70 +757,3 @@ if __name__ == "__main__":
         for record in service.recordsFromExpression(compoundExpression):
             print(record.description())
             print()
-
-
-    @inlineCallbacks
-    def testAuth(username, password):
-
-        # Authenticate using simple password
-
-        creds = UsernamePassword(username, password)
-        try:
-            id = yield service.requestAvatarId(creds)
-            print("OK via UsernamePassword, avatarID: {id}".format(id=id))
-            print("   {name}".format(name=id.fullNames))
-        except UnauthorizedLogin:
-            print("Via UsernamePassword, could not authenticate")
-
-        print()
-
-        # Authenticate using Digest
-
-        algorithm = "md5" # "md5-sess"
-        cnonce    = "/rrD6TqPA3lHRmg+fw/vyU6oWoQgzK7h9yWrsCmv/lE="
-        entity    = "00000000000000000000000000000000"
-        method    = "GET"
-        nc        = "00000001"
-        nonce     = "128446648710842461101646794502"
-        qop       = None
-        realm     = "host.example.com"
-        uri       = "http://host.example.com"
-
-        responseHash = calcResponse(
-            calcHA1(
-                algorithm.lower(), username, realm, password, nonce, cnonce
-            ),
-            algorithm.lower(), nonce, nc, cnonce, qop, method, uri, entity
-        )
-
-        response = (
-            'Digest username="{username}", uri="{uri}", response={hash}'.format(
-                username=username, uri=uri, hash=responseHash
-            )
-        )
-
-        fields = {
-            "realm" : realm,
-            "nonce" : nonce,
-            "response" : response,
-            "algorithm" : algorithm,
-        }
-
-        creds = DigestedCredentials(username, method, realm, fields)
-
-        try:
-            id = yield service.requestAvatarId(creds)
-            print("OK via DigestedCredentials, avatarID: {id}".format(id=id))
-            print("   {name}".format(name=id.fullNames))
-        except UnauthorizedLogin:
-            print("Via DigestedCredentials, could not authenticate")
-
-    # Conditionally run testAuth()
-
-    response = raw_input("Test authentication (y/n)? ")
-    if response == "y":
-        username = raw_input("Username: ")
-        if username:
-            password = getpass()
-            if password:
-                testAuth(username, password)
