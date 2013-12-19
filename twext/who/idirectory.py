@@ -106,6 +106,16 @@ class NotAllowedError(DirectoryServiceError):
 class RecordType(Names):
     """
     Constants for common directory record types.
+
+    @cvar user: User record.
+        Represents a person.
+
+    @cvar group: Group record.
+        Represents a record that contains (references) other records (members).
+
+    @cvar group: Resource record.
+        Represents a non-person not covered by another record type (eg. a
+        projector).
     """
     user = NamedConstant()
     user.description  = u"user"
@@ -143,27 +153,30 @@ class FieldName(Names):
     @cvar password: The clear text password for a directory record.
         The associated value must be a L{unicode} or C{None}.
     """
-    uid            = NamedConstant()
-    guid           = NamedConstant()
-    recordType     = NamedConstant()
-    shortNames     = NamedConstant()
-    fullNames      = NamedConstant()
-    emailAddresses = NamedConstant()
-    password       = NamedConstant()
+    uid = NamedConstant()
+    uid.description = u"UID"
 
-    uid.description            = u"UID"
-    guid.description           = u"GUID"
-    recordType.description     = u"record type"
-    shortNames.description     = u"short names"
-    fullNames.description      = u"full names"
-    emailAddresses.description = u"email addresses"
-    password.description       = u"password"
-
+    guid = NamedConstant()
+    guid.description = u"GUID"
     guid.valueType = UUID
 
-    shortNames.multiValue     = True
-    fullNames.multiValue      = True
+    recordType = NamedConstant()
+    recordType.description = u"record type"
+
+    shortNames = NamedConstant()
+    shortNames.description = u"short names"
+    shortNames.multiValue = True
+
+    fullNames = NamedConstant()
+    fullNames.description = u"full names"
+    fullNames.multiValue = True
+
+    emailAddresses = NamedConstant()
+    emailAddresses.description = u"email addresses"
     emailAddresses.multiValue = True
+
+    password = NamedConstant()
+    password.description = u"password"
 
 
     @staticmethod
