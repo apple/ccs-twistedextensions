@@ -23,8 +23,18 @@ OpenDirectory directory service implementation.
 
 from odframework import ODSession, ODNode, ODQuery
 
-from twisted.python.constants import Names, NamedConstant
-from twisted.python.constants import Values, ValueConstant
+from zope.interface import implements
+
+from twisted.python.constants import (
+    Names, NamedConstant, Values, ValueConstant,
+)
+from twisted.internet.defer import succeed, fail
+from twisted.cred.checkers import ICredentialsChecker
+from twisted.cred.credentials import (
+    IUsernamePassword, IUsernameHashedPassword, DigestedCredentials,
+)
+from twisted.cred.error import UnauthorizedLogin
+# from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
 
@@ -40,16 +50,6 @@ from ..expression import (
     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags,
 )
 from ..util import iterFlags, ConstantsContainer
-
-from twisted.cred.checkers import ICredentialsChecker
-from twisted.cred.credentials import IUsernamePassword, IUsernameHashedPassword
-from twisted.cred.error import UnauthorizedLogin
-
-from zope.interface import implements
-from twisted.internet.defer import succeed, fail
-from twisted.web.guard import DigestCredentialFactory
-from twisted.cred.credentials import DigestedCredentials
-
 
 
 
@@ -78,6 +78,12 @@ class OpenDirectoryConnectionError(OpenDirectoryError):
 class OpenDirectoryQueryError(OpenDirectoryError):
     """
     OpenDirectory query error.
+    """
+
+
+class OpenDirectoryDataError(OpenDirectoryError):
+    """
+    OpenDirectory data error.
     """
 
 
@@ -477,62 +483,6 @@ class DirectoryService(BaseDirectoryService):
         return query
 
 
-    def _adaptODRecord(self, odRecord):
-        """
-        Adapt a native OpenDirectory record to a L{DirectoryRecord}.
-
-        @param odRecord: A native OpenDirectory record.
-        @type odRecord: L{ODRecord}
-
-        @return: A directory record with the fields matching the attributes of
-            C{odRecord}.
-        @rtype: L{DirectoryRecord}
-        """
-        details, error = odRecord.recordDetailsForAttributes_error_(None, None)
-
-        if error:
-            self.log.error(
-                "Error while reading OpenDirectory record: {error}",
-                error=error
-            )
-            raise OpenDirectoryQueryError(error)
-
-        fields = {}
-        for name, values in details.iteritems():
-            if name == ODAttribute.metaRecordName.value:
-                # We get this field even though we did not ask for it...
-                continue
-
-            try:
-                attribute = ODAttribute.lookupByValue(name)
-            except ValueError:
-                self.log.debug(
-                    "Unexpected OpenDirectory record attribute: {attribute}",
-                    attribute=name
-                )
-                continue
-            fieldName = attribute.fieldName
-
-            if type(values) is bytes:
-                values = (unicode(values),)
-            else:
-                values = [unicode(v) for v in values]
-
-            if BaseFieldName.isMultiValue(fieldName):
-                fields[fieldName] = values
-            else:
-                assert len(values) == 1
-
-                if fieldName is self.fieldName.recordType:
-                    fields[fieldName] = ODRecordType.lookupByValue(
-                        values[0]
-                    ).recordType
-                else:
-                    fields[fieldName] = values[0]
-
-        return DirectoryRecord(self, fields)
-
-
     def _recordsFromQuery(self, query):
         """
         Executes a query and generates directory records from it.
@@ -554,7 +504,7 @@ class DirectoryService(BaseDirectoryService):
             raise OpenDirectoryQueryError(error)
 
         for odRecord in odRecords:
-            yield self._adaptODRecord(odRecord)
+            yield DirectoryRecord(self, odRecord)
 
 
 
@@ -573,11 +523,11 @@ class DirectoryService(BaseDirectoryService):
         try:
             if isinstance(expression, CompoundExpression):
                 query = self._queryFromCompoundExpression(expression)
-                return self._recordsFromQuery(query)
+                return succeed(self._recordsFromQuery(query))
 
             elif isinstance(expression, MatchExpression):
                 query = self._queryFromMatchExpression(expression)
-                return self._recordsFromQuery(query)
+                return succeed(self._recordsFromQuery(query))
 
         except QueryNotSupportedError:
             pass
@@ -620,13 +570,13 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{UnauthorizedLogin} if the credentials are not valid.
         """
 
-        record = self._getUserRecord(credentials.username)
+        odRecord = self._getUserRecord(credentials.username)
 
-        if record is None:
+        if odRecord is None:
             return fail(UnauthorizedLogin("No such user"))
 
         if IUsernamePassword.providedBy(credentials):
-            result, error = record.verifyPassword_error_(
+            result, error = odRecord.verifyPassword_error_(
                 credentials.password, None
             )
 
@@ -634,7 +584,7 @@ class DirectoryService(BaseDirectoryService):
                 return fail(UnauthorizedLogin(error))
 
             if result:
-                return succeed(self._adaptODRecord(record))
+                return succeed(DirectoryRecord(self, odRecord))
 
         elif isinstance(credentials, DigestedCredentials):
             try:
@@ -655,7 +605,7 @@ class DirectoryService(BaseDirectoryService):
                 )
                 return fail(UnauthorizedLogin("Invalid digest challenge"))
 
-            result, m1, m2, error = record.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
+            result, m1, m2, error = odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
                 "dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
                 [
                     credentials.username,
@@ -670,7 +620,7 @@ class DirectoryService(BaseDirectoryService):
                 return fail(UnauthorizedLogin(error))
 
             if result:
-                return succeed(self._adaptODRecord(record))
+                return succeed(DirectoryRecord(self, odRecord))
 
         else:
             return fail(UnauthorizedLogin(
@@ -680,15 +630,17 @@ class DirectoryService(BaseDirectoryService):
         return fail(UnauthorizedLogin("Unknown authorization failure"))
 
 
-class CustomDigestCredentialFactory(DigestCredentialFactory):
-    """
-    DigestCredentialFactory without qop, to interop with OD.
-    """
 
-    def getChallenge(self, address):
-        result = DigestCredentialFactory.getChallenge(self, address)
-        del result["qop"]
-        return result
+# class CustomDigestCredentialFactory(DigestCredentialFactory):
+#     """
+#     DigestCredentialFactory without qop, to interop with OD.
+#     """
+
+#     def getChallenge(self, address):
+#         result = DigestCredentialFactory.getChallenge(self, address)
+#         del result["qop"]
+#         return result
+
 
 
 class DirectoryRecord(BaseDirectoryRecord):
@@ -696,8 +648,56 @@ class DirectoryRecord(BaseDirectoryRecord):
     OpenDirectory directory record.
     """
 
-    def __init__(self, service, fields):
-         # Make sure that uid and guid are both set and equal
+    log = Logger()
+
+    # GUID is a required attribute for OD records.
+    requiredFields = BaseDirectoryRecord.requiredFields + (BaseFieldName.guid,)
+
+
+    def __init__(self, service, odRecord):
+        details, error = odRecord.recordDetailsForAttributes_error_(None, None)
+
+        if error:
+            self.log.error(
+                "Error while reading OpenDirectory record: {error}",
+                error=error
+            )
+            raise OpenDirectoryDataError(error)
+
+        fields = {}
+        for name, values in details.iteritems():
+            if name == ODAttribute.metaRecordName.value:
+                # We get this field even though we did not ask for it...
+                continue
+
+            try:
+                attribute = ODAttribute.lookupByValue(name)
+            except ValueError:
+                self.log.debug(
+                    "Unexpected OpenDirectory record attribute: {attribute}",
+                    attribute=name
+                )
+                continue
+            fieldName = attribute.fieldName
+
+            if type(values) is bytes:
+                values = (unicode(values),)
+            else:
+                values = [unicode(v) for v in values]
+
+            if BaseFieldName.isMultiValue(fieldName):
+                fields[fieldName] = values
+            else:
+                assert len(values) == 1
+
+                if fieldName is service.fieldName.recordType:
+                    fields[fieldName] = ODRecordType.lookupByValue(
+                        values[0]
+                    ).recordType
+                else:
+                    fields[fieldName] = values[0]
+
+        # Make sure that uid and guid are both set and equal
         uid = fields.get(service.fieldName.uid, None)
         guid = fields.get(service.fieldName.guid, None)
 
@@ -713,11 +713,7 @@ class DirectoryRecord(BaseDirectoryRecord):
             fields[service.fieldName.guid] = uid
 
         super(DirectoryRecord, self).__init__(service, fields)
-
-
-    requiredFields = BaseDirectoryRecord.requiredFields + (BaseFieldName.guid,)
-
-
+        self._odRecord = odRecord
 
 
 

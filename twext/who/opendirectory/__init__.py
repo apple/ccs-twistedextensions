@@ -22,11 +22,14 @@ __all__ = [
     "OpenDirectoryError",
     "OpenDirectoryConnectionError",
     "OpenDirectoryQueryError",
+    "OpenDirectoryDataError",
     "DirectoryService",
     "DirectoryRecord",
 ]
 
 
-from .service import OpenDirectoryError
-from .service import OpenDirectoryConnectionError, OpenDirectoryQueryError
-from .service import DirectoryService, DirectoryRecord
+from .service import (
+    OpenDirectoryError, OpenDirectoryConnectionError, OpenDirectoryQueryError,
+    OpenDirectoryDataError,
+    DirectoryService, DirectoryRecord,
+)
