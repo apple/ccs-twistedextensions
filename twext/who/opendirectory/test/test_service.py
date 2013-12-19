@@ -23,7 +23,7 @@ from twisted.trial import unittest
 from ...expression import (
     CompoundExpression, MatchExpression, MatchType, Operand
 )
-from ..service import DirectoryService
+from .._service import DirectoryService
 
 
 
