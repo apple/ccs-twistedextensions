@@ -622,48 +622,62 @@ class DirectoryService(BaseDirectoryService):
 
         record = self._getUserRecord(credentials.username)
 
-        if record is not None:
+        if record is None:
+            return fail(UnauthorizedLogin("No such user"))
 
-            if IUsernamePassword.providedBy(credentials):
-                result, error = record.verifyPassword_error_(
-                    credentials.password, None
+        if IUsernamePassword.providedBy(credentials):
+            result, error = record.verifyPassword_error_(
+                credentials.password, None
+            )
+
+            if error:
+                return fail(UnauthorizedLogin(error))
+
+            if result:
+                return succeed(self._adaptODRecord(record))
+
+        elif isinstance(credentials, DigestedCredentials):
+            try:
+                credentials.fields.setdefault("algorithm", "md5")
+                challenge = (
+                    'Digest realm="{realm}", nonce="{nonce}", '
+                    'algorithm={algorithm}'
+                    .format(**credentials.fields)
                 )
-                if not error and result:
-                    return succeed(self._adaptODRecord(record))
+                response = credentials.fields["response"]
 
-            elif isinstance(credentials, DigestedCredentials):
-                try:
-                    credentials.fields.setdefault("algorithm", "md5")
-                    challenge = (
-                        'Digest realm="{realm}", nonce="{nonce}", '
-                        'algorithm={algorithm}'
-                        .format(**credentials.fields)
-                    )
-                    response = credentials.fields["response"]
-                except KeyError as e:
-                    self.log.error(
-                        "Error authenticating against OpenDirectory: "
-                        "missing digest response field {field!r} in "
-                        "{credentials.fields!r}",
-                        field=e.args[0], credentials=credentials
-                    )
-                    return fail(UnauthorizedLogin())
-
-                result, m1, m2, error = record.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-                    "dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
-                    [
-                        credentials.username,
-                        challenge,
-                        response,
-                        credentials.method,
-                    ],
-                    None, None, None
+            except KeyError as e:
+                self.log.error(
+                    "Error authenticating against OpenDirectory: "
+                    "missing digest response field {field!r} in "
+                    "{credentials.fields!r}",
+                    field=e.args[0], credentials=credentials
                 )
+                return fail(UnauthorizedLogin("Invalid digest challenge"))
 
-                if not error and result:
-                    return succeed(self._adaptODRecord(record))
+            result, m1, m2, error = record.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
+                "dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
+                [
+                    credentials.username,
+                    challenge,
+                    response,
+                    credentials.method,
+                ],
+                None, None, None
+            )
 
-        return fail(UnauthorizedLogin())
+            if error:
+                return fail(UnauthorizedLogin(error))
+
+            if result:
+                return succeed(self._adaptODRecord(record))
+
+        else:
+            return fail(UnauthorizedLogin(
+                "Unknown credentials type: {0}".format(type(credentials))
+            ))
+
+        return fail(UnauthorizedLogin("Unknown authorization failure"))
 
 
 class CustomDigestCredentialFactory(DigestCredentialFactory):
