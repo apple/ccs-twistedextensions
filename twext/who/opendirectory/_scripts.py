@@ -31,9 +31,9 @@ from twext.who.opendirectory import DirectoryService
 
 
 algorithms = {
-    'md5': md5.new,
-    'md5-sess': md5.new,
-    'sha': sha.new,
+    "md5": md5.new,
+    "md5-sess": md5.new,
+    "sha": sha.new,
 }
 
 
@@ -77,7 +77,7 @@ def calcHA1(
         HA1 = m.digest()
     else:
         # We were given a username:realm:password
-        HA1 = preHA1.decode('hex')
+        HA1 = preHA1.decode("hex")
 
     if pszAlg == "md5-sess":
         m = algorithms[pszAlg]()
@@ -88,7 +88,7 @@ def calcHA1(
         m.update(pszCNonce)
         HA1 = m.digest()
 
-    return HA1.encode('hex')
+    return HA1.encode("hex")
 
 
 # DigestCalcResponse
@@ -110,7 +110,7 @@ def calcResponse(
     if pszQop == "auth-int" or pszQop == "auth-conf":
         m.update(":")
         m.update(pszHEntity)
-    HA2 = m.digest().encode('hex')
+    HA2 = m.digest().encode("hex")
 
     m = algorithms[algo]()
     m.update(HA1)
@@ -125,7 +125,7 @@ def calcResponse(
         m.update(pszQop)
         m.update(":")
     m.update(HA2)
-    respHash = m.digest().encode('hex')
+    respHash = m.digest().encode("hex")
     return respHash
 
 
