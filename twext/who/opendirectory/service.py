@@ -45,12 +45,14 @@ from ..util import iterFlags, ConstantsContainer
 
 from twisted.cred.checkers import ICredentialsChecker
 from twisted.cred.credentials import IUsernamePassword, IUsernameHashedPassword
-from twisted.cred.error import UnauthorizedLogin 
+from twisted.cred.error import UnauthorizedLogin
 
 from zope.interface import implements
 from twisted.internet.defer import succeed, fail
 from twisted.web.guard import DigestCredentialFactory
 from twisted.cred.credentials import UsernamePassword, DigestedCredentials
+
+
 
 
 #
@@ -600,9 +602,7 @@ class DirectoryService(BaseDirectoryService):
                 "Error while executing OpenDirectory query: {error}",
                 error=error
             )
-            raise OpenDirectoryQueryError("Could not look up user",
-                error
-            )
+            raise OpenDirectoryQueryError("Could not look up user", error)
 
         return record
 
@@ -635,7 +635,11 @@ class DirectoryService(BaseDirectoryService):
                 try:
                     if "algorithm" not in credentials.fields:
                         credentials.fields["algorithm"] = "md5"
-                    challenge = 'Digest realm="%(realm)s", nonce="%(nonce)s", algorithm=%(algorithm)s' % credentials.fields
+                    challenge = (
+                        'Digest realm="{realm}", nonce="{nonce}", '
+                        'algorithm={algorithm}'
+                        .format(**credentials.fields)
+                    )
                     response = credentials.fields["response"]
                 except KeyError as e:
                     self.log.error(
@@ -654,7 +658,7 @@ class DirectoryService(BaseDirectoryService):
                         credentials.method,
                     ],
                     None, None, None
-                    )
+                )
 
                 if not error and result:
                     # return succeed(credentials.username)
