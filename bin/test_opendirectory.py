@@ -136,7 +136,7 @@ def testAuth(service, username, password):
     except UnauthorizedLogin:
         print("Via UsernamePassword, could not authenticate")
 
-    print()
+    print("")
 
     # Authenticate using Digest
 
