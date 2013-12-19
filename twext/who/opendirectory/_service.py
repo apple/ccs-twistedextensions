@@ -685,7 +685,7 @@ class DirectoryRecord(BaseDirectoryRecord):
             else:
                 values = [unicode(v) for v in values]
 
-            if BaseFieldName.isMultiValue(fieldName):
+            if service.fieldName.isMultiValue(fieldName):
                 fields[fieldName] = values
             else:
                 assert len(values) == 1

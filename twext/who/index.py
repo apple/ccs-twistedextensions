@@ -207,7 +207,7 @@ class DirectoryService(BaseDirectoryService):
                 values = record.fields.get(fieldName, None)
 
                 if values is not None:
-                    if not BaseFieldName.isMultiValue(fieldName):
+                    if not self.fieldName.isMultiValue(fieldName):
                         values = (values,)
 
                     for value in values:

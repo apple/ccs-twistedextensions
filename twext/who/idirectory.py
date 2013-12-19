@@ -162,6 +162,7 @@ class FieldName(Names):
 
     recordType = NamedConstant()
     recordType.description = u"record type"
+    recordType.valueType = NamedConstant
 
     shortNames = NamedConstant()
     shortNames.description = u"short names"

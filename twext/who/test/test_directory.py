@@ -702,6 +702,31 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         )
 
 
+    def test_initWithIncorrectFieldTypes(self):
+        """
+        Raise L{TypeError} if fields are of the wrong type.
+        """
+        self.assertRaises(
+            TypeError,
+            self.makeRecord,
+            {
+                FieldName.uid: "UID:wsanchez",  # Not unicode.
+                FieldName.recordType: RecordType.user,
+                FieldName.shortNames: (u"wsanchez",),
+            }
+        )
+
+        self.assertRaises(
+            TypeError,
+            self.makeRecord,
+            {
+                FieldName.uid: u"UID:wsanchez",
+                FieldName.recordType: RecordType.user,
+                FieldName.shortNames: ("wsanchez",),  # Not unicode.
+            }
+        )
+
+
     def test_repr(self):
         """
         L{DirectoryRecord.repr} returns the expected string.

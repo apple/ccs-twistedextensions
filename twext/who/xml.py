@@ -319,7 +319,7 @@ class DirectoryService(BaseDirectoryService):
                     vType, fieldName
                 )
 
-            if BaseFieldName.isMultiValue(fieldName):
+            if self.fieldName.isMultiValue(fieldName):
                 values = fields.setdefault(fieldName, [])
                 values.append(value)
             else:
@@ -385,7 +385,7 @@ class DirectoryService(BaseDirectoryService):
                     if name in fieldNames:
                         tag = fieldNames[name]
 
-                        if BaseFieldName.isMultiValue(name):
+                        if self.fieldName.isMultiValue(name):
                             values = value
                         else:
                             values = (value,)

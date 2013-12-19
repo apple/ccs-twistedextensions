@@ -103,7 +103,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                 if values is None:
                     continue
 
-                if not BaseFieldName.isMultiValue(fieldName):
+                if not service.fieldName.isMultiValue(fieldName):
                     values = (values,)
 
                 for value in values:
@@ -129,7 +129,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                     self.assertIn(fieldName, record.fields)
                     values = record.fields[fieldName]
 
-                    if not BaseFieldName.isMultiValue(fieldName):
+                    if not service.fieldName.isMultiValue(fieldName):
                         values = (values,)
 
                     self.assertIn(fieldValue, values)

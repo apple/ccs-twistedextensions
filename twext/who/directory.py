@@ -91,7 +91,7 @@ class DirectoryService(object):
     fieldName = FieldName
 
     normalizedFields = {
-        FieldName.emailAddresses: lambda e: bytes(e).lower(),
+        FieldName.emailAddresses: lambda e: e.lower(),
     }
 
 
@@ -289,7 +289,7 @@ class DirectoryRecord(object):
             if fieldName not in fields or not fields[fieldName]:
                 raise ValueError("{0} field is required.".format(fieldName))
 
-            if FieldName.isMultiValue(fieldName):
+            if service.fieldName.isMultiValue(fieldName):
                 values = fields[fieldName]
                 for value in values:
                     if not value:
@@ -308,22 +308,37 @@ class DirectoryRecord(object):
                 )
             )
 
+        def checkType(name, value):
+            expectedType = service.fieldName.valueType(name)
+            if not isinstance(value, expectedType):
+                raise TypeError(
+                    "Value {0!r} for field {1} is not of type {2}"
+                    .format(value, name, expectedType)
+                )
+
         # Normalize fields
         normalizedFields = {}
         for name, value in fields.items():
             normalize = service.normalizedFields.get(name, None)
 
             if normalize is None:
-                normalizedFields[name] = value
-                continue
-
-            if FieldName.isMultiValue(name):
-                normalizedFields[name] = tuple((normalize(v) for v in value))
+                normalizedValue = value
             else:
-                normalizedFields[name] = normalize(value)
+                if service.fieldName.isMultiValue(name):
+                    normalizedValue = tuple((normalize(v) for v in value))
+                else:
+                    normalizedValue = normalize(value)
+
+            if service.fieldName.isMultiValue(name):
+                for v in normalizedValue:
+                    checkType(name, v)
+            else:
+                checkType(name, normalizedValue)
+
+            normalizedFields[name] = normalizedValue
 
         self.service = service
-        self.fields  = normalizedFields
+        self.fields = normalizedFields
 
 
     def __repr__(self):
