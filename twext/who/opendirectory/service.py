@@ -48,7 +48,7 @@ from twisted.cred.error import UnauthorizedLogin
 from zope.interface import implements
 from twisted.internet.defer import succeed, fail
 from twisted.web.guard import DigestCredentialFactory
-from twisted.cred.credentials import UsernamePassword, DigestedCredentials
+from twisted.cred.credentials import DigestedCredentials
 
 
 
@@ -231,7 +231,7 @@ class DirectoryService(BaseDirectoryService):
     """
 
     implements(ICredentialsChecker)
-    credentialInterfaces = (IUsernamePassword, IUsernameHashedPassword,)
+    credentialInterfaces = (IUsernamePassword, IUsernameHashedPassword)
 
     log = Logger()
 
@@ -609,31 +609,31 @@ class DirectoryService(BaseDirectoryService):
     def requestAvatarId(self, credentials):
         """
         Authenticate the credentials against OpenDirectory and return the
-        corresponding DirectoryRecord or fail with UnauthorizedLogin if
-        the credentials are not valid.
+        corresponding directory record.
 
-        @param: credentials: the credentials to authenticate.
-        @type: credentials: either UsernamePassword or DigestedCredentials
+        @param: credentials: The credentials to authenticate.
+        @type: credentials: L{ICredentials}
 
-        @return: Deferred which fires with DirectoryRecord.
+        @return: The directory record for the given credentials.
+        @rtype: deferred L{DirectoryRecord}
+
+        @raises: L{UnauthorizedLogin} if the credentials are not valid.
         """
 
         record = self._getUserRecord(credentials.username)
 
         if record is not None:
 
-            if isinstance(credentials, UsernamePassword):
+            if IUsernamePassword.providedBy(credentials):
                 result, error = record.verifyPassword_error_(
                     credentials.password, None
                 )
                 if not error and result:
                     return succeed(self._adaptODRecord(record))
-                    # return succeed(credentials.username)
 
             elif isinstance(credentials, DigestedCredentials):
                 try:
-                    if "algorithm" not in credentials.fields:
-                        credentials.fields["algorithm"] = "md5"
+                    credentials.fields.setdefault("algorithm", "md5")
                     challenge = (
                         'Digest realm="{realm}", nonce="{nonce}", '
                         'algorithm={algorithm}'
@@ -642,9 +642,10 @@ class DirectoryService(BaseDirectoryService):
                     response = credentials.fields["response"]
                 except KeyError as e:
                     self.log.error(
-                        "Error authenticating against OpenDirectory : "
-                        "missing digest response field: {field} "
-                        "in: {fields}", field=e, fields=credentials.fields
+                        "Error authenticating against OpenDirectory: "
+                        "missing digest response field {field!r} in "
+                        "{credentials.fields!r}",
+                        field=e.args[0], credentials=credentials
                     )
                     return fail(UnauthorizedLogin())
 
@@ -660,7 +661,6 @@ class DirectoryService(BaseDirectoryService):
                 )
 
                 if not error and result:
-                    # return succeed(credentials.username)
                     return succeed(self._adaptODRecord(record))
 
         return fail(UnauthorizedLogin())
