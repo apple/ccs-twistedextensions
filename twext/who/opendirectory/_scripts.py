@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 ##
-# Copyright (c) 2006-2008 Apple Inc. All rights reserved.
+# Copyright (c) 2010-2013 Apple Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,15 +14,20 @@
 # limitations under the License.
 ##
 
+import sys
 import md5
 import sha
 from getpass import getpass
 
-from twext.who.opendirectory.service import DirectoryService
-
-from twisted.cred.credentials import UsernamePassword, DigestedCredentials
-from twisted.cred.error import UnauthorizedLogin 
 from twisted.internet.defer import inlineCallbacks
+from twisted.cred.credentials import UsernamePassword, DigestedCredentials
+from twisted.cred.error import UnauthorizedLogin
+
+from twext.who.expression import (
+    MatchExpression, MatchType, CompoundExpression, Operand,
+)
+from twext.who.opendirectory import DirectoryService
+
 
 
 algorithms = {
@@ -31,6 +35,7 @@ algorithms = {
     'md5-sess': md5.new,
     'sha': sha.new,
 }
+
 
 # DigestCalcHA1
 def calcHA1(
@@ -85,6 +90,7 @@ def calcHA1(
 
     return HA1.encode('hex')
 
+
 # DigestCalcResponse
 def calcResponse(
     HA1,
@@ -124,9 +130,10 @@ def calcResponse(
 
 
 @inlineCallbacks
-def testAuth(service, username, password):
-
+def authUsernamePassword(username, password):
     # Authenticate using simple password
+
+    service = DirectoryService()
 
     creds = UsernamePassword(username, password)
     try:
@@ -140,7 +147,7 @@ def testAuth(service, username, password):
 
     # Authenticate using Digest
 
-    algorithm = "md5" # "md5-sess"
+    algorithm = "md5"  # "md5-sess"
     cnonce    = "/rrD6TqPA3lHRmg+fw/vyU6oWoQgzK7h9yWrsCmv/lE="
     entity    = "00000000000000000000000000000000"
     method    = "GET"
@@ -164,10 +171,10 @@ def testAuth(service, username, password):
     )
 
     fields = {
-        "realm" : realm,
-        "nonce" : nonce,
-        "response" : response,
-        "algorithm" : algorithm,
+        "realm": realm,
+        "nonce": nonce,
+        "response": response,
+        "algorithm": algorithm,
     }
 
     creds = DigestedCredentials(username, method, realm, fields)
@@ -180,13 +187,66 @@ def testAuth(service, username, password):
         print("Via DigestedCredentials, could not authenticate")
 
 
-
-if __name__ == "__main__":
-
+@inlineCallbacks
+def lookup(shortNames):
     service = DirectoryService()
+    print(
+        "Service = {service}\n"
+        "Session = {service.session}\n"
+        "Node = {service.node}\n"
+        # "Local node = {service.localNode}\n"
+        .format(service=service)
+    )
+    print("-" * 80)
 
+    for shortName in shortNames:
+        print("Looking up short name: {0}".format(shortName))
+
+        matchExpression = MatchExpression(
+            service.fieldName.shortNames, shortName,
+            matchType=MatchType.equals,
+        )
+        queryString = service._queryStringFromExpression(matchExpression)
+        print(
+            "\n...via MatchExpression, query={query!r}\n"
+            .format(query=queryString)
+        )
+
+        records = yield service.recordsFromExpression(matchExpression)
+        for record in records:
+            print(record.description())
+
+        compoundExpression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.shortNames, shortName,
+                    matchType=MatchType.contains
+                ),
+                MatchExpression(
+                    service.fieldName.emailAddresses, shortName,
+                    matchType=MatchType.contains
+                ),
+            ],
+            Operand.OR
+        )
+        queryString = service._queryStringFromExpression(compoundExpression)
+        print(
+            "\n...via CompoundExpression, query={query!r}\n"
+            .format(query=queryString)
+        )
+
+        records = yield service.recordsFromExpression(compoundExpression)
+        for record in records:
+            print(record.description())
+
+
+def run_auth():
     username = raw_input("Username: ")
     if username:
         password = getpass()
         if password:
-            testAuth(service, username, password)
+            authUsernamePassword(username, password)
+
+
+def run_lookup():
+    lookup(sys.argv[1:])
