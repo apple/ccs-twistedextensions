@@ -47,6 +47,7 @@ from .index import (
     DirectoryService as BaseDirectoryService,
     DirectoryRecord, FieldName as IndexFieldName,
 )
+from .util import ConstantsContainer
 
 
 
@@ -127,6 +128,8 @@ class DirectoryService(BaseDirectoryService):
     """
     XML directory service.
     """
+
+    recordType = ConstantsContainer((RecordType.user, RecordType.group))
 
     element   = Element
     attribute = Attribute

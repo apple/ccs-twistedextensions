@@ -35,17 +35,23 @@ from ..idirectory import (
 )
 from ..expression import CompoundExpression, Operand
 from ..directory import DirectoryService, DirectoryRecord
+from ..util import ConstantsContainer
 
 
 
-class StubDirectoryService(DirectoryService):
+class TestDirectoryService(DirectoryService):
+    recordType = ConstantsContainer((RecordType,))
+
+
+
+class StubDirectoryService(TestDirectoryService):
     """
     Stub directory service with some built-in records and an implementation
     of C{recordsFromNonCompoundExpression}.
     """
 
     def __init__(self, realmName):
-        DirectoryService.__init__(self, realmName)
+        super(StubDirectoryService, self).__init__(realmName)
 
         self.records = RecordStorage(self, DirectoryRecord)
 
@@ -53,7 +59,10 @@ class StubDirectoryService(DirectoryService):
     def recordsFromExpression(self, expression):
         self.seenExpressions = []
 
-        return DirectoryService.recordsFromExpression(self, expression)
+        return (
+            super(StubDirectoryService, self)
+            .recordsFromExpression(expression)
+        )
 
 
     def recordsFromNonCompoundExpression(self, expression, records=None):
@@ -80,8 +89,9 @@ class StubDirectoryService(DirectoryService):
                         break
             return succeed(result)
 
-        return DirectoryService.recordsFromNonCompoundExpression(
-            self, expression, records=records
+        return (
+            super(StubDirectoryService, self)
+            .recordsFromNonCompoundExpression(expression, records=records)
         )
 
 
@@ -103,7 +113,7 @@ class ServiceMixIn(object):
 
 class BaseDirectoryServiceTest(ServiceMixIn):
     """
-    Tests for directory services.
+    Tests for L{DirectoryService} and subclasses.
     """
 
     def test_interface(self):
@@ -260,14 +270,15 @@ class BaseDirectoryServiceTest(ServiceMixIn):
 
 
 class DirectoryServiceRecordsFromExpressionTest(
-    unittest.TestCase,
-    ServiceMixIn
+    unittest.TestCase, ServiceMixIn
 ):
     """
     Tests for L{DirectoryService.recordsFromExpression}.
     """
+
     serviceClass = StubDirectoryService
     directoryRecordClass = DirectoryRecord
+
 
     @inlineCallbacks
     def test_recordsFromExpression_single(self):
@@ -402,13 +413,13 @@ class DirectoryServiceRecordsFromExpressionTest(
 
 
 class DirectoryServiceConvenienceTest(
-    unittest.TestCase,
-    BaseDirectoryServiceTest
+    unittest.TestCase, BaseDirectoryServiceTest
 ):
     """
     Tests for L{DirectoryService} convenience methods.
     """
-    serviceClass = DirectoryService
+
+    serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
 
@@ -520,13 +531,13 @@ class BaseDirectoryServiceImmutableTest(ServiceMixIn):
 
 
 class DirectoryServiceImmutableTest(
-    unittest.TestCase,
-    BaseDirectoryServiceImmutableTest,
+    unittest.TestCase, BaseDirectoryServiceImmutableTest,
 ):
     """
     Tests for immutable L{DirectoryService}.
     """
-    serviceClass = DirectoryService
+
+    serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
 
@@ -598,7 +609,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             fields = self.fields_wsanchez
         if service is None:
             service = self.service()
-        return DirectoryRecord(service, fields)
+        return self.directoryRecordClass(service, fields)
 
 
     def test_interface(self):
@@ -710,7 +721,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         fields_glyphmod = self.fields_glyph.copy()
         del fields_glyphmod[FieldName.emailAddresses]
 
-        plugh = DirectoryService(u"plugh")
+        plugh = self.serviceClass(u"plugh")
 
         wsanchez    = self.makeRecord(self.fields_wsanchez)
         wsanchezmod = self.makeRecord(self.fields_wsanchez, plugh)
@@ -809,8 +820,10 @@ class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
     """
     Tests for L{DirectoryRecord}.
     """
-    serviceClass = DirectoryService
+
+    serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
+
 
     def test_members_group(self):
         staff = self.makeRecord(self.fields_staff)
@@ -829,6 +842,7 @@ class RecordStorage(object):
     """
     Container for directory records.
     """
+
     def __init__(self, service, recordClass):
         self.service = service
         self.recordClass = recordClass
@@ -938,6 +952,7 @@ class RecordStorage(object):
         service = self.service
         fieldName = service.fieldName
         recordType = service.recordType
+
         self.records.append(self.recordClass(self.service, {
             fieldName.recordType: recordType.user,
             fieldName.uid: u"__{0}__".format(shortNames[0]),

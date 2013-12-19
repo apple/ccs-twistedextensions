@@ -21,11 +21,20 @@ Indexed directory service base implementation tests.
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks, returnValue
 
-from ..idirectory import FieldName as BaseFieldName, QueryNotSupportedError
+from ..idirectory import (
+    FieldName as BaseFieldName, RecordType as BaseRecordType,
+    QueryNotSupportedError,
+)
 from ..expression import MatchExpression, MatchType
 from ..index import DirectoryService, DirectoryRecord
+from ..util import ConstantsContainer
 from . import test_directory
 from .test_directory import RecordStorage
+
+
+
+class TestDirectoryService(DirectoryService):
+    recordType = ConstantsContainer((BaseRecordType,))
 
 
 
@@ -370,7 +379,8 @@ class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
     """
     Tests for L{DirectoryService}.
     """
-    serviceClass = DirectoryService
+
+    serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
 
@@ -386,7 +396,7 @@ class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
         """
         Getting the C{index} property calls C{loadRecords}.
         """
-        class TestService(DirectoryService):
+        class TestService(self.serviceClass):
             loaded = False
 
             def loadRecords(self):
@@ -434,7 +444,8 @@ class DirectoryServiceImmutableTest(
     """
     Tests for immutable L{DirectoryService}.
     """
-    serviceClass = DirectoryService
+
+    serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
 
@@ -450,7 +461,8 @@ class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
     """
     Tests for L{DirectoryRecord}.
     """
-    serviceClass = DirectoryService
+
+    serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
 

@@ -771,8 +771,10 @@ class DirectoryRecordTest(
     BaseTest,
     test_index.BaseDirectoryRecordTest
 ):
+
     serviceClass = DirectoryService
     directoryRecordClass = DirectoryRecord
+
 
     @inlineCallbacks
     def test_members_group(self):

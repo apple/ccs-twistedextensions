@@ -35,7 +35,7 @@ from .idirectory import (
     IDirectoryService, IDirectoryRecord,
 )
 from .expression import CompoundExpression, Operand, MatchExpression
-from .util import uniqueResult, describe
+from .util import uniqueResult, describe, ConstantsContainer
 
 
 
@@ -87,7 +87,7 @@ class DirectoryService(object):
         a L{unicode}).
     """
 
-    recordType = RecordType
+    recordType = ConstantsContainer(())
     fieldName = FieldName
 
     normalizedFields = {
@@ -302,9 +302,9 @@ class DirectoryRecord(object):
             service.recordType.iterconstants()
         ):
             raise ValueError(
-                "Record type must be one of {0!r}, not {1!r}.".format(
-                    tuple(service.recordType.iterconstants()),
+                "Unknown record type: {0!r} is not in {1!r}.".format(
                     fields[FieldName.recordType],
+                    tuple(service.recordType.iterconstants()),
                 )
             )
 
