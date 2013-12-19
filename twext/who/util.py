@@ -40,21 +40,19 @@ class ConstantsContainer(object):
     """
     def __init__(self, sources):
         self._constants = {}
+        self._methods = {}
 
         for source in sources:
             if type(source) is type:
-                if issubclass(
-                    source, (ConstantsContainer, Names, Values, Flags)
-                ):
+                if issubclass(source, CONTAINER_CLASSES):
                     self._addConstants(source.iterconstants())
+                    self._addMethods(source)
                 else:
                     raise TypeError(
                         "Unknown constants type: {0}".format(source)
                     )
 
-            elif isinstance(
-                source, (NamedConstant, ValueConstant, FlagConstant)
-            ):
+            elif isinstance(source, CONSTANT_CLASSES):
                 self._addConstants((source,))
 
             else:
@@ -79,11 +77,25 @@ class ConstantsContainer(object):
             self._constants[constant.name] = constant
 
 
+    def _addMethods(self, container):
+        for name, value in container.__dict__.iteritems():
+            if type(value) is staticmethod:
+                if name in self._constants or name in self._methods:
+                    raise ValueError("Name conflict: {0}".format(name))
+
+                self._methods[name] = getattr(container, name)
+
+
     def __getattr__(self, name):
-        try:
-            return self._constants[name]
-        except KeyError:
-            raise AttributeError(name)
+        attr = self._constants.get(name, None)
+        if attr is not None:
+            return attr
+
+        attr = self._methods.get(name, None)
+        if attr is not None:
+            return attr
+
+        raise AttributeError(name)
 
 
     def iterconstants(self):
@@ -129,3 +141,8 @@ def iterFlags(flags):
         # Work around http://twistedmatrix.com/trac/ticket/6302
         # FIXME: This depends on a private attribute (flags._container)
         return (flags._container.lookupByName(name) for name in flags.names)
+
+
+
+CONTAINER_CLASSES = (ConstantsContainer, Names, Values, Flags)
+CONSTANT_CLASSES = (NamedConstant, ValueConstant, FlagConstant)

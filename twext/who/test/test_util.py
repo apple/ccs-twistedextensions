@@ -32,16 +32,25 @@ from ..util import ConstantsContainer, uniqueResult, describe
 
 class Tools(Names):
     hammer = NamedConstant()
-    screwdriver = NamedConstant()
-
     hammer.description = u"nail pounder"
+
+    screwdriver = NamedConstant()
     screwdriver.description = u"screw twister"
+
+
+    @staticmethod
+    def isPounder(tool):
+        if getattr(tool, "description", "").endswith("pounder"):
+            return True
+        return False
 
 
 class MoreTools(Names):
     saw = NamedConstant()
-
     saw.description = u"z maker"
+
+    mallet = NamedConstant()
+    mallet.description = u"soft pounder"
 
 
 class Instruments(Names):
@@ -143,6 +152,17 @@ class ConstantsContainerTest(unittest.TestCase):
             set(container.iterconstants()),
             constants,
         )
+
+
+    def test_staticmethod(self):
+        """
+        Static methods from source containers are accessible via attributes.
+        """
+        container = ConstantsContainer((Tools, MoreTools))
+        self.assertTrue(container.isPounder(container.hammer))
+        self.assertTrue(container.isPounder(container.mallet))
+        self.assertFalse(container.isPounder(container.screwdriver))
+        self.assertFalse(container.isPounder(container.saw))
 
 
     def test_lookupByName(self):
