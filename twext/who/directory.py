@@ -389,10 +389,7 @@ class DirectoryRecord(object):
             else:
                 value = unicode(value)
 
-            description.append(u"\n  ")
-            description.append(name)
-            description.append(u" = ")
-            description.append(value)
+            description.append(u"\n  {0} = {1!r}".format(name, value))
 
         description.append(u"\n")
 
