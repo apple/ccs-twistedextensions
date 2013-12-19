@@ -43,7 +43,18 @@ from ..expression import (
 )
 from ..util import iterFlags, ConstantsContainer
 
+from twisted.cred.checkers import ICredentialsChecker
+from twisted.cred.credentials import IUsernamePassword, IUsernameHashedPassword
+from twisted.cred.error import UnauthorizedLogin 
 
+from zope.interface import implements
+from twisted.internet.defer import inlineCallbacks, returnValue, succeed, fail
+from twisted.web.guard import DigestCredentialFactory
+from twisted.cred.credentials import UsernamePassword, DigestedCredentials
+
+# For testing:
+from digest import calcResponse, calcHA1
+from getpass import getpass
 
 #
 # Exceptions
@@ -55,7 +66,7 @@ class OpenDirectoryError(DirectoryServiceError):
     """
 
     def __init__(self, message, odError):
-        super(DirectoryService, self).__init__(message)
+        super(OpenDirectoryError, self).__init__(message)
         self.odError = odError
 
 
@@ -221,12 +232,17 @@ class DirectoryService(BaseDirectoryService):
     """
     OpenDirectory directory service.
     """
+
+    implements(ICredentialsChecker)
+    credentialInterfaces = (IUsernamePassword, IUsernameHashedPassword,)
+
     log = Logger()
 
     fieldName = ConstantsContainer(chain(
         BaseDirectoryService.fieldName.iterconstants(),
         FieldName.iterconstants()
     ))
+
 
 
     def __init__(self, nodeName=ODSearchPath.search.value):
@@ -573,6 +589,93 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
+    def _getUserRecord(self, username):
+        """
+        Fetch the OD record for a given user.
+
+        @return: ODRecord, or None
+        """
+        record, error = self.node.recordWithRecordType_name_attributes_error_(
+            ODRecordType.user.value, username, None, None
+        )
+        if error:
+            self.log.error(
+                "Error while executing OpenDirectory query: {error}",
+                error=error
+            )
+            raise OpenDirectoryQueryError("Could not look up user",
+                error
+            )
+
+        return record
+
+
+    def requestAvatarId(self, credentials):
+        """
+        Authenticate the credentials against OpenDirectory and return the
+        corresponding DirectoryRecord or fail with UnauthorizedLogin if
+        the credentials are not valid.
+
+        @param: credentials: the credentials to authenticate.
+        @type: credentials: either UsernamePassword or DigestedCredentials
+
+        @return: Deferred which fires with DirectoryRecord.
+        """
+
+        record = self._getUserRecord(credentials.username)
+
+        if record is not None:
+
+            if isinstance(credentials, UsernamePassword):
+                result, error = record.verifyPassword_error_(
+                    credentials.password, None
+                )
+                if not error and result:
+                    return succeed(self._adaptODRecord(record))
+                    # return succeed(credentials.username)
+
+            elif isinstance(credentials, DigestedCredentials):
+                try:
+                    if "algorithm" not in credentials.fields:
+                        credentials.fields["algorithm"] = "md5"
+                    challenge = 'Digest realm="%(realm)s", nonce="%(nonce)s", algorithm=%(algorithm)s' % credentials.fields
+                    response = credentials.fields["response"]
+                except KeyError as e:
+                    self.log.error(
+                        "Error authenticating against OpenDirectory : "
+                        "missing digest response field: {field} "
+                        "in: {fields}", field=e, fields=credentials.fields
+                    )
+                    return fail(UnauthorizedLogin())
+
+                result, m1, m2, error = record.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
+                    "dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
+                    [
+                        credentials.username,
+                        challenge,
+                        response,
+                        credentials.method,
+                    ],
+                    None, None, None
+                    )
+
+                if not error and result:
+                    # return succeed(credentials.username)
+                    return succeed(self._adaptODRecord(record))
+
+        return fail(UnauthorizedLogin())
+
+
+class CustomDigestCredentialFactory(DigestCredentialFactory):
+    """
+    DigestCredentialFactory without qop, to interop with OD.
+    """
+
+    def getChallenge(self, address):
+        result = DigestCredentialFactory.getChallenge(self, address)
+        del result["qop"]
+        return result
+
 
 class DirectoryRecord(BaseDirectoryRecord):
     """
@@ -599,6 +702,7 @@ class DirectoryRecord(BaseDirectoryRecord):
 
 
     requiredFields = BaseDirectoryRecord.requiredFields + (BaseFieldName.guid,)
+
 
 
 
@@ -656,3 +760,70 @@ if __name__ == "__main__":
         for record in service.recordsFromExpression(compoundExpression):
             print(record.description())
             print()
+
+
+    @inlineCallbacks
+    def testAuth(username, password):
+
+        # Authenticate using simple password
+
+        creds = UsernamePassword(username, password)
+        try:
+            id = yield service.requestAvatarId(creds)
+            print("OK via UsernamePassword, avatarID: {id}".format(id=id))
+            print("   {name}".format(name=id.fullNames))
+        except UnauthorizedLogin:
+            print("Via UsernamePassword, could not authenticate")
+
+        print()
+
+        # Authenticate using Digest
+
+        algorithm = "md5" # "md5-sess"
+        cnonce    = "/rrD6TqPA3lHRmg+fw/vyU6oWoQgzK7h9yWrsCmv/lE="
+        entity    = "00000000000000000000000000000000"
+        method    = "GET"
+        nc        = "00000001"
+        nonce     = "128446648710842461101646794502"
+        qop       = None
+        realm     = "host.example.com"
+        uri       = "http://host.example.com"
+
+        responseHash = calcResponse(
+            calcHA1(
+                algorithm.lower(), username, realm, password, nonce, cnonce
+            ),
+            algorithm.lower(), nonce, nc, cnonce, qop, method, uri, entity
+        )
+
+        response = (
+            'Digest username="{username}", uri="{uri}", response={hash}'.format(
+                username=username, uri=uri, hash=responseHash
+            )
+        )
+
+        fields = {
+            "realm" : realm,
+            "nonce" : nonce,
+            "response" : response,
+            "algorithm" : algorithm,
+        }
+
+        creds = DigestedCredentials(username, method, realm, fields)
+
+        try:
+            id = yield service.requestAvatarId(creds)
+            print("OK via DigestedCredentials, avatarID: {id}".format(id=id))
+            print("   {name}".format(name=id.fullNames))
+        except UnauthorizedLogin:
+            print("Via DigestedCredentials, could not authenticate")
+
+    # Conditionally run testAuth()
+
+    response = raw_input("Test authentication (y/n)? ")
+    if response == "y":
+        username = raw_input("Username: ")
+        if username:
+            password = getpass()
+            if password:
+                testAuth(username, password)
