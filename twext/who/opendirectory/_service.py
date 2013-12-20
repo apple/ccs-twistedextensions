@@ -62,7 +62,7 @@ class OpenDirectoryError(DirectoryServiceError):
     OpenDirectory error.
     """
 
-    def __init__(self, message, odError):
+    def __init__(self, message, odError=None):
         super(OpenDirectoryError, self).__init__(message)
         self.odError = odError
 
@@ -144,8 +144,8 @@ class ODAttribute(Values):
     recordType = ValueConstant("dsAttrTypeStandard:RecordType")
     recordType.fieldName = BaseFieldName.recordType
 
-    uid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
-    uid.fieldName = BaseFieldName.uid
+    # uid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
+    # uid.fieldName = BaseFieldName.uid
 
     guid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
     guid.fieldName = BaseFieldName.guid
@@ -308,7 +308,7 @@ class DirectoryService(BaseDirectoryService):
     #                         "Failed to open local node: {error}}",
     #                         error=e,
     #                     )
-    #                     raise OpenDirectoryError(e)
+    #                     raise OpenDirectoryError("", e)
     #             else:
     #                 self._localNode = None
 
@@ -340,7 +340,10 @@ class DirectoryService(BaseDirectoryService):
                     "{source.nodeName!r}: {error}",
                     error=error
                 )
-                raise OpenDirectoryConnectionError(error)
+                raise OpenDirectoryConnectionError(
+                    "Unable to connect to OpenDirectory node",
+                    error
+                )
 
             self._session = session
             self._node = node
@@ -421,10 +424,12 @@ class DirectoryService(BaseDirectoryService):
 
         if error:
             self.log.error(
-                "Error while forming OpenDirectory query: {error}",
+                "Error while forming OpenDirectory compound query: {error}",
                 error=error
             )
-            raise OpenDirectoryQueryError(error)
+            raise OpenDirectoryQueryError(
+                "Unable to form OpenDirectory compound query", error
+            )
 
         return query
 
@@ -475,10 +480,12 @@ class DirectoryService(BaseDirectoryService):
 
         if error:
             self.log.error(
-                "Error while forming OpenDirectory query: {error}",
+                "Error while forming OpenDirectory match query: {error}",
                 error=error
             )
-            raise OpenDirectoryQueryError(error)
+            raise OpenDirectoryQueryError(
+                "Unable to form OpenDirectory match query", error
+            )
 
         return query
 
@@ -501,7 +508,9 @@ class DirectoryService(BaseDirectoryService):
                 "Error while executing OpenDirectory query: {error}",
                 error=error
             )
-            raise OpenDirectoryQueryError(error)
+            raise OpenDirectoryQueryError(
+                "Unable to execute OpenDirectory query", error
+            )
 
         for odRecord in odRecords:
             yield DirectoryRecord(self, odRecord)
@@ -548,10 +557,10 @@ class DirectoryService(BaseDirectoryService):
         )
         if error:
             self.log.error(
-                "Error while executing OpenDirectory query: {error}",
+                "Error while looking up user: {error}",
                 error=error
             )
-            raise OpenDirectoryQueryError("Could not look up user", error)
+            raise OpenDirectoryQueryError("Unable to look up user", error)
 
         return record
 
@@ -662,7 +671,24 @@ class DirectoryRecord(BaseDirectoryRecord):
                 "Error while reading OpenDirectory record: {error}",
                 error=error
             )
-            raise OpenDirectoryDataError(error)
+            raise OpenDirectoryDataError(
+                "Unable to read OpenDirectory record", error
+            )
+
+        def coerceType(fieldName, value):
+            # Record type field value needs to be looked up
+            if fieldName is service.fieldName.recordType:
+                return ODRecordType.lookupByValue(value).recordType
+
+            # Otherwise, cast to the valueType specified by the field name
+            valueType = service.fieldName.valueType(fieldName)
+            try:
+                return valueType(value)
+            except BaseException as e:
+                raise OpenDirectoryDataError(
+                    "Unable to coerce OD value {0!r} to type {1}: {2}"
+                    .format(value, valueType, e)
+                )
 
         fields = {}
         for name, values in details.iteritems():
@@ -678,39 +704,22 @@ class DirectoryRecord(BaseDirectoryRecord):
                     attribute=name
                 )
                 continue
+
             fieldName = attribute.fieldName
 
             if type(values) is bytes:
-                values = (unicode(values),)
+                values = (coerceType(fieldName, values),)
             else:
-                values = [unicode(v) for v in values]
+                values = tuple(coerceType(fieldName, v) for v in values)
 
             if service.fieldName.isMultiValue(fieldName):
                 fields[fieldName] = values
             else:
                 assert len(values) == 1
+                fields[fieldName] = values[0]
 
-                if fieldName is service.fieldName.recordType:
-                    fields[fieldName] = ODRecordType.lookupByValue(
-                        values[0]
-                    ).recordType
-                else:
-                    fields[fieldName] = values[0]
-
-        # Make sure that uid and guid are both set and equal
-        uid = fields.get(service.fieldName.uid, None)
-        guid = fields.get(service.fieldName.guid, None)
-
-        if uid is not None and guid is not None:
-            if uid != guid:
-                raise ValueError(
-                    "uid and guid must be equal ({uid} != {guid})"
-                    .format(uid=uid, guid=guid)
-                )
-        elif uid is None:
-            fields[service.fieldName.uid] = guid
-        elif guid is None:
-            fields[service.fieldName.guid] = uid
+        # Set uid from guid
+        fields[service.fieldName.uid] = unicode(fields[service.fieldName.guid])
 
         super(DirectoryRecord, self).__init__(service, fields)
         self._odRecord = odRecord
