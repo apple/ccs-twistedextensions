@@ -45,7 +45,8 @@ from ..directory import (
     DirectoryRecord as BaseDirectoryRecord,
 )
 from ..expression import (
-    CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags,
+    # CompoundExpression, Operand,
+    MatchExpression, MatchType, MatchFlags,
 )
 from ..util import iterFlags, ConstantsContainer
 
@@ -346,107 +347,108 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
-    def _queryStringFromExpression(self, expression):
-        """
-        Converts either a MatchExpression or a CompoundExpression into a native
-        OpenDirectory query string.
+    # def _queryStringFromExpression(self, expression):
+    #     """
+    #     Converts either a MatchExpression or a CompoundExpression into a
+    #     native OpenDirectory query string.
 
-        @param expression: The expression
-        @type expression: Either L{MatchExpression} or L{CompoundExpression}
+    #     @param expression: The expression
+    #     @type expression: Either L{MatchExpression} or L{CompoundExpression}
 
-        @return: A native OpenDirectory query string
-        @rtype: C{unicode}
-        """
+    #     @return: A native OpenDirectory query string
+    #     @rtype: C{unicode}
+    #     """
 
-        if isinstance(expression, MatchExpression):
-            matchType = ODMatchType.fromMatchType(expression.matchType)
-            if matchType is None:
-                raise QueryNotSupportedError(
-                    "Unknown match type: {0}".format(matchType)
-                )
+    #     if isinstance(expression, MatchExpression):
+    #         matchType = ODMatchType.fromMatchType(expression.matchType)
+    #         if matchType is None:
+    #             raise QueryNotSupportedError(
+    #                 "Unknown match type: {0}".format(matchType)
+    #             )
 
-            if expression.fieldName is self.fieldName.uid:
-                odAttr = ODAttribute.guid.value
-                value = expression.fieldValue
-            else:
-                odAttr = ODAttribute.fromFieldName(expression.fieldName)
-                if odAttr is None:
-                    raise OpenDirectoryQueryError(
-                        "Unknown field name: {0}".format(expression.fieldName)
-                    )
-                odAttr = odAttr.value
-                value = expression.fieldValue
+    #         if expression.fieldName is self.fieldName.uid:
+    #             odAttr = ODAttribute.guid.value
+    #             value = expression.fieldValue
+    #         else:
+    #             odAttr = ODAttribute.fromFieldName(expression.fieldName)
+    #             if odAttr is None:
+    #                 raise OpenDirectoryQueryError(
+    #                     "Unknown field name: {0}"
+    #                     .format(expression.fieldName)
+    #                 )
+    #             odAttr = odAttr.value
+    #             value = expression.fieldValue
 
-            value = unicode(value)
+    #         value = unicode(value)
 
-            # FIXME: Shouldn't the value be quoted somehow?
-            queryString = {
-                ODMatchType.equals.value: u"({attr}={value})",
-                ODMatchType.startsWith.value: u"({attr}={value}*)",
-                ODMatchType.endsWith.value: u"({attr}=*{value})",
-                ODMatchType.contains.value: u"({attr}=*{value}*)",
-                ODMatchType.lessThan.value: u"({attr}<{value})",
-                ODMatchType.greaterThan.value: u"({attr}>{value})",
-            }.get(matchType.value, u"({attr}=*{value}*)").format(
-                attr=odAttr,
-                value=value
-            )
+    #         # FIXME: Shouldn't the value be quoted somehow?
+    #         queryString = {
+    #             ODMatchType.equals.value: u"({attr}={value})",
+    #             ODMatchType.startsWith.value: u"({attr}={value}*)",
+    #             ODMatchType.endsWith.value: u"({attr}=*{value})",
+    #             ODMatchType.contains.value: u"({attr}=*{value}*)",
+    #             ODMatchType.lessThan.value: u"({attr}<{value})",
+    #             ODMatchType.greaterThan.value: u"({attr}>{value})",
+    #         }.get(matchType.value, u"({attr}=*{value}*)").format(
+    #             attr=odAttr,
+    #             value=value
+    #         )
 
-        elif isinstance(expression, CompoundExpression):
-            queryString = u""
-            operand = u"&" if expression.operand is Operand.AND else u"|"
+    #     elif isinstance(expression, CompoundExpression):
+    #         queryString = u""
+    #         operand = u"&" if expression.operand is Operand.AND else u"|"
 
-            if len(expression.expressions) > 1:
-                queryString += u"("
-                queryString += operand
+    #         if len(expression.expressions) > 1:
+    #             queryString += u"("
+    #             queryString += operand
 
-            for subExpression in expression.expressions:
-                queryString += self._queryStringFromExpression(subExpression)
+    #         for subExpression in expression.expressions:
+    #             queryString += self._queryStringFromExpression(subExpression)
 
-            if len(expression.expressions) > 1:
-                queryString += u")"
+    #         if len(expression.expressions) > 1:
+    #             queryString += u")"
 
-        return queryString
+    #     return queryString
 
 
-    def _queryFromCompoundExpression(self, expression):
-        """
-        Form an OpenDirectory query from a compound expression.
+    # def _queryFromCompoundExpression(self, expression):
+    #     """
+    #     Form an OpenDirectory query from a compound expression.
 
-        @param expression: The compound expression.
-        @type expression: L{CompoundExpression}
+    #     @param expression: The compound expression.
+    #     @type expression: L{CompoundExpression}
 
-        @return: A native OpenDirectory query.
-        @rtype: L{ODQuery}
-        """
+    #     @return: A native OpenDirectory query.
+    #     @rtype: L{ODQuery}
+    #     """
 
-        queryString = self._queryStringFromExpression(expression)
+    #     queryString = self._queryStringFromExpression(expression)
 
-        recordTypes = [t.value for t in ODRecordType.iterconstants()]
-        attributes = [a.value for a in ODAttribute.iterconstants()]
-        maxResults = 0
+    #     recordTypes = [t.value for t in ODRecordType.iterconstants()]
+    #     attributes = [a.value for a in ODAttribute.iterconstants()]
+    #     maxResults = 0
 
-        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            self.node,
-            recordTypes,
-            None,
-            ODMatchType.compound.value,
-            queryString,
-            attributes,
-            maxResults,
-            None
-        )
+    #     query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+    #         self.node,
+    #         recordTypes,
+    #         None,
+    #         ODMatchType.compound.value,
+    #         queryString,
+    #         attributes,
+    #         maxResults,
+    #         None
+    #     )
 
-        if error:
-            self.log.error(
-                "Error while forming OpenDirectory compound query: {error}",
-                error=error
-            )
-            raise OpenDirectoryQueryError(
-                "Unable to form OpenDirectory compound query", error
-            )
+    #     if error:
+    #         self.log.error(
+    #             "Error while forming OpenDirectory compound query: {error}",
+    #             error=error
+    #         )
+    #         raise OpenDirectoryQueryError(
+    #             "Unable to form OpenDirectory compound query", error
+    #         )
 
-        return query
+    #     return query
 
 
 
@@ -474,20 +476,23 @@ class DirectoryService(BaseDirectoryService):
         else:
             caseInsensitive = 0x0
 
+        attributes = [a.value for a in ODAttribute.iterconstants()]
+        maxResults = 0
+
         if expression.fieldName is self.fieldName.recordType:
-            raise NotImplementedError()
+            recordTypes = ODRecordType.fromRecordType(expression.fieldValue)
+            queryValue = None
 
         else:
             recordTypes = [t.value for t in ODRecordType.iterconstants()]
-            attributes = [a.value for a in ODAttribute.iterconstants()]
-            maxResults = 0
+            queryValue = expression.fieldValue
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
             recordTypes,
             ODAttribute.fromFieldName(expression.fieldName).value,
             matchType.value | caseInsensitive,
-            expression.fieldValue,
+            queryValue,
             attributes,
             maxResults,
             None
@@ -516,6 +521,10 @@ class DirectoryService(BaseDirectoryService):
         @rtype: iterable of L{DirectoryRecord}
         """
 
+        # FIXME: This is blocking.
+        # We can call scheduleInRunLoop:forMode:, which will call back to
+        # its delegate...
+
         odRecords, error = query.resultsAllowingPartial_error_(False, None)
 
         if error:
@@ -527,15 +536,14 @@ class DirectoryService(BaseDirectoryService):
                 "Unable to execute OpenDirectory query", error
             )
 
-        for odRecord in odRecords:
-            yield DirectoryRecord(self, odRecord)
+        return succeed(DirectoryRecord(self, odr) for odr in odRecords)
 
 
     def recordsFromNonCompoundExpression(self, expression, records=None):
         if isinstance(expression, MatchExpression):
             try:
                 query = self._queryFromMatchExpression(expression)
-                return succeed(self._recordsFromQuery(query))
+                return self._recordsFromQuery(query)
 
             except QueryNotSupportedError:
                 pass
@@ -545,15 +553,26 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def recordsFromCompoundExpression(self, expression, records=None):
-        try:
-            query = self._queryFromCompoundExpression(expression)
-            return succeed(self._recordsFromQuery(query))
+    #
+    # Commented out because:
+    #  (a) generating queries as strings is janky; note that quoting is
+    #      problematic, so queries with characters like ")" don't work.
+    #  (b) it removes a lot of code.
+    #
+    # What I'd like to see is a way to nest ODQuery objects, but I can't see
+    # any support for that in the OD framework.
+    #
+    # This seems to also work with the local node.  -wsanchez
+    #
+    # def recordsFromCompoundExpression(self, expression, records=None):
+    #     try:
+    #         query = self._queryFromCompoundExpression(expression)
+    #         return (self._recordsFromQuery(query)
 
-        except QueryNotSupportedError:
-            return BaseDirectoryService.recordsFromCompoundExpression(
-                self, expression
-            )
+    #     except QueryNotSupportedError:
+    #         return BaseDirectoryService.recordsFromCompoundExpression(
+    #             self, expression
+    #         )
 
 
     def _getUserRecord(self, username):

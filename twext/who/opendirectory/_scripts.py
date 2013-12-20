@@ -206,11 +206,6 @@ def lookup(shortNames):
             service.fieldName.shortNames, shortName,
             matchType=MatchType.equals,
         )
-        queryString = service._queryStringFromExpression(matchExpression)
-        print(
-            "\n...via MatchExpression, query={query!r}\n"
-            .format(query=queryString)
-        )
 
         records = yield service.recordsFromExpression(matchExpression)
         for record in records:
@@ -228,11 +223,6 @@ def lookup(shortNames):
                 ),
             ],
             Operand.OR
-        )
-        queryString = service._queryStringFromExpression(compoundExpression)
-        print(
-            "\n...via CompoundExpression, query={query!r}\n"
-            .format(query=queryString)
         )
 
         records = yield service.recordsFromExpression(compoundExpression)

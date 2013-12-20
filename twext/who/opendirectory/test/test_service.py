@@ -20,10 +20,10 @@ OpenDirectory service tests.
 
 from twisted.trial import unittest
 
-from ...expression import (
-    CompoundExpression, MatchExpression, MatchType, Operand
-)
-from .._service import DirectoryService
+# from ...expression import (
+#     CompoundExpression, MatchExpression, MatchType, Operand
+# )
+# from .._service import DirectoryService
 
 
 
@@ -32,89 +32,89 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     Tests for L{DirectoryService}.
     """
 
-    def test_queryStringFromExpression(self):
-        service = DirectoryService()
+    # def test_queryStringFromExpression(self):
+    #     service = DirectoryService()
 
-        # MatchExpressions
+    #     # MatchExpressions
 
-        for matchType, expected in (
-            (MatchType.equals, u"=xyzzy"),
-            (MatchType.startsWith, u"=xyzzy*"),
-            (MatchType.endsWith, u"=*xyzzy"),
-            (MatchType.contains, u"=*xyzzy*"),
-        ):
-            expression = MatchExpression(
-                service.fieldName.shortNames, u"xyzzy",
-                matchType=matchType
-            )
-            queryString = service._queryStringFromExpression(expression)
-            self.assertEquals(
-                queryString,
-                u"(dsAttrTypeStandard:RecordName{exp})".format(exp=expected)
-            )
+    #     for matchType, expected in (
+    #         (MatchType.equals, u"=xyzzy"),
+    #         (MatchType.startsWith, u"=xyzzy*"),
+    #         (MatchType.endsWith, u"=*xyzzy"),
+    #         (MatchType.contains, u"=*xyzzy*"),
+    #     ):
+    #         expression = MatchExpression(
+    #             service.fieldName.shortNames, u"xyzzy",
+    #             matchType=matchType
+    #         )
+    #         queryString = service._queryStringFromExpression(expression)
+    #         self.assertEquals(
+    #             queryString,
+    #             u"(dsAttrTypeStandard:RecordName{exp})".format(exp=expected)
+    #         )
 
-        # CompoundExpressions
+    #     # CompoundExpressions
 
-        expression = CompoundExpression(
-            [
-                MatchExpression(
-                    service.fieldName.uid, u"a",
-                    matchType=MatchType.contains
-                ),
-                MatchExpression(
-                    service.fieldName.guid, u"b",
-                    matchType=MatchType.contains
-                ),
-                MatchExpression(
-                    service.fieldName.shortNames, u"c",
-                    matchType=MatchType.contains
-                ),
-                MatchExpression(
-                    service.fieldName.emailAddresses, u"d",
-                    matchType=MatchType.startsWith
-                ),
-                MatchExpression(
-                    service.fieldName.fullNames, u"e",
-                    matchType=MatchType.equals
-                ),
-            ],
-            Operand.AND
-        )
-        queryString = service._queryStringFromExpression(expression)
-        self.assertEquals(
-            queryString,
-            (
-                u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
-                u"(dsAttrTypeStandard:GeneratedUID=*b*)"
-                u"(dsAttrTypeStandard:RecordName=*c*)"
-                u"(dsAttrTypeStandard:EMailAddress=d*)"
-                u"(dsAttrTypeStandard:RealName=e))"
-            )
-        )
+    #     expression = CompoundExpression(
+    #         [
+    #             MatchExpression(
+    #                 service.fieldName.uid, u"a",
+    #                 matchType=MatchType.contains
+    #             ),
+    #             MatchExpression(
+    #                 service.fieldName.guid, u"b",
+    #                 matchType=MatchType.contains
+    #             ),
+    #             MatchExpression(
+    #                 service.fieldName.shortNames, u"c",
+    #                 matchType=MatchType.contains
+    #             ),
+    #             MatchExpression(
+    #                 service.fieldName.emailAddresses, u"d",
+    #                 matchType=MatchType.startsWith
+    #             ),
+    #             MatchExpression(
+    #                 service.fieldName.fullNames, u"e",
+    #                 matchType=MatchType.equals
+    #             ),
+    #         ],
+    #         Operand.AND
+    #     )
+    #     queryString = service._queryStringFromExpression(expression)
+    #     self.assertEquals(
+    #         queryString,
+    #         (
+    #             u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
+    #             u"(dsAttrTypeStandard:GeneratedUID=*b*)"
+    #             u"(dsAttrTypeStandard:RecordName=*c*)"
+    #             u"(dsAttrTypeStandard:EMailAddress=d*)"
+    #             u"(dsAttrTypeStandard:RealName=e))"
+    #         )
+    #     )
 
-        expression = CompoundExpression(
-            [
-                MatchExpression(
-                    service.fieldName.shortNames, u"a",
-                    matchType=MatchType.contains
-                ),
-                MatchExpression(
-                    service.fieldName.emailAddresses, u"b",
-                    matchType=MatchType.startsWith
-                ),
-                MatchExpression(
-                    service.fieldName.fullNames, u"c",
-                    matchType=MatchType.equals
-                ),
-            ],
-            Operand.OR
-        )
-        queryString = service._queryStringFromExpression(expression)
-        self.assertEquals(
-            queryString,
-            (
-                u"(|(dsAttrTypeStandard:RecordName=*a*)"
-                u"(dsAttrTypeStandard:EMailAddress=b*)"
-                u"(dsAttrTypeStandard:RealName=c))"
-            )
-        )
+    #     expression = CompoundExpression(
+    #         [
+    #             MatchExpression(
+    #                 service.fieldName.shortNames, u"a",
+    #                 matchType=MatchType.contains
+    #             ),
+    #             MatchExpression(
+    #                 service.fieldName.emailAddresses, u"b",
+    #                 matchType=MatchType.startsWith
+    #             ),
+    #             MatchExpression(
+    #                 service.fieldName.fullNames, u"c",
+    #                 matchType=MatchType.equals
+    #             ),
+    #         ],
+    #         Operand.OR
+    #     )
+    #     queryString = service._queryStringFromExpression(expression)
+    #     self.assertEquals(
+    #         queryString,
+    #         (
+    #             u"(|(dsAttrTypeStandard:RecordName=*a*)"
+    #             u"(dsAttrTypeStandard:EMailAddress=b*)"
+    #             u"(dsAttrTypeStandard:RealName=c))"
+    #         )
+    #     )
