@@ -116,7 +116,7 @@ class DirectoryService(object):
 
     def recordsFromNonCompoundExpression(self, expression, records=None):
         """
-        Finds records matching a expression.
+        Finds records matching a non-compound expression.
 
         @note: This method is called by L{recordsFromExpression} to handle
             all expressions other than L{CompoundExpression}.
@@ -157,45 +157,67 @@ class DirectoryService(object):
 
 
     @inlineCallbacks
-    def recordsFromExpression(self, expression):
-        if isinstance(expression, CompoundExpression):
-            operand = expression.operand
-            subExpressions = iter(expression.expressions)
+    def recordsFromCompoundExpression(self, expression):
+        """
+        Finds records matching a compound expression.
 
-            try:
-                subExpression = subExpressions.next()
-            except StopIteration:
-                returnValue(())
+        @note: This method is called by L{recordsFromExpression} to handle
+            all L{CompoundExpression}s.
 
-            results = set((
-                yield self.recordsFromNonCompoundExpression(subExpression)
+        @param expression: an expression to apply
+        @type expression: L{CompoundExpression}
+
+        @return: The matching records.
+        @rtype: deferred iterable of L{IDirectoryRecord}s
+
+        @raises: L{QueryNotSupportedError} if the expression is not
+            supported by this directory service.
+        """
+        operand = expression.operand
+        subExpressions = iter(expression.expressions)
+
+        try:
+            subExpression = subExpressions.next()
+        except StopIteration:
+            returnValue(())
+
+        results = set((
+            yield self.recordsFromNonCompoundExpression(subExpression)
+        ))
+
+        for subExpression in subExpressions:
+            if operand == Operand.AND:
+                if not results:
+                    # No need to bother continuing here
+                    returnValue(())
+
+                records = results
+            else:
+                records = None
+
+            recordsMatchingExpression = frozenset((
+                yield self.recordsFromNonCompoundExpression(
+                    subExpression,
+                    records=records
+                )
             ))
 
-            for subExpression in subExpressions:
-                if operand == Operand.AND:
-                    if not results:
-                        # No need to bother continuing here
-                        returnValue(())
+            if operand == Operand.AND:
+                results &= recordsMatchingExpression
+            elif operand == Operand.OR:
+                results |= recordsMatchingExpression
+            else:
+                raise QueryNotSupportedError(
+                    "Unknown operand: {0}".format(operand)
+                )
 
-                    records = results
-                else:
-                    records = None
+        returnValue(results)
 
-                recordsMatchingExpression = frozenset((
-                    yield self.recordsFromNonCompoundExpression(
-                        subExpression,
-                        records=records
-                    )
-                ))
 
-                if operand == Operand.AND:
-                    results &= recordsMatchingExpression
-                elif operand == Operand.OR:
-                    results |= recordsMatchingExpression
-                else:
-                    raise QueryNotSupportedError(
-                        "Unknown operand: {0}".format(operand)
-                    )
+    @inlineCallbacks
+    def recordsFromExpression(self, expression):
+        if isinstance(expression, CompoundExpression):
+            results = yield self.recordsFromCompoundExpression(expression)
         else:
             results = yield self.recordsFromNonCompoundExpression(expression)
 
