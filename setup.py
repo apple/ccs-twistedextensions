@@ -79,10 +79,10 @@ version_file.close()
 # Set up Extension modules that need to be built
 #
 
-from distutils.core import Extension
+# from distutils.core import Extension
 
 extensions = [
-    Extension("twext.python.sendmsg", sources=["twext/python/sendmsg.c"])
+    # Extension("twext.python.sendmsg", sources=["twext/python/sendmsg.c"])
 ]
 
 if sys.platform == "darwin":
