@@ -101,7 +101,7 @@ def doSetup():
     from distutils.core import setup
 
     setup(
-        name="twext",
+        name="twextpy",
         version=version_string,
         description=description,
         long_description=long_description,
