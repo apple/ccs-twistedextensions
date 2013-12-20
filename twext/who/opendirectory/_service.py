@@ -364,8 +364,22 @@ class DirectoryService(BaseDirectoryService):
                 raise QueryNotSupportedError(
                     "Unknown match type: {0}".format(matchType)
                 )
-            odAttr = ODAttribute.fromFieldName(expression.fieldName).value
-            # FIXME: Shouldn't the attr and value be quoted somehow?
+
+            if expression.fieldName is self.fieldName.uid:
+                odAttr = ODAttribute.guid.value
+                value = expression.fieldValue
+            else:
+                odAttr = ODAttribute.fromFieldName(expression.fieldName)
+                if odAttr is None:
+                    raise OpenDirectoryQueryError(
+                        "Unknown field name: {0}".format(expression.fieldName)
+                    )
+                odAttr = odAttr.value
+                value = expression.fieldValue
+
+            value = unicode(value)
+
+            # FIXME: Shouldn't the value be quoted somehow?
             queryString = {
                 ODMatchType.equals.value: u"({attr}={value})",
                 ODMatchType.startsWith.value: u"({attr}={value}*)",
@@ -375,17 +389,20 @@ class DirectoryService(BaseDirectoryService):
                 ODMatchType.greaterThan.value: u"({attr}>{value})",
             }.get(matchType.value, u"({attr}=*{value}*)").format(
                 attr=odAttr,
-                value=expression.fieldValue
+                value=value
             )
 
         elif isinstance(expression, CompoundExpression):
             queryString = u""
             operand = u"&" if expression.operand is Operand.AND else u"|"
+
             if len(expression.expressions) > 1:
                 queryString += u"("
                 queryString += operand
+
             for subExpression in expression.expressions:
                 queryString += self._queryStringFromExpression(subExpression)
+
             if len(expression.expressions) > 1:
                 queryString += u")"
 
