@@ -531,34 +531,29 @@ class DirectoryService(BaseDirectoryService):
             yield DirectoryRecord(self, odRecord)
 
 
-
-    def recordsFromExpression(self, expression, records=None):
-        """
-        @param expression: an expression to apply
-        @type expression: L{MatchExpression} or L{CompoundExpression}
-
-        @return: The matching records.
-        @rtype: deferred iterable of L{IDirectoryRecord}s
-
-        @raises: L{QueryNotSupportedError} if the expression is not
-            supported by this directory service.
-        """
-
-        try:
-            if isinstance(expression, CompoundExpression):
-                query = self._queryFromCompoundExpression(expression)
-                return succeed(self._recordsFromQuery(query))
-
-            elif isinstance(expression, MatchExpression):
+    def recordsFromNonCompoundExpression(self, expression, records=None):
+        if isinstance(expression, MatchExpression):
+            try:
                 query = self._queryFromMatchExpression(expression)
                 return succeed(self._recordsFromQuery(query))
 
-        except QueryNotSupportedError:
-            pass
+            except QueryNotSupportedError:
+                pass
 
-        return BaseDirectoryService.recordsFromExpression(
+        return BaseDirectoryService.recordsFromNonCompoundExpression(
             self, expression
         )
+
+
+    def recordsFromCompoundExpression(self, expression, records=None):
+        try:
+            query = self._queryFromCompoundExpression(expression)
+            return succeed(self._recordsFromQuery(query))
+
+        except QueryNotSupportedError:
+            return BaseDirectoryService.recordsFromCompoundExpression(
+                self, expression
+            )
 
 
     def _getUserRecord(self, username):
