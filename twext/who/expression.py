@@ -97,9 +97,6 @@ class MatchType(Names):
     greaterThanOrEqualTo = NamedConstant()
     greaterThanOrEqualTo.description = u"greater than or equal to"
 
-    compound = NamedConstant()
-    compound.description = u"compound expression"
-
 
 
 class MatchFlags(Flags):

@@ -94,15 +94,15 @@ class OpenDirectoryDataError(OpenDirectoryError):
 
 class FieldName(Names):
     searchPath = NamedConstant()
-    searchPath.description = "search path"
+    searchPath.description = u"search path"
     searchPath.multiValue = False
 
     metaNodeLocation = NamedConstant()
-    metaNodeLocation.description = "source OD node"
+    metaNodeLocation.description = u"source OD node"
     metaNodeLocation.multiValue = False
 
     metaRecordName = NamedConstant()
-    metaRecordName.description = "meta record name"
+    metaRecordName.description = u"meta record name"
     metaRecordName.multiValue = False
 
 
@@ -112,16 +112,16 @@ class FieldName(Names):
 #
 
 class ODSearchPath(Values):
-    local = ValueConstant("/Local/Default")
-    search = ValueConstant("/Search")
+    local = ValueConstant(u"/Local/Default")
+    search = ValueConstant(u"/Search")
 
 
 
 class ODRecordType(Values):
-    user = ValueConstant("dsRecTypeStandard:Users")
+    user = ValueConstant(u"dsRecTypeStandard:Users")
     user.recordType = BaseRecordType.user
 
-    group = ValueConstant("dsRecTypeStandard:Groups")
+    group = ValueConstant(u"dsRecTypeStandard:Groups")
     group.recordType = BaseRecordType.group
 
 
@@ -138,33 +138,33 @@ class ODRecordType(Values):
 
 
 class ODAttribute(Values):
-    searchPath = ValueConstant("dsAttrTypeStandard:SearchPath")
+    searchPath = ValueConstant(u"dsAttrTypeStandard:SearchPath")
     searchPath.fieldName = FieldName.searchPath
 
-    recordType = ValueConstant("dsAttrTypeStandard:RecordType")
+    recordType = ValueConstant(u"dsAttrTypeStandard:RecordType")
     recordType.fieldName = BaseFieldName.recordType
 
-    # uid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
+    # uid = ValueConstant(u"dsAttrTypeStandard:GeneratedUID")
     # uid.fieldName = BaseFieldName.uid
 
-    guid = ValueConstant("dsAttrTypeStandard:GeneratedUID")
+    guid = ValueConstant(u"dsAttrTypeStandard:GeneratedUID")
     guid.fieldName = BaseFieldName.guid
 
-    shortName = ValueConstant("dsAttrTypeStandard:RecordName")
+    shortName = ValueConstant(u"dsAttrTypeStandard:RecordName")
     shortName.fieldName = BaseFieldName.shortNames
 
-    fullName = ValueConstant("dsAttrTypeStandard:RealName")
+    fullName = ValueConstant(u"dsAttrTypeStandard:RealName")
     fullName.fieldName = BaseFieldName.fullNames
 
-    emailAddress = ValueConstant("dsAttrTypeStandard:EMailAddress")
+    emailAddress = ValueConstant(u"dsAttrTypeStandard:EMailAddress")
     emailAddress.fieldName = BaseFieldName.emailAddresses
 
     metaNodeLocation = ValueConstant(
-        "dsAttrTypeStandard:AppleMetaNodeLocation"
+        u"dsAttrTypeStandard:AppleMetaNodeLocation"
     )
     metaNodeLocation.fieldName = FieldName.metaNodeLocation
 
-    metaRecordName = ValueConstant("dsAttrTypeStandard:AppleMetaRecordName")
+    metaRecordName = ValueConstant(u"dsAttrTypeStandard:AppleMetaRecordName")
     metaRecordName.fieldName = FieldName.metaRecordName
 
 
@@ -182,6 +182,8 @@ class ODAttribute(Values):
 
 
 class ODMatchType(Values):
+    all = ValueConstant(0x2001)
+
     equals = ValueConstant(0x2001)
     equals.matchType = MatchType.equals
 
@@ -207,7 +209,6 @@ class ODMatchType(Values):
     greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
 
     compound = ValueConstant(0x210B)
-    compound.matchType = MatchType.compound
 
 
     @classmethod
@@ -216,14 +217,10 @@ class ODMatchType(Values):
             cls._matchTypeByMatchType = dict((
                 (matchType.matchType, matchType)
                 for matchType in cls.iterconstants()
+                if hasattr(matchType, "matchType")
             ))
 
         return cls._matchTypeByMatchType.get(matchType, None)
-
-
-
-class ODMatchFlags(Values):
-    caseInsensitive = ValueConstant(0x100)
 
 
 
@@ -264,7 +261,7 @@ class DirectoryService(BaseDirectoryService):
 
     @property
     def realmName(self):
-        return "OpenDirectory Node {self.nodeName!r}".format(self=self)
+        return u"OpenDirectory Node {self.nodeName!r}".format(self=self)
 
 
     @property
@@ -368,6 +365,7 @@ class DirectoryService(BaseDirectoryService):
                     "Unknown match type: {0}".format(matchType)
                 )
             odAttr = ODAttribute.fromFieldName(expression.fieldName).value
+            # FIXME: Shouldn't the attr and value be quoted somehow?
             queryString = {
                 ODMatchType.equals.value: u"({attr}={value})",
                 ODMatchType.startsWith.value: u"({attr}={value}*)",
@@ -615,7 +613,7 @@ class DirectoryService(BaseDirectoryService):
                 return fail(UnauthorizedLogin("Invalid digest challenge"))
 
             result, m1, m2, error = odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-                "dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
+                u"dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
                 [
                     credentials.username,
                     challenge,
