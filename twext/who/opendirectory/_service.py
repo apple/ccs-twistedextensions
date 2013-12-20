@@ -23,9 +23,7 @@ OpenDirectory directory service implementation.
 
 from zope.interface import implements
 
-from twisted.python.constants import (
-    Names, NamedConstant, Values, ValueConstant,
-)
+from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, fail
 from twisted.cred.checkers import ICredentialsChecker
 from twisted.cred.credentials import (
@@ -46,11 +44,12 @@ from ..directory import (
 )
 from ..expression import (
     # CompoundExpression, Operand,
-    MatchExpression, MatchType, MatchFlags,
+    MatchExpression, MatchFlags,
 )
 from ..util import iterFlags, ConstantsContainer
 
 from ._odframework import ODSession, ODNode, ODQuery
+from ._constants import ODSearchPath, ODRecordType, ODAttribute, ODMatchType
 
 
 
@@ -105,123 +104,6 @@ class FieldName(Names):
     metaRecordName = NamedConstant()
     metaRecordName.description = u"meta record name"
     metaRecordName.multiValue = False
-
-
-
-#
-# OD Constants
-#
-
-class ODSearchPath(Values):
-    local = ValueConstant(u"/Local/Default")
-    search = ValueConstant(u"/Search")
-
-
-
-class ODRecordType(Values):
-    user = ValueConstant(u"dsRecTypeStandard:Users")
-    user.recordType = BaseRecordType.user
-
-    group = ValueConstant(u"dsRecTypeStandard:Groups")
-    group.recordType = BaseRecordType.group
-
-
-    @classmethod
-    def fromRecordType(cls, recordType):
-        if not hasattr(cls, "_recordTypeByRecordType"):
-            cls._recordTypeByRecordType = dict((
-                (recordType.recordType, recordType)
-                for recordType in cls.iterconstants()
-            ))
-
-        return cls._recordTypeByRecordType.get(recordType, None)
-
-
-
-class ODAttribute(Values):
-    searchPath = ValueConstant(u"dsAttrTypeStandard:SearchPath")
-    searchPath.fieldName = FieldName.searchPath
-
-    recordType = ValueConstant(u"dsAttrTypeStandard:RecordType")
-    recordType.fieldName = BaseFieldName.recordType
-
-    # uid = ValueConstant(u"dsAttrTypeStandard:GeneratedUID")
-    # uid.fieldName = BaseFieldName.uid
-
-    guid = ValueConstant(u"dsAttrTypeStandard:GeneratedUID")
-    guid.fieldName = BaseFieldName.guid
-
-    shortName = ValueConstant(u"dsAttrTypeStandard:RecordName")
-    shortName.fieldName = BaseFieldName.shortNames
-
-    fullName = ValueConstant(u"dsAttrTypeStandard:RealName")
-    fullName.fieldName = BaseFieldName.fullNames
-
-    emailAddress = ValueConstant(u"dsAttrTypeStandard:EMailAddress")
-    emailAddress.fieldName = BaseFieldName.emailAddresses
-
-    metaNodeLocation = ValueConstant(
-        u"dsAttrTypeStandard:AppleMetaNodeLocation"
-    )
-    metaNodeLocation.fieldName = FieldName.metaNodeLocation
-
-    metaRecordName = ValueConstant(u"dsAttrTypeStandard:AppleMetaRecordName")
-    metaRecordName.fieldName = FieldName.metaRecordName
-
-
-    @classmethod
-    def fromFieldName(cls, fieldName):
-        if not hasattr(cls, "_attributesByFieldName"):
-            cls._attributesByFieldName = dict((
-                (attribute.fieldName, attribute)
-                for attribute in cls.iterconstants()
-                if hasattr(attribute, "fieldName")
-            ))
-
-        return cls._attributesByFieldName.get(fieldName, None)
-
-
-
-class ODMatchType(Values):
-    all = ValueConstant(0x2001)
-
-    equals = ValueConstant(0x2001)
-    equals.matchType = MatchType.equals
-
-    startsWith = ValueConstant(0x2002)
-    startsWith.matchType = MatchType.startsWith
-
-    endsWith = ValueConstant(0x2003)
-    endsWith.matchType = MatchType.endsWith
-
-    contains = ValueConstant(0x2004)
-    contains.matchType = MatchType.contains
-
-    lessThan = ValueConstant(0x2005)
-    lessThan.matchType = MatchType.lessThan
-
-    greaterThan = ValueConstant(0x2006)
-    greaterThan.matchType = MatchType.greaterThan
-
-    lessThanOrEqualTo = ValueConstant(0x2007)
-    lessThanOrEqualTo.matchType = MatchType.lessThanOrEqualTo
-
-    greaterThanOrEqualTo = ValueConstant(0x2008)
-    greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
-
-    compound = ValueConstant(0x210B)
-
-
-    @classmethod
-    def fromMatchType(cls, matchType):
-        if not hasattr(cls, "_matchTypeByMatchType"):
-            cls._matchTypeByMatchType = dict((
-                (matchType.matchType, matchType)
-                for matchType in cls.iterconstants()
-                if hasattr(matchType, "matchType")
-            ))
-
-        return cls._matchTypeByMatchType.get(matchType, None)
 
 
 
