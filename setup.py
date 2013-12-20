@@ -52,7 +52,7 @@ def find_packages():
 # Options
 #
 
-description = "Extentions to Twisted",
+description = "Extentions to Twisted"
 long_description = """
 Extentions to the Twisted Framework (http://twistedmatrix.com/).
 """
