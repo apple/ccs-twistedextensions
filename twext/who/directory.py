@@ -157,15 +157,26 @@ class DirectoryService(object):
 
 
     @inlineCallbacks
-    def recordsFromCompoundExpression(self, expression):
+    def recordsFromCompoundExpression(self, expression, records=None):
         """
         Finds records matching a compound expression.
 
         @note: This method is called by L{recordsFromExpression} to handle
             all L{CompoundExpression}s.
 
+        @note: This interface is the same as L{recordsFromExpression}, except
+            for the additional C{records} argument.
+
         @param expression: an expression to apply
         @type expression: L{CompoundExpression}
+
+        @param records: a set of records to limit the search to. C{None} if
+            the whole directory should be searched.
+            This is provided by L{recordsFromExpression} when it has already
+            narrowed down results to a set of records.
+            That is, it's a performance optimization; ignoring this and
+            searching the entire directory will also work.
+        @type records: L{set} or L{frozenset}
 
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
@@ -182,7 +193,7 @@ class DirectoryService(object):
             returnValue(())
 
         results = set((
-            yield self.recordsFromNonCompoundExpression(subExpression)
+            yield self.recordsFromExpression(subExpression, records=records)
         ))
 
         for subExpression in subExpressions:
@@ -196,9 +207,8 @@ class DirectoryService(object):
                 records = None
 
             recordsMatchingExpression = frozenset((
-                yield self.recordsFromNonCompoundExpression(
-                    subExpression,
-                    records=records
+                yield self.recordsFromExpression(
+                    subExpression, records=records
                 )
             ))
 
@@ -214,14 +224,16 @@ class DirectoryService(object):
         returnValue(results)
 
 
-    @inlineCallbacks
-    def recordsFromExpression(self, expression):
+    def recordsFromExpression(self, expression, records=None):
+        """
+        @note: This interface is the same as
+            L{IDirectoryService.recordsFromExpression}, except for the
+            additional C{records} argument.
+        """
         if isinstance(expression, CompoundExpression):
-            results = yield self.recordsFromCompoundExpression(expression)
+            return self.recordsFromCompoundExpression(expression)
         else:
-            results = yield self.recordsFromNonCompoundExpression(expression)
-
-        returnValue(results)
+            return self.recordsFromNonCompoundExpression(expression)
 
 
     def recordsWithFieldValue(self, fieldName, value):

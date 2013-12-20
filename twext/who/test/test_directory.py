@@ -54,11 +54,11 @@ class StubDirectoryService(TestDirectoryService):
         super(StubDirectoryService, self).__init__(realmName)
 
         self.records = RecordStorage(self, DirectoryRecord)
-
-
-    def recordsFromExpression(self, expression):
         self.seenExpressions = []
 
+
+    def recordsFromExpression(self, expression, records=None):
+        self.seenExpressions.append(expression)
         return (
             super(StubDirectoryService, self)
             .recordsFromExpression(expression)
@@ -75,8 +75,6 @@ class StubDirectoryService(TestDirectoryService):
         will match records that have an email address ending with the
         given expression.
         """
-        self.seenExpressions.append(expression)
-
         if expression == u"None":
             return succeed([])
 
@@ -368,16 +366,16 @@ class DirectoryServiceRecordsFromExpressionTest(
         """
         service = self.service()
 
-        result = yield service.recordsFromExpression(
-            CompoundExpression(
-                (
-                    u"twistedmatrix.com",
-                    u"None",
-                    u"calendarserver.org",
-                ),
-                Operand.AND
-            )
+        compoundExpression = CompoundExpression(
+            (
+                u"twistedmatrix.com",
+                u"None",
+                u"calendarserver.org",
+            ),
+            Operand.AND
         )
+
+        result = yield service.recordsFromExpression(compoundExpression)
 
         self.assertEquals(
             set(()),
@@ -385,7 +383,7 @@ class DirectoryServiceRecordsFromExpressionTest(
         )
 
         self.assertEquals(
-            [u"twistedmatrix.com", u"None"],
+            [compoundExpression, u"twistedmatrix.com", u"None"],
             service.seenExpressions
         )
 

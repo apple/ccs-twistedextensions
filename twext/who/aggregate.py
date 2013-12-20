@@ -78,10 +78,10 @@ class DirectoryService(BaseDirectoryService):
         return self._recordType
 
 
-    def recordsFromExpression(self, expression):
+    def recordsFromExpression(self, expression, records=None):
         ds = []
         for service in self.services:
-            d = service.recordsFromExpression(expression)
+            d = service.recordsFromExpression(expression, records=records)
             ds.append(d)
 
         def unwrapFirstError(f):

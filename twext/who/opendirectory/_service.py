@@ -532,7 +532,7 @@ class DirectoryService(BaseDirectoryService):
 
 
 
-    def recordsFromExpression(self, expression):
+    def recordsFromExpression(self, expression, records=None):
         """
         @param expression: an expression to apply
         @type expression: L{MatchExpression} or L{CompoundExpression}
