@@ -24,9 +24,9 @@ from twisted.trial.unittest import TestCase, SkipTest
 from twext.enterprise.dal import syntax
 try:
     from twext.enterprise.dal.parseschema import addSQLToSchema
-except ImportError:
+except ImportError as e:
     def addSQLToSchema(*args, **kwargs):
-        raise SkipTest("addSQLToSchema is not available")
+        raise SkipTest("addSQLToSchema is not available: {0}".format(e))
 from twext.enterprise.dal.syntax import (
     Select, Insert, Update, Delete, Lock, SQLFragment,
     TableMismatch, Parameter, Max, Len, NotEnoughValues,

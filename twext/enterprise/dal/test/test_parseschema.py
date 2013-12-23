@@ -24,9 +24,9 @@ from twext.enterprise.dal.syntax import CompoundComparison, ColumnSyntax
 
 try:
     from twext.enterprise.dal.parseschema import addSQLToSchema
-except ImportError:
+except ImportError as e:
     def addSQLToSchema(*args, **kwargs):
-        raise SkipTest("addSQLToSchema is not available")
+        raise SkipTest("addSQLToSchema is not available: {0}".format(e))
 
 from twisted.trial.unittest import TestCase, SkipTest
 
