@@ -19,33 +19,26 @@
 from __future__ import print_function
 
 import sys
-import os
+from os.path import dirname, join as joinpath
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "support"))
+# from distutils.core import setup
+from setuptools import setup, find_packages as setuptools_find_packages
+
+sys.path.insert(0, joinpath(dirname(__file__), "support"))
 
 from version import version
 
+
+#
+# Utilities
+#
 
 def find_packages():
     modules = [
         "twisted.plugins",
     ]
 
-    excludes = [
-        ".svn",
-        "_trial_temp",
-        "build",
-    ]
-
-    for root, dirs, files in os.walk("."):
-        for exclude in excludes:
-            if exclude in dirs:
-                dirs.remove(exclude)
-
-        if "__init__.py" in files:
-            modules.append(".".join(root.split(os.path.sep)[1:]))
-
-    return modules
+    return modules + setuptools_find_packages()
 
 
 #
@@ -65,7 +58,7 @@ classifiers = None
 #
 
 version_string = version()
-version_file = file(os.path.join("twext", "version.py"), "w")
+version_file = file(joinpath("twext", "version.py"), "w")
 version_file.write('version = "{0}"\n'.format(version_string))
 version_file.close()
 
@@ -93,8 +86,6 @@ if sys.platform == "darwin":
 #
 
 def doSetup():
-    from distutils.core import setup
-
     setup(
         name="twextpy",
         version=version_string,
