@@ -64,14 +64,9 @@ classifiers = None
 # Write version file
 #
 
-version_number, version_info = version()
-
-version_string = (
-    "{number} ({info})"
-    .format(number=version_number, info=version_info)
-)
+version_string = version()
 version_file = file(os.path.join("twext", "version.py"), "w")
-version_file.write('version = "{version}"\n'.format(version=version_string))
+version_file.write('version = "{0}"\n'.format(version_string))
 version_file.close()
 
 

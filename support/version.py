@@ -18,7 +18,8 @@
 
 from __future__ import print_function
 
-from os.path import dirname
+from os import chdir
+from os.path import dirname, abspath
 import subprocess
 
 
@@ -42,38 +43,40 @@ def version():
         )
     )
 
-    source_root = dirname(dirname(__file__))
+    source_root = dirname(dirname(abspath(__file__)))
+    chdir(source_root)
 
     for branch in branches:
-        svn_revision = subprocess.check_output(
-            ["svnversion", "-n", source_root, branch]
-        )
+        cmd = ["svnversion", "-n", source_root, branch]
+        svn_revision = subprocess.check_output(cmd)
 
         if "S" in svn_revision:
             continue
 
+        full_version = base_version
+
         if branch == "trunk":
-            base_version += "-trunk"
+            full_version += "b.trunk"
         elif branch.endswith("-dev"):
-            base_version += "-dev"
+            full_version += "c.dev"
 
         if svn_revision in ("exported", "Unversioned directory"):
-            comment = "unknown"
+            full_version += "-unknown"
         else:
-            comment = "r{revision}".format(revision=svn_revision)
+            full_version += "-r{revision}".format(revision=svn_revision)
 
         break
     else:
-        base_version += "-unknown"
-        comment = "r{revision}".format(revision=svn_revision)
+        full_version += "a.unknown"
+        full_version += "-r{revision}".format(revision=svn_revision)
 
-    return (base_version, comment)
+    return full_version
 
 
 
 if __name__ == "__main__":
-    base_version, comment = version()
+    base_version = version()
     print(
-        "{version} ({comment})"
-        .format(version=base_version, comment=comment)
+        "{version}"
+        .format(version=base_version)
     )
