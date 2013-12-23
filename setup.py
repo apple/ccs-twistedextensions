@@ -19,7 +19,6 @@
 from __future__ import print_function
 
 import sys
-from os import chdir
 from os.path import dirname, abspath, join as joinpath
 import subprocess
 
