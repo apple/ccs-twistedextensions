@@ -101,12 +101,23 @@ classifiers = None
 
 
 #
+# Dependancies
+#
+
+requirements = [
+    "sqlparse==0.1.2",
+    "twisted>=13.2.0",
+]
+
+
+#
 # Write version file
 #
 
 version_string = version()
 version_file = file(joinpath("twext", "version.py"), "w")
-version_file.write('version = "{0}"\n'.format(version_string))
+version_file.write('version = "{0}"\n\n'.format(version_string))
+version_file.write("requirements = {0!r}\n".format(requirements))
 version_file.close()
 
 
@@ -150,6 +161,7 @@ def doSetup():
         data_files=[],
         ext_modules=extensions,
         py_modules=[],
+        install_requires=requirements,
     )
 
 
