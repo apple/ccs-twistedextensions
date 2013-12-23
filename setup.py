@@ -60,7 +60,7 @@ def version():
         )
     )
 
-    source_root = dirname(dirname(abspath(__file__)))
+    source_root = dirname(abspath(__file__))
 
     for branch in branches:
         cmd = ["svnversion", "-n", source_root, branch]
