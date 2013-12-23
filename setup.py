@@ -19,14 +19,14 @@
 from __future__ import print_function
 
 import sys
-from os.path import dirname, join as joinpath
+from os import chdir
+from os.path import dirname, abspath, join as joinpath
+import subprocess
 
 # from distutils.core import setup
 from setuptools import setup, find_packages as setuptools_find_packages
 
 sys.path.insert(0, joinpath(dirname(__file__), "support"))
-
-from version import version
 
 
 #
@@ -39,6 +39,54 @@ def find_packages():
     ]
 
     return modules + setuptools_find_packages()
+
+
+def version():
+    """
+    Compute the version number.
+    """
+
+    base_version = "0.1"
+
+    branches = tuple(
+        branch.format(
+            project="twext",
+            version=base_version,
+        )
+        for branch in (
+            "tags/release/{project}-{version}",
+            "branches/release/{project}-{version}-dev",
+            "trunk",
+        )
+    )
+
+    source_root = dirname(dirname(abspath(__file__)))
+
+    for branch in branches:
+        cmd = ["svnversion", "-n", source_root, branch]
+        svn_revision = subprocess.check_output(cmd)
+
+        if "S" in svn_revision:
+            continue
+
+        full_version = base_version
+
+        if branch == "trunk":
+            full_version += "b.trunk"
+        elif branch.endswith("-dev"):
+            full_version += "c.dev"
+
+        if svn_revision in ("exported", "Unversioned directory"):
+            full_version += "-unknown"
+        else:
+            full_version += "-r{revision}".format(revision=svn_revision)
+
+        break
+    else:
+        full_version += "a.unknown"
+        full_version += "-r{revision}".format(revision=svn_revision)
+
+    return full_version
 
 
 #
