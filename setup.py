@@ -104,21 +104,14 @@ classifiers = None
 # Dependancies
 #
 
-requirements = [
+setup_requirements = [
+    "pyflakes",
+]
+
+install_requirements = [
     "sqlparse==0.1.2",
     "twisted>=13.2.0",
 ]
-
-
-#
-# Write version file
-#
-
-version_string = version()
-version_file = file(joinpath("twext", "version.py"), "w")
-version_file.write('version = "{0}"\n\n'.format(version_string))
-version_file.write("requirements = {0!r}\n".format(requirements))
-version_file.close()
 
 
 #
@@ -144,6 +137,22 @@ if sys.platform == "darwin":
 #
 
 def doSetup():
+    # Write version file
+    version_string = version()
+    version_file = file(joinpath("twext", "version.py"), "w")
+    try:
+        version_file.write(
+            'version = "{0}"\n\n'.format(version_string)
+        )
+        version_file.write(
+            "setup_requirements = {0!r}\n".format(setup_requirements)
+        )
+        version_file.write(
+            "install_requirements = {0!r}\n".format(install_requirements)
+        )
+    finally:
+        version_file.close()
+
     setup(
         name="twextpy",
         version=version_string,
@@ -161,7 +170,8 @@ def doSetup():
         data_files=[],
         ext_modules=extensions,
         py_modules=[],
-        install_requires=requirements,
+        setup_requires=setup_requirements,
+        install_requires=install_requirements,
     )
 
 
