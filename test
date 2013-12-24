@@ -21,6 +21,8 @@ set -u;
 
 wd="$(cd "$(dirname "$0")" && pwd -L)";
 
+. "${wd}/develop";
+
 ##
 # Options
 ##
@@ -87,21 +89,6 @@ find "${wd}" -name \*.pyc -print0 | xargs -0 rm;
 
 
 ##
-# Enable development mode
-##
-
-mkdir -p "${wd}/.develop";
-mkdir -p "${wd}/.develop/lib";
-
-export PYTHONPATH="${wd}/.develop/lib:${PYTHONPATH:-}"
-
-cd "${wd}" && ./setup.py develop  \
-  -d "${wd}/.develop/lib"         \
-  -s "${wd}/.develop/bin"         \
-  > "${wd}/.develop/setup.log" 2>&1;
-
-
-##
 # Unit tests
 ##
 
@@ -124,8 +111,10 @@ cd "${wd}" && "${wd}/bin/trial"    \
 
 echo "";
 echo "Running pyflakes...";
+
+pip install pyflakes --target="${dev_libdir}" > "${dev_root}/pip_pyflakes.log";
 tmp="$(mktemp -t "twext_flakes.XXXXX")";
-cd "${wd}" && ./pyflakes ${test_modules} | tee "${tmp}" 2>&1;
+cd "${wd}" && "${python}" -m pyflakes ${test_modules} | tee "${tmp}" 2>&1;
 if [ -s "${tmp}" ]; then
   echo "**** Pyflakes says you have some code to clean up. ****";
   exit 1;
@@ -137,6 +126,8 @@ rm -f "${tmp}";
 # Empty files
 ##
 
+echo "";
+echo "Checking for empty files...";
 tmp="$(mktemp -t "twext_test_empty.XXXXX")";
 find "${wd}" '!' '(' -type d '(' -path '*/.*' -or -name data -or -name build ')' -prune ')' -type f -size 0 > "${tmp}";
 if [ -s "${tmp}" ]; then

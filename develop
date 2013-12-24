@@ -21,6 +21,26 @@ set -u
 
 wd="$(cd "$(dirname "$0")" && pwd)";
 
-. "${wd}/develop";
+if [ -n "${PYTHON:-}" ]; then
+  python="${PYTHON}";
+else
+  python=python;
+fi;
 
-exec "${python}" "$@";
+##
+# Enable development mode
+##
+
+dev_root="${wd}/.develop";
+dev_libdir="${dev_root}/lib";
+dev_bindir="${dev_root}/bin";
+
+mkdir -p "${dev_root}";
+mkdir -p "${dev_libdir}";
+
+export PYTHONPATH="${dev_libdir}:${PYTHONPATH:-}"
+
+cd "${wd}" && ./setup.py develop  \
+  -d "${dev_libdir}"              \
+  -s "${dev_bindir}"              \
+  > "${dev_root}/setup.log" 2>&1;

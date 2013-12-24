@@ -105,7 +105,6 @@ classifiers = None
 #
 
 setup_requirements = [
-    "pyflakes",
 ]
 
 install_requirements = [
