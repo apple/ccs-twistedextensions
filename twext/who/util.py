@@ -43,7 +43,7 @@ class ConstantsContainer(object):
         self._methods = {}
 
         for source in sources:
-            if type(source) is type:
+            if issubclass(type(source), type):
                 if issubclass(source, CONTAINER_CLASSES):
                     self._addConstants(source.iterconstants())
                     self._addMethods(source)
