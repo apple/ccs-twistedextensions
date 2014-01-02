@@ -45,6 +45,7 @@ __all__ = [
     "AliasReferenceSyntax",
     "AliasedColumnSyntax",
     "Comparison",
+    "Not",
     "NullComparison",
     "CompoundComparison",
     "ColumnComparison",
