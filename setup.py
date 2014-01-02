@@ -40,6 +40,7 @@ def find_packages():
     return modules + setuptools_find_packages()
 
 
+
 def version():
     """
     Compute the version number.
@@ -92,9 +93,9 @@ def version():
 # Options
 #
 
-description = "Extentions to Twisted"
+description = "Extensions to Twisted"
 long_description = """
-Extentions to the Twisted Framework (http://twistedmatrix.com/).
+Extensions to the Twisted Framework (http://twistedmatrix.com/).
 """
 
 classifiers = None
@@ -129,6 +130,7 @@ if sys.platform == "darwin":
         extensions.append(launchd.ffi.verifier.get_extension())
     except ImportError:
         pass
+
 
 
 #
