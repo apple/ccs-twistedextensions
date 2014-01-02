@@ -32,7 +32,7 @@ class ServiceMakerWrapper(object):
     def __init__(self, className, *args, **kwargs):
         """
         @param className: The fully qualified name of the
-            L{IServiceMaker}-providing class to instiantiate.
+            L{IServiceMaker}-providing class to instantiate.
         @type className: L{str}
 
         @param args: Sequential arguments to pass to the class's constructor.
