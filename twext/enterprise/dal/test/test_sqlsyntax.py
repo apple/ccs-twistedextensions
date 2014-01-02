@@ -33,8 +33,7 @@ from twext.enterprise.dal.syntax import (
     Savepoint, RollbackToSavepoint, ReleaseSavepoint, SavepointAction,
     Union, Intersect, Except, SetExpression, DALError,
     ResultAliasSyntax, Count, QueryGenerator, ALL_COLUMNS,
-    DatabaseLock, DatabaseUnlock
-)
+    DatabaseLock, DatabaseUnlock, Not)
 from twext.enterprise.dal.syntax import FixedPlaceholder, NumericPlaceholder
 from twext.enterprise.dal.syntax import Function
 from twext.enterprise.dal.syntax import SchemaSyntax
@@ -408,6 +407,17 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 )
             ).toSQL(),
             SQLFragment("select * from FOO join BOZ on BAR = QUX", [])
+        )
+
+
+    def test_commaJoin(self):
+        """
+        A join with no clause specified will generate a cross join. This variant
+        uses a "," between table names rather than "cross join".
+        """
+        self.assertEquals(
+            Select(From=self.schema.FOO.join(self.schema.BOZ, type=",")).toSQL(),
+            SQLFragment("select * from FOO, BOZ")
         )
 
 
@@ -965,13 +975,13 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 From=self.schema.FOO,
                 Where=(
                     (
-                        self.schema.FOO.BAZ == Parameter("P1")
-                    ).Or(
-                        self.schema.FOO.BAR.In(Parameter("names", len(items)))
-                    ).And(
-                        self.schema.FOO.BAZ == Parameter("P2")
+                    self.schema.FOO.BAZ == Parameter("P1")
+                ).Or(
+                        self.schema.FOO.BAR.In(Parameter("names", len(items))
+                ).And(
+                    self.schema.FOO.BAZ == Parameter("P2")
                     )
-                )
+                ))
             ).toSQL().bind(P1="P1", P2="P2", names=items),
             SQLFragment(
                 "select * from FOO where BAZ = ? or BAR in (?, ?) and BAZ = ?",
@@ -1117,6 +1127,73 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment(
                 "select MYTEXT from TEXTUAL where MYTEXT like (? || (? || ?))",
                 ["%", "test", "%"]
+            )
+        )
+
+
+    def test_not(self):
+        """
+        Test for the string starts with comparison.
+        (Note that this should be updated to use different techniques
+        as necessary in different databases.)
+        """
+        self.assertEquals(
+            Select([
+                self.schema.TEXTUAL.MYTEXT],
+                From=self.schema.TEXTUAL,
+                Where=Not(self.schema.TEXTUAL.MYTEXT.StartsWith("test")),
+            ).toSQL(),
+            SQLFragment(
+                "select MYTEXT from TEXTUAL where not MYTEXT like (? || ?)",
+                ["test", "%"]
+            )
+        )
+
+        self.assertEquals(
+            Select([
+                self.schema.TEXTUAL.MYTEXT],
+                From=self.schema.TEXTUAL,
+                Where=Not(self.schema.TEXTUAL.MYTEXT == "test"),
+            ).toSQL(),
+            SQLFragment(
+                "select MYTEXT from TEXTUAL where not MYTEXT = ?",
+                ["test"]
+            )
+        )
+
+        self.assertEquals(
+            Select([
+                self.schema.TEXTUAL.MYTEXT],
+                From=self.schema.TEXTUAL,
+                Where=Not((self.schema.TEXTUAL.MYTEXT == "test1").And(self.schema.TEXTUAL.MYTEXT != "test2")),
+            ).toSQL(),
+            SQLFragment(
+                "select MYTEXT from TEXTUAL where not (MYTEXT = ? and MYTEXT != ?)",
+                ["test1", "test2"]
+            )
+        )
+
+        self.assertEquals(
+            Select([
+                self.schema.TEXTUAL.MYTEXT],
+                From=self.schema.TEXTUAL,
+                Where=Not((self.schema.TEXTUAL.MYTEXT == "test1")).And(self.schema.TEXTUAL.MYTEXT != "test2"),
+            ).toSQL(),
+            SQLFragment(
+                "select MYTEXT from TEXTUAL where not MYTEXT = ? and MYTEXT != ?",
+                ["test1", "test2"]
+            )
+        )
+
+        self.assertEquals(
+            Select([
+                self.schema.TEXTUAL.MYTEXT],
+                From=self.schema.TEXTUAL,
+                Where=Not(self.schema.TEXTUAL.MYTEXT.StartsWith("foo").And(self.schema.TEXTUAL.MYTEXT.NotEndsWith("bar"))),
+            ).toSQL(),
+            SQLFragment(
+                "select MYTEXT from TEXTUAL where not (MYTEXT like (? || ?) and MYTEXT not like (? || ?))",
+                ["foo", "%", "%", "bar"]
             )
         )
 
