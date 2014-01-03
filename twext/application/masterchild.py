@@ -231,7 +231,6 @@ class MasterService(MultiService, object):
             def checkForWeirdness(what, expected):
                 n = getattr(previousStatus, what)
                 if n != expected:
-                    # Upgrade to critical when logging is updated
                     MasterService.log.critical(
                         "New process has {count} {type} connections, "
                         "expected {expected}."
