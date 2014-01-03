@@ -140,7 +140,8 @@ if sys.platform == "darwin":
 def doSetup():
     # Write version file
     version_string = version()
-    version_file = file(joinpath("twext", "version.py"), "w")
+    version_filename = joinpath(dirname(__file__), "twext", "version.py")
+    version_file = file(version_filename, "w")
     try:
         version_file.write(
             'version = "{0}"\n\n'.format(version_string)
