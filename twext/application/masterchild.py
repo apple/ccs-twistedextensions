@@ -327,14 +327,24 @@ class ChildSpawningService(Service, object):
     pluginName = b"child"
 
 
-    def __init__(self, dispatcher, maxProcessCount=8):
+    def __init__(
+        self, dispatcher, maxProcessCount=8, highWaterMark=3
+    ):
         """
-        @param protocol: The name of the protocol for the child to use
-            to handle connections.
-        @type protocol: L{str} naming an L{IProtocol} implementer.
+        @param dispatcher: The dispatcher managing inbound connections.
+        @type dispatcher: L{InheritedSocketDispatcher}
+
+        @param maxProcessCount: The maximum number of child processes that may
+            be spawned.
+        @type maxProcessCount: L{int}
+
+        @param highWaterMark: The high-end number of connections that each
+            process should be given before new processes should be spawned.
+        @type highWaterMark: L{int}
         """
         self.dispatcher = dispatcher
         self.maxProcessCount = maxProcessCount
+        self.highWaterMark = highWaterMark
 
 
     def startService(self):
@@ -347,14 +357,42 @@ class ChildSpawningService(Service, object):
         del(self.children)
 
 
+    def totalEffectiveLoad(self):
+        """
+        Compute the sum of the effective load of all child process.
+
+        @return: The total effective load accross all processes.
+        @rtype: L{float}
+        """
+        return sum(s.effectiveLoad() for s in self.dispatcher.statuses)
+
+
     def socketWillArriveForProtocol(self, protocolName):
         """
         This method is where this service makes sure that there are
         sufficient child processes available to handle additional
         connections.
         """
-        if len(self.children) == 0:
+        numChildren = len(self.children)
+
+        if numChildren == 0:
+            self.log.info("Spawning first child.")
             self.spawnChild(protocolName)
+            return
+
+        totalLoad = self.totalEffectiveLoad()
+        averageLoad = float(totalLoad) / float(numChildren)
+
+        # self.log.info(
+        #     "Load: {totalLoad} / {childCount} = {averageLoad}",
+        #     totalLoad=totalLoad,
+        #     childCount=numChildren,
+        #     averageLoad=averageLoad,
+        # )
+
+        if averageLoad >= self.highWaterMark:
+            if numChildren < self.maxProcessCount:
+                self.spawnChild(protocolName)
 
 
     def spawnChild(self, protocolName):
