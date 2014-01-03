@@ -72,6 +72,7 @@ class UnknownRecordTypeError(DirectoryServiceError):
     """
     Unknown record type.
     """
+
     def __init__(self, token):
         DirectoryServiceError.__init__(self, token)
         self.token = token
@@ -117,6 +118,7 @@ class RecordType(Names):
         Represents a non-person not covered by another record type (eg. a
         projector).
     """
+
     user = NamedConstant()
     user.description  = u"user"
 
@@ -150,9 +152,11 @@ class FieldName(Names):
     @cvar emailAddresses: The email addresses for a directory record.
         The associated values must be L{unicodes}.
 
-    @cvar password: The clear text password for a directory record.
+    @cvar password: The clear text password (oh no!) for a directory record.
         The associated value must be a L{unicode} or C{None}.
+        The correct value is C{None}.
     """
+
     uid = NamedConstant()
     uid.description = u"UID"
 
@@ -406,6 +410,7 @@ class IDirectoryRecord(Interface):
     C{record.recordType} is equivalent to
     C{record.fields[FieldName.recordType]}.
     """
+
     service = Attribute("The L{IDirectoryService} this record exists in.")
     fields  = Attribute("A mapping with L{NamedConstant} keys.")
 
@@ -428,4 +433,40 @@ class IDirectoryRecord(Interface):
 
         @return: a deferred iterable of L{IDirectoryRecord}s which are
             groups that this record is a member of.
+        """
+
+
+
+class IPlaintextPasswordVerifier(Interface):
+    """
+    Provides a way to verify a plaintext password as provided by a client.
+    """
+
+    def verifyPlaintextPassword(password):
+        """
+        Verifies that a given plaintext password authenticates the record.
+
+        @param password: A plaintext password.
+        @type password: L{unicode}
+
+        @return: L{True} if the password matches, L{False} otherwise.
+        @rtype: L{BOOL}
+        """
+
+
+
+class IHTTPDigestVerifier(Interface):
+    """
+    Provides a way to verify HTTP digest credentials as provided by a client.
+    """
+
+    def verifyHTTPDigest(username, realm, nonce, algorithm, response, method):
+        """
+        Verifies that a given plaintext password authenticates the record.
+
+        @param password: A plaintext password.
+        @type password: L{unicode}
+
+        @return: L{True} if the password matches, L{False} otherwise.
+        @rtype: L{BOOL}
         """

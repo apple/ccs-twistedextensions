@@ -24,15 +24,17 @@ __all__ = [
     "DirectoryRecord",
 ]
 
-from zope.interface import implementer
+from zope.interface import implementer, directlyProvides
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.defer import succeed, fail
+from twisted.cred.credentials import DigestedCredentials
 
 from .idirectory import (
     QueryNotSupportedError, NotAllowedError,
     FieldName, RecordType,
     IDirectoryService, IDirectoryRecord,
+    IPlaintextPasswordVerifier, IHTTPDigestVerifier,
 )
 from .expression import CompoundExpression, Operand, MatchExpression
 from .util import uniqueResult, describe, ConstantsContainer
@@ -374,6 +376,11 @@ class DirectoryRecord(object):
         self.service = service
         self.fields = normalizedFields
 
+        if self.service.fieldName.password in self.fields:
+            directlyProvides(
+                self, IPlaintextPasswordVerifier, IHTTPDigestVerifier
+            )
+
 
     def __repr__(self):
         return (
@@ -455,3 +462,35 @@ class DirectoryRecord(object):
 
     def groups(self):
         return fail(NotImplementedError("Subclasses must implement groups()"))
+
+
+    #
+    # Verifiers for twext.who.checker stuff.
+    #
+
+    def verifyPlaintextPassword(self, password):
+        if self.password == password:
+            return True
+        else:
+            return False
+
+
+    def verifyHTTPDigest(
+        self, username, realm, uri, nonce, cnonce,
+        algorithm, nc, qop, response, method,
+    ):
+        helperCreds = DigestedCredentials(
+            username, method, realm,
+            dict(
+                realm=realm,
+                uri=uri,
+                nonce=nonce,
+                cnonce=cnonce,
+                algorithm=algorithm,
+                nc=nc,
+                qop=qop,
+                response=response
+            )
+        )
+
+        return helperCreds.checkPassword(self.password)

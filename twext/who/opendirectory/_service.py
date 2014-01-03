@@ -21,16 +21,8 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
-from zope.interface import implements
-
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, fail
-from twisted.cred.checkers import ICredentialsChecker
-from twisted.cred.credentials import (
-    IUsernamePassword, IUsernameHashedPassword, DigestedCredentials,
-)
-from twisted.cred.error import UnauthorizedLogin
-# from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
 
@@ -115,10 +107,6 @@ class DirectoryService(BaseDirectoryService):
     """
     OpenDirectory directory service.
     """
-
-    implements(ICredentialsChecker)
-    credentialInterfaces = (IUsernamePassword, IUsernameHashedPassword)
-
     log = Logger()
 
     recordType = ConstantsContainer((
@@ -414,9 +402,9 @@ class DirectoryService(BaseDirectoryService):
                 "Error while executing OpenDirectory query: {error}",
                 error=error
             )
-            raise OpenDirectoryQueryError(
+            return fail(OpenDirectoryQueryError(
                 "Unable to execute OpenDirectory query", error
-            )
+            ))
 
         return succeed(DirectoryRecord(self, odr) for odr in odRecords)
 
@@ -474,92 +462,6 @@ class DirectoryService(BaseDirectoryService):
             raise OpenDirectoryQueryError("Unable to look up user", error)
 
         return record
-
-
-    def requestAvatarId(self, credentials):
-        """
-        Authenticate the credentials against OpenDirectory and return the
-        corresponding directory record.
-
-        @param: credentials: The credentials to authenticate.
-        @type: credentials: L{ICredentials}
-
-        @return: The directory record for the given credentials.
-        @rtype: deferred L{DirectoryRecord}
-
-        @raises: L{UnauthorizedLogin} if the credentials are not valid.
-        """
-
-        odRecord = self._getUserRecord(credentials.username)
-
-        if odRecord is None:
-            return fail(UnauthorizedLogin("No such user"))
-
-        if IUsernamePassword.providedBy(credentials):
-            result, error = odRecord.verifyPassword_error_(
-                credentials.password, None
-            )
-
-            if error:
-                return fail(UnauthorizedLogin(error))
-
-            if result:
-                return succeed(DirectoryRecord(self, odRecord))
-
-        elif isinstance(credentials, DigestedCredentials):
-            try:
-                credentials.fields.setdefault("algorithm", "md5")
-                challenge = (
-                    'Digest realm="{realm}", nonce="{nonce}", '
-                    'algorithm={algorithm}'
-                    .format(**credentials.fields)
-                )
-                response = credentials.fields["response"]
-
-            except KeyError as e:
-                self.log.error(
-                    "Error authenticating against OpenDirectory: "
-                    "missing digest response field {field!r} in "
-                    "{credentials.fields!r}",
-                    field=e.args[0], credentials=credentials
-                )
-                return fail(UnauthorizedLogin("Invalid digest challenge"))
-
-            result, m1, m2, error = odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-                u"dsAuthMethodStandard:dsAuthNodeDIGEST-MD5",
-                [
-                    credentials.username,
-                    challenge,
-                    response,
-                    credentials.method,
-                ],
-                None, None, None
-            )
-
-            if error:
-                return fail(UnauthorizedLogin(error))
-
-            if result:
-                return succeed(DirectoryRecord(self, odRecord))
-
-        else:
-            return fail(UnauthorizedLogin(
-                "Unknown credentials type: {0}".format(type(credentials))
-            ))
-
-        return fail(UnauthorizedLogin("Unknown authorization failure"))
-
-
-
-# class CustomDigestCredentialFactory(DigestCredentialFactory):
-#     """
-#     DigestCredentialFactory without qop, to interop with OD.
-#     """
-
-#     def getChallenge(self, address):
-#         result = DigestCredentialFactory.getChallenge(self, address)
-#         del result["qop"]
-#         return result
 
 
 

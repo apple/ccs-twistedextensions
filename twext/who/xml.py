@@ -15,6 +15,7 @@
 # limitations under the License.
 ##
 
+from __future__ import print_function
 from __future__ import absolute_import
 
 """
@@ -35,6 +36,8 @@ from xml.etree.ElementTree import (
     tostring as etreeToString, Element as XMLElement,
 )
 
+from zope.interface import implementer
+
 from twisted.python.constants import Values, ValueConstant
 from twisted.internet.defer import fail
 
@@ -42,10 +45,12 @@ from .idirectory import (
     DirectoryServiceError,
     NoSuchRecordError, UnknownRecordTypeError,
     RecordType, FieldName as BaseFieldName,
+    IPlaintextPasswordVerifier, IHTTPDigestVerifier,
 )
 from .index import (
     DirectoryService as BaseDirectoryService,
-    DirectoryRecord, FieldName as IndexFieldName,
+    DirectoryRecord,
+    FieldName as IndexFieldName,
 )
 from .util import ConstantsContainer
 
