@@ -24,13 +24,17 @@ for a development checkout of the code.
 """
 
 import sys
-from os.path import dirname
+from os.path import dirname, join as joinpath
+from site import addsitedir
 
 bindir = dirname(__file__)
 srcroot = dirname(bindir)
+depslib = joinpath(srcroot, ".develop", "lib")
 
+addsitedir(depslib)
 sys.path.insert(0, srcroot)
 
-# print("PYTHONPATH:")
-# for path in sys.path:
-#     print("  ", path)
+if False:
+    print("PYTHONPATH:")
+    for path in sys.path:
+        print("  ", path)
