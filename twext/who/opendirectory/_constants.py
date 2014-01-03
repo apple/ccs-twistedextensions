@@ -388,7 +388,7 @@ class ODAttribute(Values):
 
 
 class ODMatchType(Values):
-    all = ValueConstant(0x2001)
+    all = ValueConstant(0x0001)
 
     equals = ValueConstant(0x2001)
     equals.matchType = MatchType.equals
@@ -427,3 +427,8 @@ class ODMatchType(Values):
             ))
 
         return cls._matchTypeByMatchType.get(matchType, None)
+
+
+
+class ODAuthMethod(Values):
+    digestMD5 = ValueConstant(u"dsAuthMethodStandard:dsAuthNodeDIGEST-MD5")
