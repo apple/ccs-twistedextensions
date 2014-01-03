@@ -21,6 +21,8 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
+from zope.interface import implementer
+
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, fail
 
@@ -29,6 +31,7 @@ from twext.python.log import Logger
 from ..idirectory import (
     DirectoryServiceError, QueryNotSupportedError,
     FieldName as BaseFieldName, RecordType as BaseRecordType,
+    IPlaintextPasswordVerifier, IHTTPDigestVerifier,
 )
 from ..directory import (
     DirectoryService as BaseDirectoryService,
@@ -41,7 +44,9 @@ from ..expression import (
 from ..util import iterFlags, ConstantsContainer
 
 from ._odframework import ODSession, ODNode, ODQuery
-from ._constants import ODSearchPath, ODRecordType, ODAttribute, ODMatchType
+from ._constants import (
+    ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod
+)
 
 
 
@@ -346,24 +351,27 @@ class DirectoryService(BaseDirectoryService):
         else:
             caseInsensitive = 0x0
 
-        attributes = [a.value for a in ODAttribute.iterconstants()]
+        fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
         maxResults = 0
 
         if expression.fieldName is self.fieldName.recordType:
-            recordTypes = ODRecordType.fromRecordType(expression.fieldValue)
+            recordTypes = ODRecordType.fromRecordType(expression.fieldValue).value
+            matchType = ODMatchType.all
+            queryAttribute = None
             queryValue = None
 
         else:
             recordTypes = [t.value for t in ODRecordType.iterconstants()]
+            queryAttribute = ODAttribute.fromFieldName(expression.fieldName).value
             queryValue = expression.fieldValue
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
             recordTypes,
-            ODAttribute.fromFieldName(expression.fieldName).value,
+            queryAttribute,
             matchType.value | caseInsensitive,
             queryValue,
-            attributes,
+            fetchAttributes,
             maxResults,
             None
         )
@@ -406,7 +414,7 @@ class DirectoryService(BaseDirectoryService):
                 "Unable to execute OpenDirectory query", error
             ))
 
-        return succeed(DirectoryRecord(self, odr) for odr in odRecords)
+        return succeed([DirectoryRecord(self, odr) for odr in odRecords])
 
 
     def recordsFromNonCompoundExpression(self, expression, records=None):
@@ -465,6 +473,7 @@ class DirectoryService(BaseDirectoryService):
 
 
 
+@implementer(IPlaintextPasswordVerifier, IHTTPDigestVerifier)
 class DirectoryRecord(BaseDirectoryRecord):
     """
     OpenDirectory directory record.
@@ -536,3 +545,52 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         super(DirectoryRecord, self).__init__(service, fields)
         self._odRecord = odRecord
+
+
+    def __hash__(self):
+        return hash(self.guid)
+
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (
+                self.service == other.service and
+                self.guid == other.guid
+            )
+        return NotImplemented
+
+
+    #
+    # Verifiers for twext.who.checker stuff.
+    #
+
+    def verifyPlaintextPassword(self, password):
+        result, error = self._odRecord.verifyPassword_error_(password, None)
+
+        if error:
+            return False
+
+        return result
+
+
+    def verifyHTTPDigest(
+        self, username, realm, uri, nonce, cnonce,
+        algorithm, nc, qop, response, method,
+    ):
+        challenge = (
+            'Digest realm="{realm}", nonce="{nonce}", algorithm={algorithm}'
+            .format(
+                realm=realm, nonce=nonce, algorithm=algorithm
+            )
+        )
+
+        result, m1, m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
+            ODAuthMethod.digestMD5.value
+            [username, challenge, response, method],
+            None, None, None
+        )
+
+        if error:
+            return False
+
+        return result

@@ -202,6 +202,12 @@ def lookup(shortNames):
     for shortName in shortNames:
         print("Looking up short name: {0}".format(shortName))
 
+        record = yield service.recordWithShortName(service.recordType.user, shortName)
+        if record:
+            print(record.description())
+
+        continue
+
         matchExpression = MatchExpression(
             service.fieldName.shortNames, shortName,
             matchType=MatchType.equals,

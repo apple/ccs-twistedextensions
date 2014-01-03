@@ -392,6 +392,10 @@ class DirectoryRecord(object):
         )
 
 
+    def __hash__(self):
+        return hash(self.uid)
+
+
     def __eq__(self, other):
         if IDirectoryRecord.implementedBy(other.__class__):
             return (
