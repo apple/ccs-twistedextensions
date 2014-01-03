@@ -25,7 +25,6 @@ XML directory service implementation.
 __all__ = [
     "ParseError",
     "DirectoryService",
-    "DirectoryRecord",
 ]
 
 from time import time
@@ -36,8 +35,6 @@ from xml.etree.ElementTree import (
     tostring as etreeToString, Element as XMLElement,
 )
 
-from zope.interface import implementer
-
 from twisted.python.constants import Values, ValueConstant
 from twisted.internet.defer import fail
 
@@ -45,7 +42,6 @@ from .idirectory import (
     DirectoryServiceError,
     NoSuchRecordError, UnknownRecordTypeError,
     RecordType, FieldName as BaseFieldName,
-    IPlaintextPasswordVerifier, IHTTPDigestVerifier,
 )
 from .index import (
     DirectoryService as BaseDirectoryService,

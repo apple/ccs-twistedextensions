@@ -21,7 +21,6 @@ Directory service which aggregates multiple directory services.
 
 __all__ = [
     "DirectoryService",
-    "DirectoryRecord",
 ]
 
 from itertools import chain
@@ -30,7 +29,7 @@ from twisted.internet.defer import gatherResults, FirstError
 
 from .idirectory import DirectoryConfigurationError, IDirectoryService
 from .directory import (
-    DirectoryService as BaseDirectoryService, DirectoryRecord
+    DirectoryService as BaseDirectoryService
 )
 from .util import ConstantsContainer
 

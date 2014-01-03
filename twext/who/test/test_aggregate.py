@@ -22,7 +22,8 @@ from twisted.python.components import proxyForInterface
 from twisted.trial import unittest
 
 from ..idirectory import IDirectoryService, DirectoryConfigurationError
-from ..aggregate import DirectoryService, DirectoryRecord
+from ..directory import DirectoryRecord
+from ..aggregate import DirectoryService
 from ..util import ConstantsContainer
 from . import test_directory, test_xml
 from .test_xml import (

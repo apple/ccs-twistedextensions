@@ -31,5 +31,5 @@ __all__ = [
 from ._service import (
     OpenDirectoryError, OpenDirectoryConnectionError, OpenDirectoryQueryError,
     OpenDirectoryDataError,
-    DirectoryService, DirectoryRecord,
+    DirectoryService,
 )
