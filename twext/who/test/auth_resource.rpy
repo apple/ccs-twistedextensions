@@ -20,13 +20,15 @@ from twisted.cred.portal import Portal
 from twisted.web.resource import IResource
 from twisted.web.guard import (
     HTTPAuthSessionWrapper,
-    # BasicCredentialFactory,
-    DigestCredentialFactory,
+    BasicCredentialFactory,
+    # DigestCredentialFactory,
 )
 from twisted.web.static import Data
 
-from twext.who.test.test_xml import xmlService as DirectoryService
-# from twext.who.checker import UsernamePasswordCredentialChecker
+# from twext.who.test.test_xml import xmlService as DirectoryService
+from twext.who.opendirectory import DirectoryService
+from twext.who.opendirectory import NoQOPDigestCredentialFactory as DigestCredentialFactory
+from twext.who.checker import UsernamePasswordCredentialChecker
 from twext.who.checker import HTTPDigestCredentialChecker
 
 
@@ -42,7 +44,8 @@ class Realm(object):
 
 
 
-directory = DirectoryService("/tmp/auth.xml")
+# directory = DirectoryService("/tmp/auth.xml")
+directory = DirectoryService()
 
 checkers = [
     HTTPDigestCredentialChecker(directory),

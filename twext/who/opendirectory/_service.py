@@ -25,6 +25,7 @@ from zope.interface import implementer
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, fail
+from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
 
@@ -584,13 +585,39 @@ class DirectoryRecord(BaseDirectoryRecord):
             )
         )
 
+        print("username = {0!r}".format(username))
+        print("realm = {0!r}".format(realm))
+        print("uri = {0!r}".format(uri))
+        print("nonce = {0!r}".format(nonce))
+        print("cnonce = {0!r}".format(cnonce))
+        print("algorithm = {0!r}".format(algorithm))
+        print("nc = {0!r}".format(nc))
+        print("qop = {0!r}".format(qop))
+        print("response = {0!r}".format(response))
+        print("method = {0!r}".format(method))
+        print("challenge = {0!r}".format(challenge))
+
         result, m1, m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-            ODAuthMethod.digestMD5.value
+            ODAuthMethod.digestMD5.value,
             [username, challenge, response, method],
             None, None, None
         )
 
+        print(result, m1, m2, error)
+
         if error:
             return False
 
+        return result
+
+
+
+class NoQOPDigestCredentialFactory(DigestCredentialFactory):
+    """
+    DigestCredentialFactory without qop, to interop with OD.
+    """
+
+    def getChallenge(self, address):
+        result = DigestCredentialFactory.getChallenge(self, address)
+        del result["qop"]
         return result

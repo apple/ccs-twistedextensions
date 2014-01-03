@@ -25,6 +25,7 @@ __all__ = [
     "OpenDirectoryDataError",
     "DirectoryService",
     "DirectoryRecord",
+    "NoQOPDigestCredentialFactory",
 ]
 
 
@@ -32,4 +33,5 @@ from ._service import (
     OpenDirectoryError, OpenDirectoryConnectionError, OpenDirectoryQueryError,
     OpenDirectoryDataError,
     DirectoryService,
+    NoQOPDigestCredentialFactory,
 )
