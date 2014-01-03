@@ -41,6 +41,6 @@ mkdir -p "${dev_libdir}";
 export PYTHONPATH="${dev_libdir}:${PYTHONPATH:-}"
 
 cd "${wd}" && ./setup.py develop  \
-  -d "${dev_libdir}"              \
-  -s "${dev_bindir}"              \
+  --install-dir "${dev_libdir}"   \
+  --script-dir "${dev_bindir}"    \
   > "${dev_root}/setup.log" 2>&1;
