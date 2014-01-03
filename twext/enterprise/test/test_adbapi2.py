@@ -152,6 +152,30 @@ class ConnectionPoolBootTests(TestCase):
 
 
 
+class ConnectionPoolNameTests(TestCase):
+    """
+    Tests for L{ConnectionPool}'s C{name} attribute.
+    """
+    def test_default(self):
+        """
+        If no value is given for the C{name} parameter to L{ConnectionPool}'s
+        initializer then L{ConnectionPool.name} is C{None}.
+        """
+        pool = ConnectionPool(None)
+        self.assertIs(None, pool.name)
+
+
+    def test_specified(self):
+        """
+        If a value is given for the C{name} parameter to L{ConnectionPool}'s
+        initializer then it is used as the value for L{ConnectionPool.name}.
+        """
+        name = "some test pool"
+        pool = ConnectionPool(None, name=name)
+        self.assertEqual(name, pool.name)
+
+
+
 class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
     """
     Tests for L{ConnectionPool}.

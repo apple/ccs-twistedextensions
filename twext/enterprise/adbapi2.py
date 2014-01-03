@@ -980,7 +980,8 @@ class ConnectionPool(Service, object):
     def __init__(
         self,
         connectionFactory, maxConnections=10,
-        paramstyle=DEFAULT_PARAM_STYLE, dialect=DEFAULT_DIALECT
+        paramstyle=DEFAULT_PARAM_STYLE, dialect=DEFAULT_DIALECT,
+        name=None,
     ):
 
         super(ConnectionPool, self).__init__()
@@ -988,6 +989,8 @@ class ConnectionPool(Service, object):
         self.maxConnections = maxConnections
         self.paramstyle = paramstyle
         self.dialect = dialect
+        if name is not None:
+            self.name = name
 
         self._free       = []
         self._busy       = []
