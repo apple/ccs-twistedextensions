@@ -632,21 +632,40 @@ class ChildService(Service, object):
 
 
 class ReportingProtocolWrapper(ProtocolWrapper, object):
-    log = Logger()
-
-
     def connectionLost(self, reason):
+        # self.factory.protocolDidLoseConnection(self)
         self.factory.inheritedPort.reportStatus("-")
         return super(ReportingProtocolWrapper, self).connectionLost(reason)
 
 
 
 class ReportingWrapperFactory(WrappingFactory, object):
+    log = Logger()
+
     protocol = ReportingProtocolWrapper
+
 
     def __init__(self, wrappedFactory, fd, createTransport):
         self.inheritedPort = InheritedPort(fd, createTransport, self)
         super(ReportingWrapperFactory, self).__init__(wrappedFactory)
+
+
+    def registerProtocol(self, p):
+        super(ReportingWrapperFactory, self).registerProtocol(p)
+        self.log.info(
+            "++++ Registered protocol: {protocol}\n"
+            "Remaining protocols: {factory.protocols}",
+            factory=self, protocol=p
+        )
+
+
+    def unregisterProtocol(self, p):
+        super(ReportingWrapperFactory, self).unregisterProtocol(p)
+        self.log.info(
+            "---- Unregistered protocol: {protocol}\n"
+            "Remaining protocols: {factory.protocols}",
+            factory=self, protocol=p
+        )
 
 
 
