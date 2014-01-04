@@ -488,7 +488,8 @@ class ChildProcessProtocol(ProcessProtocol, object):
     Process protocol for child processes.
     """
 
-    log = Logger()
+    # FIXME: deserialize log events from child
+    # log = Logger()
 
 
     def __init__(self, service, inheritedSocket):
@@ -497,12 +498,14 @@ class ChildProcessProtocol(ProcessProtocol, object):
 
 
     def outReceived(self, data):
-        self.log.info(u"{data}", data=data)
+        # self.log.info(u"{data}", data=data)
+        sys.stdout.write(data)
 
 
     def errReceived(self, data):
         super(ChildProcessProtocol, self).errReceived(data)
-        self.log.error(u"{data}", data=data)
+        # self.log.error(u"{data}", data=data)
+        sys.stderr.write(data)
 
 
     def processExited(self, reason):
@@ -632,6 +635,18 @@ class ChildService(Service, object):
 
 
 class ReportingProtocolWrapper(ProtocolWrapper, object):
+    # def __init__(self, *args, **kwargs):
+    #     try:
+    #         raise RuntimeError()
+    #     except RuntimeError:
+    #         from twisted.python.failure import Failure
+    #         f = Failure()
+    #         f.printTraceback()
+    #     return super(ReportingProtocolWrapper, self).__init__(
+    #         *args, **kwargs
+    #     )
+
+
     def connectionLost(self, reason):
         # self.factory.protocolDidLoseConnection(self)
         self.factory.inheritedPort.reportStatus("-")
