@@ -31,6 +31,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.cred.credentials import DigestedCredentials
 
 from .idirectory import (
+    InvalidDirectoryRecordError,
     QueryNotSupportedError, NotAllowedError,
     FieldName, RecordType,
     IDirectoryService, IDirectoryRecord,
@@ -323,33 +324,40 @@ class DirectoryRecord(object):
     def __init__(self, service, fields):
         for fieldName in self.requiredFields:
             if fieldName not in fields or not fields[fieldName]:
-                raise ValueError("{0} field is required.".format(fieldName))
+                raise InvalidDirectoryRecordError(
+                    "{0} field is required.".format(fieldName),
+                    fields
+                )
 
             if service.fieldName.isMultiValue(fieldName):
                 values = fields[fieldName]
                 for value in values:
                     if not value:
-                        raise ValueError(
-                            "{0} field must not be empty.".format(fieldName)
+                        raise InvalidDirectoryRecordError(
+                            "{0} field must not be empty.".format(fieldName),
+                            fields
                         )
 
         if (
             fields[FieldName.recordType] not in
             service.recordType.iterconstants()
         ):
-            raise ValueError(
+            raise InvalidDirectoryRecordError(
                 "Unknown record type: {0!r} is not in {1!r}.".format(
                     fields[FieldName.recordType],
                     tuple(service.recordType.iterconstants()),
-                )
+                ),
+                fields
             )
 
         def checkType(name, value):
             expectedType = service.fieldName.valueType(name)
             if not isinstance(value, expectedType):
-                raise TypeError(
-                    "Value {0!r} for field {1} is not of type {2}"
-                    .format(value, name, expectedType)
+                raise InvalidDirectoryRecordError(
+                    "Value {0!r} for field {1} is not of type {2}".format(
+                        value, name, expectedType
+                    ),
+                    fields
                 )
 
         # Normalize fields

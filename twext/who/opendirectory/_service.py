@@ -30,7 +30,8 @@ from twisted.web.guard import DigestCredentialFactory
 from twext.python.log import Logger
 
 from ..idirectory import (
-    DirectoryServiceError, QueryNotSupportedError,
+    DirectoryServiceError, DirectoryAvailabilityError,
+    InvalidDirectoryRecordError, QueryNotSupportedError,
     FieldName as BaseFieldName, RecordType as BaseRecordType,
     IPlaintextPasswordVerifier, IHTTPDigestVerifier,
 )
@@ -66,10 +67,14 @@ class OpenDirectoryError(DirectoryServiceError):
 
 
 
-class OpenDirectoryConnectionError(OpenDirectoryError):
+class OpenDirectoryConnectionError(DirectoryAvailabilityError):
     """
     OpenDirectory connection error.
     """
+
+    def __init__(self, message, odError=None):
+        super(OpenDirectoryConnectionError, self).__init__(message)
+        self.odError = odError
 
 
 
@@ -346,6 +351,7 @@ class DirectoryService(BaseDirectoryService):
             raise QueryNotSupportedError(
                 "Unknown match type: {0}".format(matchType)
             )
+        matchType = matchType.value
 
         if MatchFlags.caseInsensitive in iterFlags(expression.flags):
             caseInsensitive = 0x100
@@ -356,21 +362,25 @@ class DirectoryService(BaseDirectoryService):
         maxResults = 0
 
         if expression.fieldName is self.fieldName.recordType:
-            recordTypes = ODRecordType.fromRecordType(expression.fieldValue).value
-            matchType = ODMatchType.all
+            recordTypes = ODRecordType.fromRecordType(
+                expression.fieldValue
+            ).value
+            matchType = ODMatchType.all.value
             queryAttribute = None
             queryValue = None
 
         else:
             recordTypes = [t.value for t in ODRecordType.iterconstants()]
-            queryAttribute = ODAttribute.fromFieldName(expression.fieldName).value
+            queryAttribute = ODAttribute.fromFieldName(
+                expression.fieldName
+            ).value
             queryValue = expression.fieldValue
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
             recordTypes,
             queryAttribute,
-            matchType.value | caseInsensitive,
+            matchType | caseInsensitive,
             queryValue,
             fetchAttributes,
             maxResults,
@@ -415,7 +425,21 @@ class DirectoryService(BaseDirectoryService):
                 "Unable to execute OpenDirectory query", error
             ))
 
-        return succeed([DirectoryRecord(self, odr) for odr in odRecords])
+        result = []
+        for odRecord in odRecords:
+            try:
+                record = DirectoryRecord(self, odRecord)
+            except InvalidDirectoryRecordError as e:
+                self.log.error(
+                    "Invalid OpenDirectory record ({error}).  "
+                    "Fields: {error.fields}",
+                    error=e
+                )
+                continue
+
+            result.append(record)
+
+        return succeed(result)
 
 
     def recordsFromNonCompoundExpression(self, expression, records=None):
@@ -542,7 +566,14 @@ class DirectoryRecord(BaseDirectoryRecord):
                 fields[fieldName] = values[0]
 
         # Set uid from guid
-        fields[service.fieldName.uid] = unicode(fields[service.fieldName.guid])
+        try:
+            guid = fields[service.fieldName.guid]
+        except KeyError:
+            raise InvalidDirectoryRecordError(
+                "GUID field is required.", fields
+            )
+
+        fields[service.fieldName.uid] = unicode(guid)
 
         super(DirectoryRecord, self).__init__(service, fields)
         self._odRecord = odRecord

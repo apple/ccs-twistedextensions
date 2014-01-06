@@ -23,6 +23,7 @@ __all__ = [
     "DirectoryServiceError",
     "DirectoryConfigurationError",
     "DirectoryAvailabilityError",
+    "InvalidDirectoryRecordError",
     "UnknownRecordTypeError",
     "QueryNotSupportedError",
     "NoSuchRecordError",
@@ -65,6 +66,23 @@ class DirectoryAvailabilityError(DirectoryServiceError):
     """
     Directory not available.
     """
+
+
+
+class InvalidDirectoryRecordError(DirectoryServiceError):
+    """
+    Invalid directory record.
+    """
+    def __init__(self, message, fields):
+        """
+        @param message: An error message.
+        @type message: string
+
+        @param fields: The fields that were used to attempt to build a record.
+        @type fields: L{dict}
+        """
+        super(InvalidDirectoryRecordError, self).__init__(message)
+        self.fields = fields
 
 
 
