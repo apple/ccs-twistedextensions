@@ -38,10 +38,13 @@ from twisted.web.static import Data
 
 from twext.who.directory import DirectoryRecord
 from twext.who.test.test_xml import xmlService as XMLDirectoryService
-# from twext.who.opendirectory import (
-#     DirectoryService as OpenDirectoryDirectoryService,
-#     NoQOPDigestCredentialFactory,
-# )
+try:
+    from twext.who.opendirectory import (
+        DirectoryService as OpenDirectoryDirectoryService,
+        NoQOPDigestCredentialFactory,
+    )
+except ImportError:
+    OpenDirectoryDirectoryService = None
 from twext.who.checker import UsernamePasswordCredentialChecker
 from twext.who.checker import HTTPDigestCredentialChecker
 
@@ -86,6 +89,11 @@ rootResource = Data(
             <li><a href="auth_resource.rpy/XMLBasic" >Basic </a></li>
             <li><a href="auth_resource.rpy/XMLDigest">Digest</a></li>
            </ul>
+           <li>OpenDirectory Directory Service</li>
+           <ul>
+            <li><a href="auth_resource.rpy/ODBasic" >Basic </a></li>
+            <li><a href="auth_resource.rpy/ODDigest">Digest</a></li>
+           </ul>
           </ul>
          </body>
         </html>
@@ -125,5 +133,36 @@ rootResource.putChild(
         [DigestCredentialFactory("md5", "XML Digest Realm")]
     )
 )
+
+if OpenDirectoryDirectoryService is not None:
+    rootResource.putChild(
+        "ODBasic",
+        HTTPAuthSessionWrapper(
+            Portal(
+                realm,
+                [
+                    UsernamePasswordCredentialChecker(
+                        OpenDirectoryDirectoryService()
+                    )
+                ]
+            ),
+            [BasicCredentialFactory("OpenDirectory Basic Realm")]
+        )
+    )
+
+    rootResource.putChild(
+        "ODDigest",
+        HTTPAuthSessionWrapper(
+            Portal(
+                realm,
+                [
+                    HTTPDigestCredentialChecker(
+                        OpenDirectoryDirectoryService()
+                    )
+                ]
+            ),
+            [NoQOPDigestCredentialFactory("md5", "OpenDirectory Digest Realm")]
+        )
+    )
 
 resource = rootResource
