@@ -14,51 +14,116 @@
 # limitations under the License.
 ##
 
+#
+# Run:
+#     twistd -n web --path twext/who/test
+#
+# And open this URL:
+#     http://localhost:8080/auth_resource.rpy
+#
+
 cache()
+
+from tempfile import NamedTemporaryFile
+from textwrap import dedent
 
 from twisted.cred.portal import Portal
 from twisted.web.resource import IResource
 from twisted.web.guard import (
     HTTPAuthSessionWrapper,
     BasicCredentialFactory,
-    # DigestCredentialFactory,
+    DigestCredentialFactory,
 )
 from twisted.web.static import Data
 
-# from twext.who.test.test_xml import xmlService as DirectoryService
-from twext.who.opendirectory import DirectoryService
-from twext.who.opendirectory import NoQOPDigestCredentialFactory as DigestCredentialFactory
+from twext.who.directory import DirectoryRecord
+from twext.who.test.test_xml import xmlService as XMLDirectoryService
+# from twext.who.opendirectory import (
+#     DirectoryService as OpenDirectoryDirectoryService,
+#     NoQOPDigestCredentialFactory,
+# )
 from twext.who.checker import UsernamePasswordCredentialChecker
 from twext.who.checker import HTTPDigestCredentialChecker
 
 
 
 class Realm(object):
+    @staticmethod
+    def hello(avatarId):
+        message = ["Hello, {0!r}!".format(avatarId)]
+
+        if isinstance(avatarId, DirectoryRecord):
+            message.append(avatarId.description().encode("utf-8"))
+
+        return "\n\n".join(message)
+
+
     def requestAvatar(self, avatarId, mind, *interfaces):
-        resource = Data(
-            "Hello, {0!r}!".format(avatarId),
-            "text/plain"
-        )
+        if IResource in interfaces:
+            interface = IResource
+            resource = Data(self.hello(avatarId), "text/plain")
+        else:
+            interface = None
+            resource = None
 
-        return IResource, resource, lambda: None
+        return interface, resource, lambda: None
 
 
-
-# directory = DirectoryService("/tmp/auth.xml")
-directory = DirectoryService()
-
-checkers = [
-    HTTPDigestCredentialChecker(directory),
-    # UsernamePasswordCredentialChecker(directory),
-]
 
 realm = Realm()
 
-portal = Portal(realm, checkers)
+rootResource = Data(
+    data=dedent(
+        """
+        <html>
+         <head>
+          <title>Authentication tests</title>
+         </head>
+         <body>
+          <ul>
+           <li>XML Directory Service</li>
+           <ul>
+            <li><a href="auth_resource.rpy/XMLBasic" >Basic </a></li>
+            <li><a href="auth_resource.rpy/XMLDigest">Digest</a></li>
+           </ul>
+          </ul>
+         </body>
+        </html>
+        """[1:]
+    ),
+    type="text/html",
+)
 
-factories = [
-    DigestCredentialFactory("md5", "Digest Realm"),
-    # BasicCredentialFactory("Basic Realm"),
-]
+xmlFileBasic = NamedTemporaryFile(delete=True)
+rootResource.putChild(
+    "XMLBasic",
+    HTTPAuthSessionWrapper(
+        Portal(
+            realm,
+            [
+                UsernamePasswordCredentialChecker(
+                    XMLDirectoryService(xmlFileBasic.name)
+                )
+            ]
+        ),
+        [BasicCredentialFactory("XML Basic Realm")]
+    )
+)
 
-resource = HTTPAuthSessionWrapper(portal, factories)
+xmlFileDigest = NamedTemporaryFile(delete=True)
+rootResource.putChild(
+    "XMLDigest",
+    HTTPAuthSessionWrapper(
+        Portal(
+            realm,
+            [
+                HTTPDigestCredentialChecker(
+                    XMLDirectoryService(xmlFileDigest.name)
+                )
+            ]
+        ),
+        [DigestCredentialFactory("md5", "XML Digest Realm")]
+    )
+)
+
+resource = rootResource
