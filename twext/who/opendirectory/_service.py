@@ -52,6 +52,27 @@ from ._constants import (
 
 
 
+LDAP_QUOTING_TABLE = {
+    ord(u"\\"): u"\\5C",
+    ord(u"/"): u"\\2F",
+
+    ord(u"("): u"\\28",
+    ord(u")"): u"\\29",
+    ord(u"*"): u"\\2A",
+
+    ord(u"<"): u"\\3C",
+    ord(u"="): u"\\3D",
+    ord(u">"): u"\\3E",
+    ord(u"~"): u"\\7E",
+
+    ord(u"&"): u"\\26",
+    ord(u"|"): u"\\7C",
+
+    ord(u"\0"): u"\\00",
+}
+
+
+
 #
 # Exceptions
 #
@@ -266,28 +287,8 @@ class DirectoryService(BaseDirectoryService):
                 )
             value = expression.fieldValue
 
-        value = unicode(value)
-
-        # Do some quoting
-        for character, replacement in (
-            (u"\\", u"\\5C"),  # Must be first.
-            (u"/", u"\\2F"),
-
-            (u"(", u"\\28"),
-            (u")", u"\\29"),
-            (u"*", u"\\2A"),
-
-            (u"<", u"\\3C"),
-            (u"=", u"\\3D"),
-            (u">", u"\\3E"),
-            (u"~", u"\\7E"),
-
-            (u"&", u"\\26"),
-            (u"|", u"\\7C"),
-
-            (u"\0", u"\\00")
-        ):
-            value = value.replace(character, replacement)
+        value = unicode(value)  # We want unicode
+        value = value.translate(LDAP_QUOTING_TABLE)  # Escape special chars
 
         return matchType.queryString.format(
             notOp=notOp, attribute=odAttr.value, value=value
