@@ -430,7 +430,7 @@ class DirectoryService(BaseDirectoryService):
             try:
                 record = DirectoryRecord(self, odRecord)
             except InvalidDirectoryRecordError as e:
-                self.log.error(
+                self.log.warn(
                     "Invalid OpenDirectory record ({error}).  "
                     "Fields: {error.fields}",
                     error=e
