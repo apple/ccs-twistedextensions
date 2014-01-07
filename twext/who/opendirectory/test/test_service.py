@@ -38,7 +38,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         Match expressions with each match type produces the correct
         operator=value string.
         """
-
         service = DirectoryService()
 
         for matchType, expected in (
@@ -68,7 +67,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         """
         Match expression with the C{NOT} flag adds the C{!} operator.
         """
-
         service = DirectoryService()
 
         expression = MatchExpression(
@@ -89,7 +87,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         Match expression with the C{caseInsensitive} flag adds the C{??????}
         operator.
         """
-
         service = DirectoryService()
 
         expression = MatchExpression(
@@ -107,6 +104,29 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     test_queryStringFromMatchExpression_match_caseInsensitive.todo = (
         "unimplemented"
     )
+
+
+    def test_queryStringFromMatchExpression_match_quoting(self):
+        """
+        Special characters are quoted properly.
+        """
+        service = DirectoryService()
+
+        expression = MatchExpression(
+            service.fieldName.fullNames,
+            u"\\xyzzy: a/b/(c)* ~~ >=< ~~ &| \0!!"
+        )
+        queryString = service._queryStringFromExpression(expression)
+        self.assertEquals(
+            queryString,
+            u"({attribute}={expected})".format(
+                attribute=ODAttribute.fullName.value,
+                expected=(
+                    u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
+                    "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
+                )
+            )
+        )
 
 
     def test_queryStringFromExpression(self):

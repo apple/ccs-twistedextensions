@@ -251,8 +251,8 @@ class DirectoryService(BaseDirectoryService):
         else:
             notOp = u""
 
-        if MatchFlags.caseInsensitive in flags:
-            raise NotImplementedError("Need to handle caseInsensitive")
+        # if MatchFlags.caseInsensitive not in flags:
+        #     raise NotImplementedError("Need to handle case sensitive")
 
         if expression.fieldName is self.fieldName.uid:
             odAttr = ODAttribute.guid
@@ -268,7 +268,27 @@ class DirectoryService(BaseDirectoryService):
 
         value = unicode(value)
 
-        # FIXME: Shouldn't the value be quoted somehow?
+        # Do some quoting
+        for character, replacement in (
+            (u"\\", u"\\5C"),  # Must be first.
+            (u"/", u"\\2F"),
+
+            (u"(", u"\\28"),
+            (u")", u"\\29"),
+            (u"*", u"\\2A"),
+
+            (u"<", u"\\3C"),
+            (u"=", u"\\3D"),
+            (u">", u"\\3E"),
+            (u"~", u"\\7E"),
+
+            (u"&", u"\\26"),
+            (u"|", u"\\7C"),
+
+            (u"\0", u"\\00")
+        ):
+            value = value.replace(character, replacement)
+
         return matchType.queryString.format(
             notOp=notOp, attribute=odAttr.value, value=value
         )
