@@ -73,6 +73,7 @@ class InvalidDirectoryRecordError(DirectoryServiceError):
     """
     Invalid directory record.
     """
+
     def __init__(self, message, fields):
         """
         @param message: An error message.

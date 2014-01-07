@@ -40,7 +40,7 @@ from ..directory import (
     DirectoryRecord as BaseDirectoryRecord,
 )
 from ..expression import (
-    # CompoundExpression, Operand,
+    CompoundExpression, Operand,
     MatchExpression, MatchFlags,
 )
 from ..util import iterFlags, ConstantsContainer
@@ -228,68 +228,100 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
-    # def _queryStringFromExpression(self, expression):
-    #     """
-    #     Converts either a MatchExpression or a CompoundExpression into a
-    #     native OpenDirectory query string.
+    def _queryStringFromMatchExpression(self, expression):
+        """
+        Generates an LDAP query string from a match expression.
 
-    #     @param expression: The expression
-    #     @type expression: Either L{MatchExpression} or L{CompoundExpression}
+        @param expression: A match expression.
+        @type expression: L{MatchExpression}
 
-    #     @return: A native OpenDirectory query string
-    #     @rtype: C{unicode}
-    #     """
+        @return: An LDAP query string.
+        @rtype: C{unicode}
+        """
+        matchType = ODMatchType.fromMatchType(expression.matchType)
+        if matchType is None:
+            raise QueryNotSupportedError(
+                "Unknown match type: {0}".format(matchType)
+            )
 
-    #     if isinstance(expression, MatchExpression):
-    #         matchType = ODMatchType.fromMatchType(expression.matchType)
-    #         if matchType is None:
-    #             raise QueryNotSupportedError(
-    #                 "Unknown match type: {0}".format(matchType)
-    #             )
+        flags = tuple(iterFlags(expression.flags))
+        if MatchFlags.NOT in flags:
+            raise NotImplementedError("Need to handle NOT")
+        if MatchFlags.caseInsensitive in flags:
+            raise NotImplementedError("Need to handle caseInsensitive")
 
-    #         if expression.fieldName is self.fieldName.uid:
-    #             odAttr = ODAttribute.guid.value
-    #             value = expression.fieldValue
-    #         else:
-    #             odAttr = ODAttribute.fromFieldName(expression.fieldName)
-    #             if odAttr is None:
-    #                 raise OpenDirectoryQueryError(
-    #                     "Unknown field name: {0}"
-    #                     .format(expression.fieldName)
-    #                 )
-    #             odAttr = odAttr.value
-    #             value = expression.fieldValue
+        if expression.fieldName is self.fieldName.uid:
+            odAttr = ODAttribute.guid
+            value = expression.fieldValue
+        else:
+            odAttr = ODAttribute.fromFieldName(expression.fieldName)
+            if odAttr is None:
+                raise OpenDirectoryQueryError(
+                    "Unknown field name: {0}"
+                    .format(expression.fieldName)
+                )
+            value = expression.fieldValue
 
-    #         value = unicode(value)
+        value = unicode(value)
 
-    #         # FIXME: Shouldn't the value be quoted somehow?
-    #         queryString = {
-    #             ODMatchType.equals.value: u"({attr}={value})",
-    #             ODMatchType.startsWith.value: u"({attr}={value}*)",
-    #             ODMatchType.endsWith.value: u"({attr}=*{value})",
-    #             ODMatchType.contains.value: u"({attr}=*{value}*)",
-    #             ODMatchType.lessThan.value: u"({attr}<{value})",
-    #             ODMatchType.greaterThan.value: u"({attr}>{value})",
-    #         }.get(matchType.value, u"({attr}=*{value}*)").format(
-    #             attr=odAttr,
-    #             value=value
-    #         )
+        # FIXME: Shouldn't the value be quoted somehow?
+        return matchType.queryString.format(
+            attribute=odAttr.value, value=value
+        )
 
-    #     elif isinstance(expression, CompoundExpression):
-    #         queryString = u""
-    #         operand = u"&" if expression.operand is Operand.AND else u"|"
 
-    #         if len(expression.expressions) > 1:
-    #             queryString += u"("
-    #             queryString += operand
+    def _queryStringFromCompoundExpression(self, expression):
+        """
+        Generates an LDAP query string from a compound expression.
 
-    #         for subExpression in expression.expressions:
-    #             queryString += self._queryStringFromExpression(subExpression)
+        @param expression: A match expression.
+        @type expression: L{MatchExpression}
 
-    #         if len(expression.expressions) > 1:
-    #             queryString += u")"
+        @return: An LDAP query string.
+        @rtype: C{unicode}
+        """
+        queryTokens = []
 
-    #     return queryString
+        if len(expression.expressions) > 1:
+            queryTokens.append(u"(")
+
+            if expression.operand is Operand.AND:
+                queryTokens.append(u"&")
+            else:
+                queryTokens.append(u"|")
+
+        for subExpression in expression.expressions:
+            queryTokens.append(
+                self._queryStringFromExpression(subExpression)
+            )
+
+        if len(expression.expressions) > 1:
+            queryTokens.append(u")")
+
+        return u"".join(queryTokens)
+
+
+    def _queryStringFromExpression(self, expression):
+        """
+        Converts either a MatchExpression or a CompoundExpression into an LDAP
+        query string.
+
+        @param expression: An expression.
+        @type expression: L{MatchExpression} or L{CompoundExpression}
+
+        @return: A native OpenDirectory query string
+        @rtype: C{unicode}
+        """
+
+        if isinstance(expression, MatchExpression):
+            return self._queryStringFromMatchExpression(expression)
+
+        if isinstance(expression, CompoundExpression):
+            return self._queryStringFromCompoundExpression(expression)
+
+        raise QueryNotSupportedError(
+            "Unknown expression type: {0!r}".format(expression)
+        )
 
 
     # def _queryFromCompoundExpression(self, expression):

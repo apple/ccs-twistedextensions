@@ -20,10 +20,11 @@ OpenDirectory service tests.
 
 from twisted.trial import unittest
 
-# from ...expression import (
-#     CompoundExpression, MatchExpression, MatchType, Operand
-# )
-# from .._service import DirectoryService
+from ...expression import (
+    CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
+)
+from .._constants import ODAttribute
+from .._service import DirectoryService
 
 
 
@@ -32,89 +33,149 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     Tests for L{DirectoryService}.
     """
 
-    # def test_queryStringFromExpression(self):
-    #     service = DirectoryService()
+    def test_queryStringFromMatchExpression_matchTypes(self):
+        """
+        Match expressions with each match type produces the correct
+        operator=value string.
+        """
 
-    #     # MatchExpressions
+        service = DirectoryService()
 
-    #     for matchType, expected in (
-    #         (MatchType.equals, u"=xyzzy"),
-    #         (MatchType.startsWith, u"=xyzzy*"),
-    #         (MatchType.endsWith, u"=*xyzzy"),
-    #         (MatchType.contains, u"=*xyzzy*"),
-    #     ):
-    #         expression = MatchExpression(
-    #             service.fieldName.shortNames, u"xyzzy",
-    #             matchType=matchType
-    #         )
-    #         queryString = service._queryStringFromExpression(expression)
-    #         self.assertEquals(
-    #             queryString,
-    #             u"(dsAttrTypeStandard:RecordName{exp})".format(exp=expected)
-    #         )
+        for matchType, expected in (
+            (MatchType.equals, u"=xyzzy"),
+            (MatchType.startsWith, u"=xyzzy*"),
+            (MatchType.endsWith, u"=*xyzzy"),
+            (MatchType.contains, u"=*xyzzy*"),
+            (MatchType.lessThan, u"<xyzzy"),
+            (MatchType.greaterThan, u">xyzzy"),
+            (MatchType.lessThanOrEqualTo, u"<=xyzzy"),
+            (MatchType.greaterThanOrEqualTo, u">=xyzzy"),
+        ):
+            expression = MatchExpression(
+                service.fieldName.shortNames, u"xyzzy",
+                matchType=matchType
+            )
+            queryString = service._queryStringFromExpression(expression)
+            self.assertEquals(
+                queryString,
+                u"({attribute}{expected})".format(
+                    attribute=ODAttribute.shortName.value, expected=expected
+                )
+            )
 
-    #     # CompoundExpressions
 
-    #     expression = CompoundExpression(
-    #         [
-    #             MatchExpression(
-    #                 service.fieldName.uid, u"a",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.guid, u"b",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.shortNames, u"c",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.emailAddresses, u"d",
-    #                 matchType=MatchType.startsWith
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.fullNames, u"e",
-    #                 matchType=MatchType.equals
-    #             ),
-    #         ],
-    #         Operand.AND
-    #     )
-    #     queryString = service._queryStringFromExpression(expression)
-    #     self.assertEquals(
-    #         queryString,
-    #         (
-    #             u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
-    #             u"(dsAttrTypeStandard:GeneratedUID=*b*)"
-    #             u"(dsAttrTypeStandard:RecordName=*c*)"
-    #             u"(dsAttrTypeStandard:EMailAddress=d*)"
-    #             u"(dsAttrTypeStandard:RealName=e))"
-    #         )
-    #     )
+    def test_queryStringFromMatchExpression_match_not(self):
+        """
+        Match expression with the C{NOT} flag adds the C{!} operator.
+        """
 
-    #     expression = CompoundExpression(
-    #         [
-    #             MatchExpression(
-    #                 service.fieldName.shortNames, u"a",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.emailAddresses, u"b",
-    #                 matchType=MatchType.startsWith
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.fullNames, u"c",
-    #                 matchType=MatchType.equals
-    #             ),
-    #         ],
-    #         Operand.OR
-    #     )
-    #     queryString = service._queryStringFromExpression(expression)
-    #     self.assertEquals(
-    #         queryString,
-    #         (
-    #             u"(|(dsAttrTypeStandard:RecordName=*a*)"
-    #             u"(dsAttrTypeStandard:EMailAddress=b*)"
-    #             u"(dsAttrTypeStandard:RealName=c))"
-    #         )
-    #     )
+        service = DirectoryService()
+
+        expression = MatchExpression(
+            service.fieldName.shortNames, u"xyzzy",
+            flags=MatchFlags.NOT
+        )
+        queryString = service._queryStringFromExpression(expression)
+        self.assertEquals(
+            queryString,
+            u"(!{attribute}=xyzzy)".format(
+                attribute=ODAttribute.shortName.value,
+            )
+        )
+
+    test_queryStringFromMatchExpression_match_not.todo = "unimplemented"
+
+
+    def test_queryStringFromMatchExpression_match_caseInsensitive(self):
+        """
+        Match expression with the C{caseInsensitive} flag adds the C{??????}
+        operator.
+        """
+
+        service = DirectoryService()
+
+        expression = MatchExpression(
+            service.fieldName.shortNames, u"xyzzy",
+            flags=MatchFlags.caseInsensitive
+        )
+        queryString = service._queryStringFromExpression(expression)
+        self.assertEquals(
+            queryString,
+            u"???????({attribute}=xyzzy)".format(
+                attribute=ODAttribute.shortName.value,
+            )
+        )
+
+    test_queryStringFromMatchExpression_match_caseInsensitive.todo = (
+        "unimplemented"
+    )
+
+
+    def test_queryStringFromExpression(self):
+        service = DirectoryService()
+
+        # CompoundExpressions
+
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.uid, u"a",
+                    matchType=MatchType.contains
+                ),
+                MatchExpression(
+                    service.fieldName.guid, u"b",
+                    matchType=MatchType.contains
+                ),
+                MatchExpression(
+                    service.fieldName.shortNames, u"c",
+                    matchType=MatchType.contains
+                ),
+                MatchExpression(
+                    service.fieldName.emailAddresses, u"d",
+                    matchType=MatchType.startsWith
+                ),
+                MatchExpression(
+                    service.fieldName.fullNames, u"e",
+                    matchType=MatchType.equals
+                ),
+            ],
+            Operand.AND
+        )
+        queryString = service._queryStringFromExpression(expression)
+        self.assertEquals(
+            queryString,
+            (
+                u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
+                u"(dsAttrTypeStandard:GeneratedUID=*b*)"
+                u"(dsAttrTypeStandard:RecordName=*c*)"
+                u"(dsAttrTypeStandard:EMailAddress=d*)"
+                u"(dsAttrTypeStandard:RealName=e))"
+            )
+        )
+
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.shortNames, u"a",
+                    matchType=MatchType.contains
+                ),
+                MatchExpression(
+                    service.fieldName.emailAddresses, u"b",
+                    matchType=MatchType.startsWith
+                ),
+                MatchExpression(
+                    service.fieldName.fullNames, u"c",
+                    matchType=MatchType.equals
+                ),
+            ],
+            Operand.OR
+        )
+        queryString = service._queryStringFromExpression(expression)
+        self.assertEquals(
+            queryString,
+            (
+                u"(|(dsAttrTypeStandard:RecordName=*a*)"
+                u"(dsAttrTypeStandard:EMailAddress=b*)"
+                u"(dsAttrTypeStandard:RealName=c))"
+            )
+        )
