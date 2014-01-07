@@ -83,8 +83,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             )
         )
 
-    test_queryStringFromMatchExpression_match_not.todo = "unimplemented"
-
 
     def test_queryStringFromMatchExpression_match_caseInsensitive(self):
         """

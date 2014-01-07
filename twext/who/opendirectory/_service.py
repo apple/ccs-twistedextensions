@@ -245,8 +245,12 @@ class DirectoryService(BaseDirectoryService):
             )
 
         flags = tuple(iterFlags(expression.flags))
+
         if MatchFlags.NOT in flags:
-            raise NotImplementedError("Need to handle NOT")
+            notOp = u"!"
+        else:
+            notOp = u""
+
         if MatchFlags.caseInsensitive in flags:
             raise NotImplementedError("Need to handle caseInsensitive")
 
@@ -266,7 +270,7 @@ class DirectoryService(BaseDirectoryService):
 
         # FIXME: Shouldn't the value be quoted somehow?
         return matchType.queryString.format(
-            attribute=odAttr.value, value=value
+            notOp=notOp, attribute=odAttr.value, value=value
         )
 
 
@@ -385,7 +389,12 @@ class DirectoryService(BaseDirectoryService):
             )
         matchType = matchType.value
 
-        if MatchFlags.caseInsensitive in iterFlags(expression.flags):
+        flags = tuple(iterFlags(expression.flags))
+
+        if MatchFlags.NOT in flags:
+            raise NotImplementedError()
+
+        if MatchFlags.caseInsensitive in flags:
             caseInsensitive = 0x100
         else:
             caseInsensitive = 0x0

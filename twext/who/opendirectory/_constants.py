@@ -389,39 +389,39 @@ class ODAttribute(Values):
 
 class ODMatchType(Values):
     all = ValueConstant(0x0001)
-    all.queryString = u"({attribute}=*)"
+    all.queryString = u"({notOp}{attribute}=*)"
 
     equals = ValueConstant(0x2001)
     equals.matchType = MatchType.equals
-    equals.queryString = u"({attribute}={value})"
+    equals.queryString = u"({notOp}{attribute}={value})"
 
     startsWith = ValueConstant(0x2002)
     startsWith.matchType = MatchType.startsWith
-    startsWith.queryString = u"({attribute}={value}*)"
+    startsWith.queryString = u"({notOp}{attribute}={value}*)"
 
     endsWith = ValueConstant(0x2003)
     endsWith.matchType = MatchType.endsWith
-    endsWith.queryString = u"({attribute}=*{value})"
+    endsWith.queryString = u"({notOp}{attribute}=*{value})"
 
     contains = ValueConstant(0x2004)
     contains.matchType = MatchType.contains
-    contains.queryString = u"({attribute}=*{value}*)"
+    contains.queryString = u"({notOp}{attribute}=*{value}*)"
 
     lessThan = ValueConstant(0x2005)
     lessThan.matchType = MatchType.lessThan
-    lessThan.queryString = u"({attribute}<{value})"
+    lessThan.queryString = u"({notOp}{attribute}<{value})"
 
     greaterThan = ValueConstant(0x2006)
     greaterThan.matchType = MatchType.greaterThan
-    greaterThan.queryString = u"({attribute}>{value})"
+    greaterThan.queryString = u"({notOp}{attribute}>{value})"
 
     lessThanOrEqualTo = ValueConstant(0x2007)
     lessThanOrEqualTo.matchType = MatchType.lessThanOrEqualTo
-    lessThanOrEqualTo.queryString = u"({attribute}<={value})"
+    lessThanOrEqualTo.queryString = u"({notOp}{attribute}<={value})"
 
     greaterThanOrEqualTo = ValueConstant(0x2008)
     greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
-    greaterThanOrEqualTo.queryString = u"({attribute}>={value})"
+    greaterThanOrEqualTo.queryString = u"({notOp}{attribute}>={value})"
 
     compound = ValueConstant(0x210B)
 
