@@ -348,52 +348,51 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    # def _queryFromCompoundExpression(self, expression):
-    #     """
-    #     Form an OpenDirectory query from a compound expression.
+    def _queryFromCompoundExpression(self, expression):
+        """
+        Form an OpenDirectory query from a compound expression.
 
-    #     @param expression: The compound expression.
-    #     @type expression: L{CompoundExpression}
+        @param expression: A compound expression.
+        @type expression: L{CompoundExpression}
 
-    #     @return: A native OpenDirectory query.
-    #     @rtype: L{ODQuery}
-    #     """
+        @return: A native OpenDirectory query.
+        @rtype: L{ODQuery}
+        """
 
-    #     queryString = self._queryStringFromExpression(expression)
+        queryString = self._queryStringFromExpression(expression)
 
-    #     recordTypes = [t.value for t in ODRecordType.iterconstants()]
-    #     attributes = [a.value for a in ODAttribute.iterconstants()]
-    #     maxResults = 0
+        recordTypes = [t.value for t in ODRecordType.iterconstants()]
+        attributes = [a.value for a in ODAttribute.iterconstants()]
+        maxResults = 0
 
-    #     query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-    #         self.node,
-    #         recordTypes,
-    #         None,
-    #         ODMatchType.compound.value,
-    #         queryString,
-    #         attributes,
-    #         maxResults,
-    #         None
-    #     )
+        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+            self.node,
+            recordTypes,
+            None,
+            ODMatchType.compound.value,
+            queryString,
+            attributes,
+            maxResults,
+            None
+        )
 
-    #     if error:
-    #         self.log.error(
-    #             "Error while forming OpenDirectory compound query: {error}",
-    #             error=error
-    #         )
-    #         raise OpenDirectoryQueryError(
-    #             "Unable to form OpenDirectory compound query", error
-    #         )
+        if error:
+            self.log.error(
+                "Error while forming OpenDirectory compound query: {error}",
+                error=error
+            )
+            raise OpenDirectoryQueryError(
+                "Unable to form OpenDirectory compound query", error
+            )
 
-    #     return query
-
+        return query
 
 
     def _queryFromMatchExpression(self, expression):
         """
         Form an OpenDirectory query from a match expression.
 
-        @param expression: The match expression.
+        @param expression: A match expression.
         @type expression: L{MatchExpression}
 
         @return: A native OpenDirectory query.
@@ -517,26 +516,15 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    #
-    # Commented out because:
-    #  (a) generating queries as strings is janky; note that quoting is
-    #      problematic, so queries with characters like ")" don't work.
-    #  (b) it removes a lot of code.
-    #
-    # What I'd like to see is a way to nest ODQuery objects, but I can't see
-    # any support for that in the OD framework.
-    #
-    # This seems to also work with the local node.  -wsanchez
-    #
-    # def recordsFromCompoundExpression(self, expression, records=None):
-    #     try:
-    #         query = self._queryFromCompoundExpression(expression)
-    #         return (self._recordsFromQuery(query)
+    def recordsFromCompoundExpression(self, expression, records=None):
+        try:
+            query = self._queryFromCompoundExpression(expression)
+            return self._recordsFromQuery(query)
 
-    #     except QueryNotSupportedError:
-    #         return BaseDirectoryService.recordsFromCompoundExpression(
-    #             self, expression
-    #         )
+        except QueryNotSupportedError:
+            return BaseDirectoryService.recordsFromCompoundExpression(
+                self, expression
+            )
 
 
     def _getUserRecord(self, username):
