@@ -17,6 +17,7 @@
 """
 Generic directory service base implementation tests.
 """
+from __future__ import print_function
 
 from uuid import UUID
 from textwrap import dedent
@@ -29,6 +30,7 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.internet.defer import succeed
 
 from ..idirectory import (
+    InvalidDirectoryRecordError,
     QueryNotSupportedError, NotAllowedError,
     RecordType, FieldName,
     IDirectoryService, IDirectoryRecord,
@@ -638,11 +640,11 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         fields = self.fields_wsanchez.copy()
         del fields[FieldName.uid]
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
         fields = self.fields_wsanchez.copy()
         fields[FieldName.uid] = u""
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
 
     def test_initWithNoRecordType(self):
@@ -651,11 +653,11 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         fields = self.fields_wsanchez.copy()
         del fields[FieldName.recordType]
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
         fields = self.fields_wsanchez.copy()
         fields[FieldName.recordType] = None
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
 
     def test_initWithBogusRecordType(self):
@@ -664,7 +666,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         fields = self.fields_wsanchez.copy()
         fields[FieldName.recordType] = object()
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
 
     def test_initWithNoShortNames(self):
@@ -673,19 +675,19 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         fields = self.fields_wsanchez.copy()
         del fields[FieldName.shortNames]
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
         fields = self.fields_wsanchez.copy()
         fields[FieldName.shortNames] = ()
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
         fields = self.fields_wsanchez.copy()
         fields[FieldName.shortNames] = (u"",)
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
         fields = self.fields_wsanchez.copy()
         fields[FieldName.shortNames] = (u"wsanchez", u"")
-        self.assertRaises(ValueError, self.makeRecord, fields)
+        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
 
     def test_initNormalizeEmailLowercase(self):
@@ -705,7 +707,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         Raise L{TypeError} if fields are of the wrong type.
         """
         self.assertRaises(
-            TypeError,
+            InvalidDirectoryRecordError,
             self.makeRecord,
             {
                 FieldName.uid: "UID:wsanchez",  # Not unicode.
@@ -715,7 +717,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         )
 
         self.assertRaises(
-            TypeError,
+            InvalidDirectoryRecordError,
             self.makeRecord,
             {
                 FieldName.uid: u"UID:wsanchez",
