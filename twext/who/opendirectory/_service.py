@@ -148,7 +148,6 @@ class DirectoryService(BaseDirectoryService):
     fieldName = ConstantsContainer((BaseDirectoryService.fieldName, FieldName))
 
 
-
     def __init__(self, nodeName=ODSearchPath.search.value):
         """
         @param nodeName: the OpenDirectory node to query against.
