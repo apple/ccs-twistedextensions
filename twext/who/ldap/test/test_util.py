@@ -26,6 +26,8 @@ from ...expression import (
 from .._service import DirectoryService
 from .._util import (
     ldapQueryStringFromMatchExpression,
+    ldapQueryStringFromCompoundExpression,
+    ldapQueryStringFromExpression,
 )
 
 
@@ -69,12 +71,10 @@ class LDAPQueryTestCase(unittest.TestCase):
             queryString = ldapQueryStringFromMatchExpression(
                 expression, self.attrMap(service)
             )
-            self.assertEquals(
-                queryString,
-                u"({attribute}{expected})".format(
-                    attribute="shortNames", expected=expected
-                )
+            expected = u"({attribute}{expected})".format(
+                attribute="shortNames", expected=expected
             )
+            self.assertEquals(queryString, expected)
 
 
     def test_queryStringFromMatchExpression_match_not(self):
@@ -90,12 +90,10 @@ class LDAPQueryTestCase(unittest.TestCase):
         queryString = ldapQueryStringFromMatchExpression(
             expression, self.attrMap(service)
         )
-        self.assertEquals(
-            queryString,
-            u"(!{attribute}=xyzzy)".format(
-                attribute="shortNames",
-            )
+        expected = u"(!{attribute}=xyzzy)".format(
+            attribute="shortNames",
         )
+        self.assertEquals(queryString, expected)
 
 
     def test_queryStringFromMatchExpression_match_caseInsensitive(self):
@@ -112,12 +110,11 @@ class LDAPQueryTestCase(unittest.TestCase):
         queryString = ldapQueryStringFromMatchExpression(
             expression, self.attrMap(service)
         )
-        self.assertEquals(
-            queryString,
-            u"???????({attribute}=xyzzy)".format(
-                attribute="shortNames",
-            )
+        expected = u"???????({attribute}=xyzzy)".format(
+            attribute="shortNames",
         )
+        self.assertEquals(queryString, expected)
+
 
     test_queryStringFromMatchExpression_match_caseInsensitive.todo = (
         "unimplemented"
@@ -137,83 +134,112 @@ class LDAPQueryTestCase(unittest.TestCase):
         queryString = ldapQueryStringFromMatchExpression(
             expression, self.attrMap(service)
         )
-        self.assertEquals(
-            queryString,
-            u"({attribute}={expected})".format(
-                attribute="fullNames",
-                expected=(
-                    u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
-                    "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
-                )
+        expected= u"({attribute}={expected})".format(
+            attribute="fullNames",
+            expected=(
+                u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
+                "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
             )
         )
+        self.assertEquals(queryString, expected)
 
 
-    # def test_queryStringFromExpression(self):
-    #     service = DirectoryService()
+    def test_queryStringFromCompoundExpression_single(self):
+        """
+        Compound expression with a single sub-expression.
 
-    #     # CompoundExpressions
+        Should result in the same query string as just the sub-expression
+        would.
 
-    #     expression = CompoundExpression(
-    #         [
-    #             MatchExpression(
-    #                 service.fieldName.uid, u"a",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.guid, u"b",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.shortNames, u"c",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.emailAddresses, u"d",
-    #                 matchType=MatchType.startsWith
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.fullNames, u"e",
-    #                 matchType=MatchType.equals
-    #             ),
-    #         ],
-    #         Operand.AND
-    #     )
-    #     queryString = service._queryStringFromExpression(expression)
-    #     self.assertEquals(
-    #         queryString,
-    #         (
-    #             u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
-    #             u"(dsAttrTypeStandard:GeneratedUID=*b*)"
-    #             u"(dsAttrTypeStandard:RecordName=*c*)"
-    #             u"(dsAttrTypeStandard:EMailAddress=d*)"
-    #             u"(dsAttrTypeStandard:RealName=e))"
-    #         )
-    #     )
+        The Operand shouldn't make any difference here, so we test AND and OR,
+        expecting the same result.
+        """
+        service = DirectoryService()
 
-    #     expression = CompoundExpression(
-    #         [
-    #             MatchExpression(
-    #                 service.fieldName.shortNames, u"a",
-    #                 matchType=MatchType.contains
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.emailAddresses, u"b",
-    #                 matchType=MatchType.startsWith
-    #             ),
-    #             MatchExpression(
-    #                 service.fieldName.fullNames, u"c",
-    #                 matchType=MatchType.equals
-    #             ),
-    #         ],
-    #         Operand.OR
-    #     )
-    #     queryString = service._queryStringFromExpression(expression)
-    #     self.assertEquals(
-    #         queryString,
-    #         (
-    #             u"(|(dsAttrTypeStandard:RecordName=*a*)"
-    #             u"(dsAttrTypeStandard:EMailAddress=b*)"
-    #             u"(dsAttrTypeStandard:RealName=c))"
-    #         )
-    #     )
+        for operand in (Operand.AND, Operand.OR):
+            matchExpression = MatchExpression(
+                service.fieldName.shortNames, u"xyzzy"
+            )
+            compoundExpression = CompoundExpression(
+                [matchExpression],
+                operand
+            )
+            queryString = ldapQueryStringFromCompoundExpression(
+                compoundExpression, self.attrMap(service)
+            )
+            expected = u"{match}".format(
+                match=ldapQueryStringFromMatchExpression(
+                    matchExpression, self.attrMap(service)
+                )
+            )
+            self.assertEquals(queryString, expected)
+
+
+    def test_queryStringFromCompoundExpression_multiple(self):
+        """
+        Compound expression with multiple sub-expressions.
+
+        The sub-expressions should be grouped with the given operand.
+        """
+        service = DirectoryService()
+
+        for (operand, token) in ((Operand.AND, u"&"), (Operand.OR, u"|")):
+            matchExpression1 = MatchExpression(
+                service.fieldName.shortNames, u"xyzzy"
+            )
+            matchExpression2 = MatchExpression(
+                service.fieldName.shortNames, u"plugh"
+            )
+            compoundExpression = CompoundExpression(
+                [matchExpression1, matchExpression2],
+                operand
+            )
+            queryString = ldapQueryStringFromCompoundExpression(
+                compoundExpression, self.attrMap(service)
+            )
+            expected = u"({op}{match1}{match2})".format(
+                op=token,
+                match1=ldapQueryStringFromMatchExpression(
+                    matchExpression1, self.attrMap(service)
+                ),
+                match2=ldapQueryStringFromMatchExpression(
+                    matchExpression2, self.attrMap(service)
+                ),
+            )
+            self.assertEquals(queryString, expected)
+
+
+    def test_queryStringFromExpression_match(self):
+        """
+        Match expression.
+        """
+        service = DirectoryService()
+
+        matchExpression = MatchExpression(
+            service.fieldName.shortNames, u"xyzzy"
+        )
+        queryString = ldapQueryStringFromExpression(
+            matchExpression, self.attrMap(service)
+        )
+        expected = ldapQueryStringFromMatchExpression(
+            matchExpression, self.attrMap(service)
+        )
+        self.assertEquals(queryString, expected)
+
+
+    def test_queryStringFromExpression_compound(self):
+        """
+        Compound expression.
+        """
+        raise NotImplementedError()
+
+    test_queryStringFromExpression_compound.todo = "unimplemented"
+
+
+    def test_queryStringFromExpression_unknown(self):
+        """
+        Unknown expression.
+        """
+        raise NotImplementedError()
+
+    test_queryStringFromExpression_unknown.todo = "unimplemented"

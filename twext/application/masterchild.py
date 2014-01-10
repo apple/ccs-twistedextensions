@@ -635,16 +635,16 @@ class ChildService(Service, object):
 
 
 class ReportingProtocolWrapper(ProtocolWrapper, object):
-    # def __init__(self, *args, **kwargs):
-    #     try:
-    #         raise RuntimeError()
-    #     except RuntimeError:
-    #         from twisted.python.failure import Failure
-    #         f = Failure()
-    #         f.printTraceback()
-    #     return super(ReportingProtocolWrapper, self).__init__(
-    #         *args, **kwargs
-    #     )
+    def __init__(self, *args, **kwargs):
+        try:
+            raise RuntimeError()
+        except RuntimeError:
+            from twisted.python.failure import Failure
+            f = Failure()
+            f.printTraceback()
+        return super(ReportingProtocolWrapper, self).__init__(
+            *args, **kwargs
+        )
 
 
     def connectionLost(self, reason):
