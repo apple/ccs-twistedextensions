@@ -26,8 +26,6 @@ import subprocess
 # from distutils.core import setup
 from setuptools import setup, find_packages as setuptools_find_packages
 
-sys.path.insert(0, joinpath(dirname(__file__), "support"))
-
 
 #
 # Utilities
