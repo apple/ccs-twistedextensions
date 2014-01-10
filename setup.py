@@ -116,8 +116,9 @@ setup_requirements = [
 ]
 
 install_requirements = [
-    "sqlparse==0.1.2",
     "twisted>=13.2.0",
+    "sqlparse==0.1.2",
+    "python-ldap>=2.4.13",
 ]
 
 

@@ -24,7 +24,6 @@ __all__ = [
     "OpenDirectoryQueryError",
     "OpenDirectoryDataError",
     "DirectoryService",
-    "DirectoryRecord",
     "NoQOPDigestCredentialFactory",
 ]
 

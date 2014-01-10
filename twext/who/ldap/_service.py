@@ -1,4 +1,4 @@
-# -*- test-case-name: twext.who.test.test_ldap -*-
+# -*- test-case-name: twext.who.ldap.test.test_service -*-
 ##
 # Copyright (c) 2013-2014 Apple Inc. All rights reserved.
 #
@@ -25,14 +25,14 @@ import ldap
 
 # from zope.interface import implementer
 
-from twisted.python.constants import Values, ValueConstant
 # from twisted.internet.defer import succeed, fail
+from twisted.cred.credentials import IUsernamePassword
 # from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
 
 from ..idirectory import (
-    # DirectoryServiceError, DirectoryAvailabilityError,
+    DirectoryServiceError, DirectoryAvailabilityError,
     # InvalidDirectoryRecordError, QueryNotSupportedError,
     # FieldName as BaseFieldName,
     RecordType as BaseRecordType,
@@ -40,7 +40,7 @@ from ..idirectory import (
 )
 from ..directory import (
     DirectoryService as BaseDirectoryService,
-    # DirectoryRecord as BaseDirectoryRecord,
+    DirectoryRecord as BaseDirectoryRecord,
 )
 # from ..expression import (
 #     CompoundExpression, Operand,
@@ -50,27 +50,7 @@ from ..util import (
     # iterFlags,
     ConstantsContainer,
 )
-
-
-
-LDAP_QUOTING_TABLE = {
-    ord(u"\\"): u"\\5C",
-    ord(u"/"): u"\\2F",
-
-    ord(u"("): u"\\28",
-    ord(u")"): u"\\29",
-    ord(u"*"): u"\\2A",
-
-    ord(u"<"): u"\\3C",
-    ord(u"="): u"\\3D",
-    ord(u">"): u"\\3E",
-    ord(u"~"): u"\\7E",
-
-    ord(u"&"): u"\\26",
-    ord(u"|"): u"\\7C",
-
-    ord(u"\0"): u"\\00",
-}
+# from ._constants import LDAP_QUOTING_TABLE
 
 
 
@@ -78,25 +58,25 @@ LDAP_QUOTING_TABLE = {
 # Exceptions
 #
 
-# class LDAPError(DirectoryServiceError):
-#     """
-#     LDAP error.
-#     """
+class LDAPError(DirectoryServiceError):
+    """
+    LDAP error.
+    """
 
-#     def __init__(self, message, odError=None):
-#         super(LDAPError, self).__init__(message)
-#         self.odError = odError
+    def __init__(self, message, ldapError=None):
+        super(LDAPError, self).__init__(message)
+        self.ldapError = ldapError
 
 
 
-# class LDAPConnectionError(DirectoryAvailabilityError):
-#     """
-#     LDAP connection error.
-#     """
+class LDAPConnectionError(DirectoryAvailabilityError):
+    """
+    LDAP connection error.
+    """
 
-#     def __init__(self, message, odError=None):
-#         super(LDAPConnectionError, self).__init__(message)
-#         self.odError = odError
+    def __init__(self, message, ldapError=None):
+        super(LDAPConnectionError, self).__init__(message)
+        self.ldapError = ldapError
 
 
 
@@ -104,6 +84,7 @@ LDAP_QUOTING_TABLE = {
 #     """
 #     LDAP query error.
 #     """
+
 
 
 # class LDAPDataError(LDAPError):
@@ -114,18 +95,6 @@ LDAP_QUOTING_TABLE = {
 
 
 #
-# LDAP Constants
-#
-
-class TLSRequireCertificate(Values):
-    never   = ValueConstant(ldap.OPT_X_TLS_NEVER)
-    allow   = ValueConstant(ldap.OPT_X_TLS_ALLOW)
-    attempt = ValueConstant(ldap.OPT_X_TLS_TRY)
-    demand  = ValueConstant(ldap.OPT_X_TLS_DEMAND)
-    hard    = ValueConstant(ldap.OPT_X_TLS_HARD)
-
-
-#
 # Directory Service
 #
 
@@ -133,6 +102,7 @@ class DirectoryService(BaseDirectoryService):
     """
     LDAP directory service.
     """
+
     log = Logger()
 
     recordType = ConstantsContainer((
@@ -143,15 +113,15 @@ class DirectoryService(BaseDirectoryService):
     def __init__(
         self,
         url="ldap://localhost/",
+        credentials=None,
         tlsCACertificateFile=None,
         tlsCACertificateDirectory=None,
-        tlsRequireCertificate=None,
         useTLS=False,
     ):
         self._url = url
+        self.credentials = credentials
         self._tlsCACertificateFile = tlsCACertificateFile
         self._tlsCACertificateDirectory = tlsCACertificateDirectory
-        self._tlsRequireCertificate = tlsRequireCertificate
         self._useTLS = useTLS,
 
 
@@ -176,7 +146,10 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{LDAPConnectionError} if unable to connect.
         """
         if not hasattr(self, "_connection"):
+            self.log.info("Connecting to LDAP at {source.url}")
             connection = ldap.initialize(self._url)
+            # FIXME: Use trace_file option to wire up debug logging when
+            # Twisted adopts the new logging stuff.
 
             def valueFor(constant):
                 if constant is None:
@@ -187,7 +160,6 @@ class DirectoryService(BaseDirectoryService):
             for option, value in (
                 (ldap.OPT_X_TLS_CACERTFILE, self._tlsCACertificateFile),
                 (ldap.OPT_X_TLS_CACERTDIR, self._tlsCACertificateDirectory),
-                (ldap.OPT_X_TLS, valueFor(self._tlsRequireCertificate)),
             ):
                 if value is not None:
                     connection.set_option(option, value)
@@ -195,4 +167,35 @@ class DirectoryService(BaseDirectoryService):
             if self._useTLS:
                 connection.start_tls_s()
 
+            if self.credentials is not None:
+                if IUsernamePassword.providedBy(self.credentials):
+                    try:
+                        self.ldap.simple_bind_s(
+                            self.credentials.username,
+                            self.credentials.password,
+                        )
+                        self.log.info(
+                            "Bound to LDAP as {credentials.username}",
+                            credentials=self.credentials
+                        )
+                    except ldap.INVALID_CREDENTIALS as e:
+                        self.log.info(
+                            "Unable to bind to LDAP as {credentials.username}",
+                            credentials=self.credentials
+                        )
+                        raise LDAPConnectionError(str(e), e)
+
+                else:
+                    raise LDAPConnectionError(
+                        "Unknown credentials type: {0}"
+                        .format(self.credentials)
+                    )
+
             self._connection = connection
+
+
+
+class DirectoryRecord(BaseDirectoryRecord):
+    """
+    LDAP directory record.
+    """

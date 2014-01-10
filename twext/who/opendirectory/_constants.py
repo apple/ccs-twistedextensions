@@ -1,4 +1,3 @@
-# -*- test-case-name: twext.who.opendirectory.test.test_service -*-
 ##
 # Copyright (c) 2013-2014 Apple Inc. All rights reserved.
 #
@@ -388,8 +387,8 @@ class ODAttribute(Values):
 
 
 class ODMatchType(Values):
-    all = ValueConstant(0x0001)
-    all.queryString = u"({notOp}{attribute}=*)"
+    any = ValueConstant(0x0001)
+    any.queryString = u"({notOp}{attribute}=*)"
 
     equals = ValueConstant(0x2001)
     equals.matchType = MatchType.equals

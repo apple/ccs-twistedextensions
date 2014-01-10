@@ -43,33 +43,13 @@ from ..expression import (
     CompoundExpression, Operand,
     MatchExpression, MatchFlags,
 )
+from ..ldap._util import LDAP_QUOTING_TABLE
 from ..util import iterFlags, ConstantsContainer
 
 from ._odframework import ODSession, ODNode, ODQuery
 from ._constants import (
     ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod
 )
-
-
-
-LDAP_QUOTING_TABLE = {
-    ord(u"\\"): u"\\5C",
-    ord(u"/"): u"\\2F",
-
-    ord(u"("): u"\\28",
-    ord(u")"): u"\\29",
-    ord(u"*"): u"\\2A",
-
-    ord(u"<"): u"\\3C",
-    ord(u"="): u"\\3D",
-    ord(u">"): u"\\3E",
-    ord(u"~"): u"\\7E",
-
-    ord(u"&"): u"\\26",
-    ord(u"|"): u"\\7C",
-
-    ord(u"\0"): u"\\00",
-}
 
 
 
@@ -298,7 +278,7 @@ class DirectoryService(BaseDirectoryService):
         """
         Generates an LDAP query string from a compound expression.
 
-        @param expression: A match expression.
+        @param expression: A compound expression.
         @type expression: L{MatchExpression}
 
         @return: An LDAP query string.
@@ -425,7 +405,7 @@ class DirectoryService(BaseDirectoryService):
             recordTypes = ODRecordType.fromRecordType(
                 expression.fieldValue
             ).value
-            matchType = ODMatchType.all.value
+            matchType = ODMatchType.any.value
             queryAttribute = None
             queryValue = None
 
