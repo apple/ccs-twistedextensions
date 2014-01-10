@@ -40,7 +40,14 @@ mkdir -p "${dev_libdir}";
 
 export PYTHONPATH="${dev_libdir}:${PYTHONPATH:-}"
 
-cd "${wd}" && ./setup.py develop  \
+cd "${wd}";
+
+if ! ./setup.py develop  \
   --install-dir "${dev_libdir}"   \
   --script-dir "${dev_bindir}"    \
-  > "${dev_root}/setup.log" 2>&1;
+  > "${dev_root}/setup.log" 2>&1; then
+  err=$?;
+  echo "Unable to set up for development:"
+  cat "${dev_root}/setup.log";
+  exit ${err};
+fi;
