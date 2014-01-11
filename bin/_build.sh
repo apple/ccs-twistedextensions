@@ -52,10 +52,10 @@ conditional_set () {
 #   Assert that ldap.h is present with a version >= 20344
 #     find_header "ldap.h" 20344 "LDAP_VENDOR_VERSION"
 find_header () {
-  sys_header="$1"; shift;
+  local sys_header="$1"; shift;
   if [ $# -ge 1 ]; then
-        min_version="$1"; shift;
-      version_macro="$1"; shift;
+      local   min_version="$1"; shift;
+      local version_macro="$1"; shift;
   fi;
 
   # No min_version given:
@@ -67,7 +67,7 @@ find_header () {
   fi;
 
   # Check for presence of a header of specified version
-  found_version="$(printf "#include <${sys_header}>\n${version_macro}\n" | cc -x c -E - | tail -1)";
+  local found_version="$(printf "#include <${sys_header}>\n${version_macro}\n" | cc -x c -E - | tail -1)";
 
   if [ "${found_version}" == "${version_macro}" ]; then
     # Macro was not replaced
@@ -452,7 +452,7 @@ c_dependencies () {
       --disable-bdb --disable-hdb;
   fi;
 
-  if find_header sasl/sasl.h; then
+  if find_header sasl.h; then
     using_system "SASL";
   else
     local v="2.1.26";
