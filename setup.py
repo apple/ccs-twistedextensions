@@ -107,7 +107,7 @@ classifiers = None
 
 
 #
-# Dependancies
+# Dependencies
 #
 
 setup_requirements = [
@@ -118,6 +118,9 @@ install_requirements = [
     "sqlparse==0.1.2",
     "python-ldap>=2.4.13",
 ]
+
+extras_requirements = {
+}
 
 
 #
@@ -179,6 +182,7 @@ def doSetup():
         py_modules=[],
         setup_requires=setup_requirements,
         install_requires=install_requirements,
+        extras_require=extras_requirements,
     )
 
 
