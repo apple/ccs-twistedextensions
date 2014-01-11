@@ -134,7 +134,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         queryString = ldapQueryStringFromMatchExpression(
             expression, self.attrMap(service)
         )
-        expected= u"({attribute}={expected})".format(
+        expected = u"({attribute}={expected})".format(
             attribute="fullNames",
             expected=(
                 u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
@@ -144,7 +144,9 @@ class LDAPQueryTestCase(unittest.TestCase):
         self.assertEquals(queryString, expected)
 
 
-    def test_queryStringFromCompoundExpression_single(self):
+    def test_queryStringFromCompoundExpression_single(
+        self, queryFunction=ldapQueryStringFromCompoundExpression
+    ):
         """
         Compound expression with a single sub-expression.
 
@@ -164,7 +166,7 @@ class LDAPQueryTestCase(unittest.TestCase):
                 [matchExpression],
                 operand
             )
-            queryString = ldapQueryStringFromCompoundExpression(
+            queryString = queryFunction(
                 compoundExpression, self.attrMap(service)
             )
             expected = u"{match}".format(
@@ -175,7 +177,9 @@ class LDAPQueryTestCase(unittest.TestCase):
             self.assertEquals(queryString, expected)
 
 
-    def test_queryStringFromCompoundExpression_multiple(self):
+    def test_queryStringFromCompoundExpression_multiple(
+        self, queryFunction=ldapQueryStringFromCompoundExpression
+    ):
         """
         Compound expression with multiple sub-expressions.
 
@@ -194,7 +198,7 @@ class LDAPQueryTestCase(unittest.TestCase):
                 [matchExpression1, matchExpression2],
                 operand
             )
-            queryString = ldapQueryStringFromCompoundExpression(
+            queryString = queryFunction(
                 compoundExpression, self.attrMap(service)
             )
             expected = u"({op}{match1}{match2})".format(
@@ -231,9 +235,13 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Compound expression.
         """
-        raise NotImplementedError()
-
-    test_queryStringFromExpression_compound.todo = "unimplemented"
+        ldapQueryStringFromExpression = lambda e, a: u""
+        self.test_queryStringFromCompoundExpression_single(
+            queryFunction=ldapQueryStringFromExpression
+        )
+        self.test_queryStringFromCompoundExpression_multiple(
+            queryFunction=ldapQueryStringFromExpression
+        )
 
 
     def test_queryStringFromExpression_unknown(self):
