@@ -30,6 +30,18 @@ class LDAPMatchType(Names):
     """
     Constants for native LDAP match types.
 
+    For each constant defined, if there is an equivalent L{MatchType} constant,
+    the attribute C{matchType} reference that constant.  It is otherwise unset.
+
+    For each constant defined, the attribute C{queryString} will be a
+    L{unicode} format string that, when formatted, is an LDAP query string
+    (eg. C{(attribute=value)}).  The format string may reference the following
+    names:
+
+      - C{notOp} for the "not" operator, which may be C{u"!"} or C{u""}.
+      - C{attribute} for the name of the LDAP attribute to match.
+      - C{value} for the value to match against.
+
     @cvar any: Attribute has any value.
     @cvar equals: Attribute equals value.
     @cvar startsWith: Attribute starts with value.
@@ -39,7 +51,6 @@ class LDAPMatchType(Names):
     @cvar greaterThan: Attribute is greater than value.
     @cvar lessThanOrEqualTo: Attribute is less than or equal to value.
     @cvar greaterThanOrEqualTo: Attribute is greater than or equal to value.
-
     """
 
     any = NamedConstant()
