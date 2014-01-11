@@ -25,7 +25,8 @@ import ldap
 
 # from zope.interface import implementer
 
-# from twisted.internet.defer import succeed, fail
+from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.threads import deferToThread
 from twisted.cred.credentials import IUsernamePassword
 # from twisted.web.guard import DigestCredentialFactory
 
@@ -114,15 +115,23 @@ class DirectoryService(BaseDirectoryService):
         self,
         url="ldap://localhost/",
         credentials=None,
+        timeout=None,
         tlsCACertificateFile=None,
         tlsCACertificateDirectory=None,
         useTLS=False,
+        debug=False,
     ):
-        self._url = url
+        self.url = url
         self.credentials = credentials
+        self._timeout = timeout
         self._tlsCACertificateFile = tlsCACertificateFile
         self._tlsCACertificateDirectory = tlsCACertificateDirectory
         self._useTLS = useTLS,
+
+        if debug:
+            self._debug = 255
+        else:
+            self._debug = None
 
 
     @property
@@ -130,34 +139,26 @@ class DirectoryService(BaseDirectoryService):
         return u"{self.url}".format(self=self)
 
 
-    @property
-    def connection(self):
-        """
-        Get the underlying LDAP connection.
-        """
-        self._connect()
-        return self._connection
-
-
+    @inlineCallbacks
     def _connect(self):
         """
         Connect to the directory server.
+
+        @returns: A deferred connection object.
+        @rtype: deferred L{ldap.ldapobject.LDAPObject}
 
         @raises: L{LDAPConnectionError} if unable to connect.
         """
         if not hasattr(self, "_connection"):
             self.log.info("Connecting to LDAP at {source.url}")
-            connection = ldap.initialize(self._url)
+            connection = ldap.initialize(self.url)
+
             # FIXME: Use trace_file option to wire up debug logging when
             # Twisted adopts the new logging stuff.
 
-            def valueFor(constant):
-                if constant is None:
-                    return None
-                else:
-                    return constant.value
-
             for option, value in (
+                (ldap.OPT_DEBUG_LEVEL, self._debug),
+                (ldap.OPT_TIMEOUT, self._timeout),
                 (ldap.OPT_X_TLS_CACERTFILE, self._tlsCACertificateFile),
                 (ldap.OPT_X_TLS_CACERTDIR, self._tlsCACertificateDirectory),
             ):
@@ -165,12 +166,13 @@ class DirectoryService(BaseDirectoryService):
                     connection.set_option(option, value)
 
             if self._useTLS:
-                connection.start_tls_s()
+                yield deferToThread(connection.start_tls_s)
 
             if self.credentials is not None:
                 if IUsernamePassword.providedBy(self.credentials):
                     try:
-                        self.ldap.simple_bind_s(
+                        yield deferToThread(
+                            connection.simple_bind_s,
                             self.credentials.username,
                             self.credentials.password,
                         )
@@ -192,6 +194,8 @@ class DirectoryService(BaseDirectoryService):
                     )
 
             self._connection = connection
+
+        returnValue(self._connection)
 
 
 

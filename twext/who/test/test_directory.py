@@ -142,7 +142,9 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         service = self.service()
         self.assertEquals(
             repr(service),
-            "<{0} u'xyzzy'>".format(self.serviceClass.__name__)
+            "<{0} {1!r}>".format(
+                self.serviceClass.__name__, self.realmName
+            )
         )
 
 

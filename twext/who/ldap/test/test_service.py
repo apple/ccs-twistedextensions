@@ -18,16 +18,66 @@
 LDAP directory service tests.
 """
 
+from mockldap import MockLdap
+
 from twisted.trial import unittest
 
 # from ...expression import (
 #     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 # )
-# from ..ldap import DirectoryService
+from .._service import DirectoryService, DirectoryRecord
+
+from ...test import test_directory
 
 
 
-class LDAPServiceTestCase(unittest.TestCase):
+class BaseTestCase(object):
     """
     Tests for L{DirectoryService}.
     """
+
+    realmName = url = u"ldap://localhost/"
+
+    def setUp(self):
+        super(BaseTestCase, self).setup()
+        self.mockLDAP = MockLdap(mockDirectoryData)
+        self.mockLDAP.start()
+
+
+    def tearDown(self):
+        self.mockLDAP.stop()
+        super(BaseTestCase, self).tearDown()
+
+
+    def service(self, subClass=None, xmlData=None):
+        return DirectoryService()
+
+
+
+class DirectoryServiceConvenienceTestMixIn(BaseTestCase):
+    def _unimplemented(self):
+        raise NotImplementedError()
+
+    _unimplemented.todo = "unimplemented"
+
+
+    test_recordWithUID = _unimplemented
+    test_recordWithGUID = _unimplemented
+    test_recordsWithRecordType = _unimplemented
+    test_recordWithShortName = _unimplemented
+    test_recordsWithEmailAddress = _unimplemented
+
+
+
+class DirectoryServiceTest(
+    unittest.TestCase,
+    DirectoryServiceConvenienceTestMixIn,
+    test_directory.BaseDirectoryServiceTest,
+):
+    serviceClass = DirectoryService
+    directoryRecordClass = DirectoryRecord
+
+
+
+mockDirectoryData = dict(
+)

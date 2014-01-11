@@ -118,9 +118,12 @@ install_requirements = [
     "twisted>=13.2.0",
 ]
 
-# FIXME: It would be better to just get `setup.py develop` to fetch the
-# extras_requirements...
 if os.environ.get("TWEXT_DEVELOP", "false") == "true":
+    # For testing
+    install_requirements.append("mockldap>=0.1.4")
+
+    # FIXME: It would be better to figure out how to get `setup.py develop` to
+    # fetch the extras_requirements...
     install_requirements.append("python-ldap>=2.4.13")
     install_requirements.append("sqlparse==0.1.2")
 
