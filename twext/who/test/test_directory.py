@@ -14,10 +14,11 @@
 # limitations under the License.
 ##
 
+from __future__ import print_function
+
 """
 Generic directory service base implementation tests.
 """
-from __future__ import print_function
 
 from uuid import UUID
 from textwrap import dedent
