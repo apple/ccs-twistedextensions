@@ -113,20 +113,16 @@ class DirectoryServiceTest(
             timeout=18,
             tlsCACertificateFile=FilePath("/path/to/cert"),
             tlsCACertificateDirectory=FilePath("/path/to/certdir"),
-            useTLS=True,
             debug=True,
         )
         connection = yield service._connect()
 
         self.assertEquals(
             connection.methods_called(),
-            sum(
-                (
-                    ["initialize"],
-                    ["set_option"] * 4,
-                    ["start_tls_s"],
-                ), []
-            )
+            [
+                "initialize",
+                "set_option", "set_option", "set_option", "set_option",
+            ]
         )
 
         opt = lambda k: connection.get_option(k)
@@ -136,7 +132,26 @@ class DirectoryServiceTest(
         self.assertEquals(opt(ldap.OPT_X_TLS_CACERTDIR), "/path/to/certdir")
         self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
 
+        self.assertFalse(connection.tls_enabled)
+
+
+    @inlineCallbacks
+    def test_connect_withSSL(self):
+        """
+        Connect with SSL enabled.
+        """
+        service = self.service(
+            useTLS=True,
+        )
+        connection = yield service._connect()
+
+        self.assertEquals(
+            connection.methods_called(),
+            ["initialize", "start_tls_s"]
+        )
+
         self.assertTrue(connection.tls_enabled)
+
 
 
 mockDirectoryData = dict(
