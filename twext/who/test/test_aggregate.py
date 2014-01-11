@@ -191,6 +191,7 @@ testXMLConfigUsers = """<?xml version="1.0" encoding="utf-8"?>
 
   <record type="user">
     <uid>__dre__</uid>
+    <guid>A3B1158F-0564-4F5B-81E4-A89EA5FF81B0</guid>
     <short-name>dre</short-name>
     <full-name>Andre LaBranche</full-name>
     <password>erd</password>

@@ -68,12 +68,21 @@ class DirectoryServiceConvenienceTestMixIn(BaseTest):
     @inlineCallbacks
     def test_recordWithGUID(self):
         service = self.service()
+
         record = (
             yield service.recordWithGUID(
                 UUID("6C495FCD-7E78-4D5C-AA66-BC890AD04C9D")
             )
         )
         self.assertEquals(record, None)
+
+        record = (
+            yield service.recordWithGUID(
+                UUID("A3B1158F-0564-4F5B-81E4-A89EA5FF81B0")
+            )
+        )
+        self.assertEquals(record.uid, u"__dre__")
+
 
     @inlineCallbacks
     def test_recordsWithRecordType(self):
@@ -903,6 +912,7 @@ testXMLConfig = b"""<?xml version="1.0" encoding="utf-8"?>
 
   <record type="user">
     <uid>__dre__</uid>
+    <guid>A3B1158F-0564-4F5B-81E4-A89EA5FF81B0</guid>
     <short-name>dre</short-name>
     <full-name>Andre LaBranche</full-name>
     <password>erd</password>
