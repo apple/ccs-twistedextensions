@@ -82,6 +82,13 @@ class LDAPConnectionError(DirectoryAvailabilityError):
 
 
 
+class LDAPConnectionAuthError(LDAPConnectionError):
+    """
+    LDAP connection auth error.
+    """
+
+
+
 # class LDAPQueryError(LDAPError):
 #     """
 #     LDAP query error.
@@ -191,12 +198,16 @@ class DirectoryService(BaseDirectoryService):
                             "Bound to LDAP as {credentials.username}",
                             credentials=self.credentials
                         )
-                    except ldap.INVALID_CREDENTIALS as e:
+                    except (
+                        ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
+                    ) as e:
                         self.log.error(
                             "Unable to bind to LDAP as {credentials.username}",
                             credentials=self.credentials
                         )
-                        raise LDAPConnectionError(str(e), e)
+                        raise LDAPConnectionAuthError(
+                            self.credentials.username, e
+                        )
 
                 else:
                     raise LDAPConnectionError(

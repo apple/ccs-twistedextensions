@@ -23,12 +23,18 @@ from mockldap import MockLdap
 
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
+from twisted.cred.credentials import UsernamePassword
 from twisted.trial import unittest
 
 # from ...expression import (
 #     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 # )
-from .._service import DirectoryService, DirectoryRecord, DEFAULT_URL
+from .._service import (
+    DEFAULT_URL,
+    LDAPConnectionAuthError,
+    DirectoryService, DirectoryRecord,
+)
+
 
 from ...test import test_directory
 
@@ -104,6 +110,18 @@ class DirectoryServiceTest(
         self.assertFalse(connection.tls_enabled)
 
 
+    def test_connect_withUsernamePassword_invalid(self):
+        """
+        Connect with UsernamePassword credentials.
+        """
+        credentials = UsernamePassword(
+            "cn=wsanchez,ou=calendarserver,o=org",
+            "__password__"
+        )
+        service = self.service(credentials=credentials)
+        self.assertFailure(service._connect(), LDAPConnectionAuthError)
+
+
     @inlineCallbacks
     def test_connect_withOptions(self):
         """
@@ -132,17 +150,18 @@ class DirectoryServiceTest(
         self.assertEquals(opt(ldap.OPT_X_TLS_CACERTDIR), "/path/to/certdir")
         self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
 
+        # Tested in test_connect_defaults, but test again here since we're
+        # setting SSL options and we want to be sure they don't somehow enable
+        # SSL implicitly.
         self.assertFalse(connection.tls_enabled)
 
 
     @inlineCallbacks
-    def test_connect_withSSL(self):
+    def test_connect_withTLS(self):
         """
-        Connect with SSL enabled.
+        Connect with TLS enabled.
         """
-        service = self.service(
-            useTLS=True,
-        )
+        service = self.service(useTLS=True)
         connection = yield service._connect()
 
         self.assertEquals(
