@@ -235,7 +235,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Compound expression.
         """
-        ldapQueryStringFromExpression = lambda e, a: u""
         self.test_queryStringFromCompoundExpression_single(
             queryFunction=ldapQueryStringFromExpression
         )
