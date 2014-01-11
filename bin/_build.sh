@@ -15,9 +15,6 @@
 # limitations under the License.
 ##
 
-set -e
-set -u
-
 . "${wd}/bin/_py.sh";
 
 
@@ -455,7 +452,7 @@ c_dependencies () {
       --disable-bdb --disable-hdb;
   fi;
 
-  if find_header sasl.h; then
+  if find_header sasl/sasl.h; then
     using_system "SASL";
   else
     local v="2.1.26";
@@ -463,7 +460,8 @@ c_dependencies () {
     local p="${n}-${v}";
     c_dependency -m "a7f4e5e559a0e37b3ffc438c9456e425" \
       "Cyrus SASL" "${p}" \
-      "ftp://ftp.cyrusimap.org/cyrus-sasl/${p}.tar.gz";
+      "ftp://ftp.cyrusimap.org/cyrus-sasl/${p}.tar.gz" \
+      --disable-macos-framework;
   fi;
 
 }
@@ -485,7 +483,6 @@ py_dependencies () {
   export           LDFLAGS="-L${dev_root}/lib -L${dev_root}/lib64 ${LDFLAGS:-} ";
   export DYLD_LIBRARY_PATH="${dev_root}/lib:${dev_root}/lib64:${DYLD_LIBRARY_PATH:-}";
   export PKG_CONFIG_PATH="${dev_root}/lib/pkgconfig:${PKG_CONFIG_PATH:-}";
-  export CFLAGS="${CPPFLAGS} ${LDFLAGS}";
 
   cd "${wd}";
 
