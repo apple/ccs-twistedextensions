@@ -53,6 +53,7 @@ from ..util import (
 )
 # from ._constants import LDAP_QUOTING_TABLE
 
+DEFAULT_URL = "ldap://localhost/"
 
 
 #
@@ -113,7 +114,7 @@ class DirectoryService(BaseDirectoryService):
 
     def __init__(
         self,
-        url="ldap://localhost/",
+        url=DEFAULT_URL,
         credentials=None,
         timeout=None,
         tlsCACertificateFile=None,

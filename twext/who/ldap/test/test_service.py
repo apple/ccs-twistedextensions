@@ -18,14 +18,16 @@
 LDAP directory service tests.
 """
 
+import ldap
 from mockldap import MockLdap
 
+from twisted.internet.defer import inlineCallbacks
 from twisted.trial import unittest
 
 # from ...expression import (
 #     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 # )
-from .._service import DirectoryService, DirectoryRecord
+from .._service import DirectoryService, DirectoryRecord, DEFAULT_URL
 
 from ...test import test_directory
 
@@ -36,17 +38,19 @@ class BaseTestCase(object):
     Tests for L{DirectoryService}.
     """
 
-    realmName = url = u"ldap://localhost/"
+    url = DEFAULT_URL
+    realmName = unicode(DEFAULT_URL)
+
 
     def setUp(self):
-        super(BaseTestCase, self).setup()
+        # super(BaseTestCase, self).setUp()
         self.mockLDAP = MockLdap(mockDirectoryData)
         self.mockLDAP.start()
 
 
     def tearDown(self):
         self.mockLDAP.stop()
-        super(BaseTestCase, self).tearDown()
+        # super(BaseTestCase, self).tearDown()
 
 
     def service(self, subClass=None, xmlData=None):
@@ -70,12 +74,32 @@ class DirectoryServiceConvenienceTestMixIn(BaseTestCase):
 
 
 class DirectoryServiceTest(
-    unittest.TestCase,
     DirectoryServiceConvenienceTestMixIn,
     test_directory.BaseDirectoryServiceTest,
+    unittest.TestCase,
 ):
     serviceClass = DirectoryService
     directoryRecordClass = DirectoryRecord
+
+
+    @inlineCallbacks
+    def test_connect_defaults(self):
+        """
+        Connect with default arguments.
+        """
+        service = self.service()
+        connection = yield service._connect()
+
+        for option in (
+            ldap.OPT_DEBUG_LEVEL,
+            ldap.OPT_TIMEOUT,
+            ldap.OPT_X_TLS_CACERTFILE,
+            ldap.OPT_X_TLS_CACERTDIR,
+        ):
+            self.assertRaises(
+                KeyError,
+                connection.get_option, option
+            )
 
 
 
