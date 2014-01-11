@@ -452,7 +452,11 @@ c_dependencies () {
       --disable-bdb --disable-hdb;
   fi;
 
-  if find_header sasl.h; then
+  if find_header sasl/sasl.h && ! find_header sasl.h; then
+    mkdir -p "${dev_root}/include";
+    echo "#include <sasl/sasl.h>" > "${dev_root}/include/sasl.h"
+    using_system "SASL";
+  elif find_header sasl.h; then
     using_system "SASL";
   else
     local v="2.1.26";
