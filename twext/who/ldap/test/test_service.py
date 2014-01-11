@@ -14,6 +14,8 @@
 # limitations under the License.
 ##
 
+from __future__ import print_function
+
 """
 LDAP directory service tests.
 """
@@ -21,6 +23,7 @@ LDAP directory service tests.
 import ldap
 from mockldap import MockLdap
 
+from twisted.python.constants import NamedConstant, ValueConstant
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 from twisted.cred.credentials import UsernamePassword
@@ -35,9 +38,8 @@ from .._service import (
     DirectoryService, DirectoryRecord,
 )
 
-
 from ...test import test_directory
-
+from ...test.test_xml import xmlService
 
 
 class BaseTestCase(object):
@@ -50,14 +52,12 @@ class BaseTestCase(object):
 
 
     def setUp(self):
-        # super(BaseTestCase, self).setUp()
-        self.mockLDAP = MockLdap(mockDirectoryData)
+        self.mockLDAP = MockLdap(mockDirectoryDataFromXML(self.mktemp()))
         self.mockLDAP.start()
 
 
     def tearDown(self):
         self.mockLDAP.stop()
-        # super(BaseTestCase, self).tearDown()
 
 
     def service(self, **kwargs):
@@ -122,6 +122,21 @@ class DirectoryServiceTest(
         self.assertFailure(service._connect(), LDAPBindAuthError)
 
 
+    def test_connect_withUsernamePassword_valid(self):
+        """
+        Connect with UsernamePassword credentials.
+        """
+        credentials = UsernamePassword(
+            "cn=wsanchez,ou=calendarserver,o=org",
+            "__password__"
+        )
+        service = self.service(credentials=credentials)
+
+        raise NotImplementedError(service)
+
+    test_connect_withUsernamePassword_valid.todo = "unimplemented"
+
+
     @inlineCallbacks
     def test_connect_withOptions(self):
         """
@@ -173,5 +188,44 @@ class DirectoryServiceTest(
 
 
 
-mockDirectoryData = dict(
-)
+def mockDirectoryDataFromXML(tmp):
+    service = xmlService(tmp)
+
+    o = u"org"
+    ou = u"calendarserver"
+
+    data = {
+        u"o={0}".format(o): dict(o=o),
+        u"ou={0}".format(ou): dict(ou=ou),
+    }
+
+    for records in service.index[service.fieldName.uid].itervalues():
+        for record in records:
+            cn = record.shortNames[0]
+
+            key = u"cn={0},ou={1},o={2}".format(cn, ou, o)
+
+            def toUnicode(obj):
+                if isinstance(obj, (NamedConstant, ValueConstant)):
+                    return obj.name
+
+                if isinstance(obj, (tuple, list)):
+                    return [unicode(x) for x in obj]
+
+                return unicode(obj)
+
+            recordData = dict(
+                (fieldName.name, toUnicode(record.fields[fieldName]))
+                for fieldName in service.fieldName.iterconstants()
+                if fieldName in record.fields
+            )
+
+            data[key] = recordData
+
+    # from pprint import pprint
+    # print("")
+    # print("-" * 80)
+    # pprint(data)
+    # print("-" * 80)
+
+    return data
