@@ -21,6 +21,7 @@ LDAP directory service tests.
 import ldap
 from mockldap import MockLdap
 
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 from twisted.trial import unittest
 
@@ -53,8 +54,8 @@ class BaseTestCase(object):
         # super(BaseTestCase, self).tearDown()
 
 
-    def service(self, subClass=None, xmlData=None):
-        return DirectoryService()
+    def service(self, **kwargs):
+        return DirectoryService(**kwargs)
 
 
 
@@ -91,15 +92,37 @@ class DirectoryServiceTest(
         connection = yield service._connect()
 
         for option in (
-            ldap.OPT_DEBUG_LEVEL,
             ldap.OPT_TIMEOUT,
             ldap.OPT_X_TLS_CACERTFILE,
             ldap.OPT_X_TLS_CACERTDIR,
+            ldap.OPT_DEBUG_LEVEL,
         ):
             self.assertRaises(
                 KeyError,
                 connection.get_option, option
             )
+
+
+    @inlineCallbacks
+    def test_connect_withOptions(self):
+        """
+        Connect with default arguments.
+        """
+        service = self.service(
+            timeout=18,
+            tlsCACertificateFile=FilePath("/path/to/cert"),
+            tlsCACertificateDirectory=FilePath("/path/to/certdir"),
+            useTLS=True,
+            debug=True,
+        )
+        connection = yield service._connect()
+
+        opt = lambda k: connection.get_option(k)
+
+        self.assertEquals(opt(ldap.OPT_TIMEOUT), 18)
+        self.assertEquals(opt(ldap.OPT_X_TLS_CACERTFILE), "/path/to/cert")
+        self.assertEquals(opt(ldap.OPT_X_TLS_CACERTDIR), "/path/to/certdir")
+        self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
 
 
 

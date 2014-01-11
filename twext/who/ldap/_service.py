@@ -125,8 +125,17 @@ class DirectoryService(BaseDirectoryService):
         self.url = url
         self.credentials = credentials
         self._timeout = timeout
-        self._tlsCACertificateFile = tlsCACertificateFile
-        self._tlsCACertificateDirectory = tlsCACertificateDirectory
+
+        if tlsCACertificateFile is None:
+            self._tlsCACertificateFile = None
+        else:
+            self._tlsCACertificateFile = tlsCACertificateFile.path
+
+        if tlsCACertificateDirectory is None:
+            self._tlsCACertificateDirectory = None
+        else:
+            self._tlsCACertificateDirectory = tlsCACertificateDirectory.path
+
         self._useTLS = useTLS,
 
         if debug:
@@ -158,10 +167,10 @@ class DirectoryService(BaseDirectoryService):
             # Twisted adopts the new logging stuff.
 
             for option, value in (
-                (ldap.OPT_DEBUG_LEVEL, self._debug),
                 (ldap.OPT_TIMEOUT, self._timeout),
                 (ldap.OPT_X_TLS_CACERTFILE, self._tlsCACertificateFile),
                 (ldap.OPT_X_TLS_CACERTDIR, self._tlsCACertificateDirectory),
+                (ldap.OPT_DEBUG_LEVEL, self._debug),
             ):
                 if value is not None:
                     connection.set_option(option, value)
