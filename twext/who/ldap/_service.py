@@ -136,7 +136,7 @@ class DirectoryService(BaseDirectoryService):
         else:
             self._tlsCACertificateDirectory = tlsCACertificateDirectory.path
 
-        self._useTLS = useTLS,
+        self._useTLS = useTLS
 
         if debug:
             self._debug = 255
@@ -176,6 +176,7 @@ class DirectoryService(BaseDirectoryService):
                     connection.set_option(option, value)
 
             if self._useTLS:
+                self.log.info("Starting TLS for {source.url}")
                 yield deferToThread(connection.start_tls_s)
 
             if self.credentials is not None:
@@ -191,7 +192,7 @@ class DirectoryService(BaseDirectoryService):
                             credentials=self.credentials
                         )
                     except ldap.INVALID_CREDENTIALS as e:
-                        self.log.info(
+                        self.log.error(
                             "Unable to bind to LDAP as {credentials.username}",
                             credentials=self.credentials
                         )

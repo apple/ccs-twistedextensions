@@ -91,16 +91,15 @@ class DirectoryServiceTest(
         service = self.service()
         connection = yield service._connect()
 
+        self.assertEquals(connection.methods_called(), ["initialize"])
+
         for option in (
             ldap.OPT_TIMEOUT,
             ldap.OPT_X_TLS_CACERTFILE,
             ldap.OPT_X_TLS_CACERTDIR,
             ldap.OPT_DEBUG_LEVEL,
         ):
-            self.assertRaises(
-                KeyError,
-                connection.get_option, option
-            )
+            self.assertRaises(KeyError, connection.get_option, option)
 
         self.assertFalse(connection.tls_enabled)
 
@@ -119,6 +118,17 @@ class DirectoryServiceTest(
         )
         connection = yield service._connect()
 
+        self.assertEquals(
+            connection.methods_called(),
+            sum(
+                (
+                    ["initialize"],
+                    ["set_option"] * 4,
+                    ["start_tls_s"],
+                ), []
+            )
+        )
+
         opt = lambda k: connection.get_option(k)
 
         self.assertEquals(opt(ldap.OPT_TIMEOUT), 18)
@@ -127,7 +137,6 @@ class DirectoryServiceTest(
         self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
 
         self.assertTrue(connection.tls_enabled)
-
 
 
 mockDirectoryData = dict(
