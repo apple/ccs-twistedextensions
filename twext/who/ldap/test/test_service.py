@@ -102,6 +102,8 @@ class DirectoryServiceTest(
                 connection.get_option, option
             )
 
+        self.assertFalse(connection.tls_enabled)
+
 
     @inlineCallbacks
     def test_connect_withOptions(self):
@@ -123,6 +125,8 @@ class DirectoryServiceTest(
         self.assertEquals(opt(ldap.OPT_X_TLS_CACERTFILE), "/path/to/cert")
         self.assertEquals(opt(ldap.OPT_X_TLS_CACERTDIR), "/path/to/certdir")
         self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
+
+        self.assertTrue(connection.tls_enabled)
 
 
 
