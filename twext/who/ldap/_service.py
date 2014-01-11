@@ -82,9 +82,9 @@ class LDAPConnectionError(DirectoryAvailabilityError):
 
 
 
-class LDAPConnectionAuthError(LDAPConnectionError):
+class LDAPBindAuthError(LDAPConnectionError):
     """
-    LDAP connection auth error.
+    LDAP bind auth error.
     """
 
 
@@ -205,7 +205,7 @@ class DirectoryService(BaseDirectoryService):
                             "Unable to bind to LDAP as {credentials.username}",
                             credentials=self.credentials
                         )
-                        raise LDAPConnectionAuthError(
+                        raise LDAPBindAuthError(
                             self.credentials.username, e
                         )
 

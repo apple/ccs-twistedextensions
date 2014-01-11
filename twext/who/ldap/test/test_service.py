@@ -31,7 +31,7 @@ from twisted.trial import unittest
 # )
 from .._service import (
     DEFAULT_URL,
-    LDAPConnectionAuthError,
+    LDAPBindAuthError,
     DirectoryService, DirectoryRecord,
 )
 
@@ -119,7 +119,7 @@ class DirectoryServiceTest(
             "__password__"
         )
         service = self.service(credentials=credentials)
-        self.assertFailure(service._connect(), LDAPConnectionAuthError)
+        self.assertFailure(service._connect(), LDAPBindAuthError)
 
 
     @inlineCallbacks
