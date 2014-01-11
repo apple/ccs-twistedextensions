@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import sys
 import errno
+import os
 from os.path import dirname, abspath, join as joinpath
 import subprocess
 
@@ -116,10 +117,15 @@ setup_requirements = [
 install_requirements = [
     "twisted>=13.2.0",
     "sqlparse==0.1.2",
-    "python-ldap>=2.4.13",
 ]
 
+# FIXME: It would be better to just get `setup.py develop` to fetch the
+# extras_requirements...
+if os.environ.get("TWEXT_DEVELOP", "false") == "true":
+    install_requirements.append("python-ldap>=2.4.13")
+
 extras_requirements = {
+    "LDAP": ["python-ldap>=2.4.13"],
 }
 
 

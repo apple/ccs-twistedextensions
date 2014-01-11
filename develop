@@ -21,6 +21,8 @@ set -u
 
 wd="$(cd "$(dirname "$0")" && pwd)";
 
+export TWEXT_DEVELOP="true";
+
 . "${wd}/bin/_build.sh";
 init_build;
 c_dependencies;
