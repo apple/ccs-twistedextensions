@@ -19,7 +19,7 @@ LDAP constants.
 """
 
 from twisted.python.constants import (
-    Names, NamedConstant,  # Values, ValueConstant
+    Names, NamedConstant, Values, ValueConstant
 )
 
 from ..expression import MatchType
@@ -108,3 +108,78 @@ class LDAPMatchType(Names):
             ))
 
         return cls._matchTypeByMatchType.get(matchType, None)
+
+
+
+class RFC4519Attribute(Values):
+    """
+    See U{RFC 4519, section 2<http://tools.ietf.org/html/rfc4519#section-2>}.
+    """
+    businessCategory = ValueConstant(u"businessCategory")
+    countryName = ValueConstant(u"c")
+    commonName = ValueConstant(u"cn")
+    domainComponent = ValueConstant(u"dc")
+    description = ValueConstant(u"description")
+    destinationIndicator = ValueConstant(u"destinationIndicator")
+    distinguishedName = ValueConstant(u"distinguishedName")
+    dnQualifier = ValueConstant(u"dnQualifier")
+    enhancedSearchGuide = ValueConstant(u"enhanced search guide")
+    facsimileTelephoneNumber = ValueConstant(u"facsimileTelephoneNumber")
+    generationQualifier = ValueConstant(u"generationQualifier")
+    givenName = ValueConstant(u"givenName")
+    houseIdentifier = ValueConstant(u"houseIdentifier")
+    initials = ValueConstant(u"initials")
+    internationalISDNNumber = ValueConstant(u"internationalISDNNumber")
+    localityName = ValueConstant(u"l")
+    member = ValueConstant(u"member")
+    name = ValueConstant(u"name")
+    organizationName = ValueConstant(u"o")
+    organizationalUnitName = ValueConstant(u"ou")
+    owner = ValueConstant(u"owner")
+    physicalDeliveryOfficeName = ValueConstant(u"physicalDeliveryOfficeName")
+    postalAddress = ValueConstant(u"postalAddress")
+    postalCode = ValueConstant(u"postalCode")
+    postOfficeBox = ValueConstant(u"postOfficeBox")
+    preferredDeliveryMethod = ValueConstant(u"preferredDeliveryMethod")
+    registeredAddress = ValueConstant(u"registeredAddress")
+    roleOccupant = ValueConstant(u"roleOccupant")
+    searchGuide = ValueConstant(u"searchGuide")
+    seeAlso = ValueConstant(u"seeAlso")
+    serialNumber = ValueConstant(u"serialNumber")
+    surname = ValueConstant(u"sn")
+    stateOrProvinceName = ValueConstant(u"st")
+    street = ValueConstant(u"street")
+    telephoneNumber = ValueConstant(u"telephoneNumber")
+    teletexTerminalIdentifier = ValueConstant(u"teletexTerminalIdentifier")
+    telexNumber = ValueConstant(u"telexNumber")
+    title = ValueConstant(u"title")
+    userid = ValueConstant(u"uid")
+    uniqueMember = ValueConstant(u"uniqueMember")
+    userPassword = ValueConstant(u"userPassword")
+    x121Address = ValueConstant(u"x121Address")
+    x500UniqueIdentifier = ValueConstant(u"x500UniqueIdentifier")
+
+
+for c in RFC4519Attribute.iterconstants():
+    if c.name != c.value:
+        setattr(RFC4519Attribute, c.value, c)
+
+
+class RFC4519ObjectClass(Values):
+    """
+    See U{RFC 4519, section 3<http://tools.ietf.org/html/rfc4519#section-2>}.
+    """
+    applicationProcess = ValueConstant(u"applicationProcess")
+    country = ValueConstant(u"country")
+    dcObject = ValueConstant(u"dcObject")
+    device = ValueConstant(u"device")
+    groupOfNames = ValueConstant(u"groupOfNames")
+    groupOfUniqueNames = ValueConstant(u"groupOfUniqueNames")
+    locality = ValueConstant(u"locality")
+    organization = ValueConstant(u"organization")
+    organizationalPerson = ValueConstant(u"organizationalPerson")
+    organizationalRole = ValueConstant(u"organizationalRole")
+    organizationalUnit = ValueConstant(u"organizationalUnit")
+    person = ValueConstant(u"person")
+    residentialPerson = ValueConstant(u"residentialPerson")
+    uidObject = ValueConstant(u"uidObject")
