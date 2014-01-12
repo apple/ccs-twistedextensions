@@ -183,3 +183,10 @@ class RFC4519ObjectClass(Values):
     person = ValueConstant(u"person")
     residentialPerson = ValueConstant(u"residentialPerson")
     uidObject = ValueConstant(u"uidObject")
+
+
+# http://tools.ietf.org/html/rfc4524
+# http://tools.ietf.org/html/rfc3112 auth schemes
+# http://tools.ietf.org/html/rfc2307
+# http://tools.ietf.org/html/rfc2798
+# http://tools.ietf.org/html/rfc2739 calendar
