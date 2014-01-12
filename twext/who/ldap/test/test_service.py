@@ -65,7 +65,7 @@ class BaseTestCase(object):
 
 
 
-class DirectoryServiceConvenienceTestMixIn(BaseTestCase):
+class DirectoryServiceConvenienceTestMixIn(object):
     def _unimplemented(self):
         raise NotImplementedError()
 
@@ -80,15 +80,7 @@ class DirectoryServiceConvenienceTestMixIn(BaseTestCase):
 
 
 
-class DirectoryServiceTest(
-    DirectoryServiceConvenienceTestMixIn,
-    test_directory.BaseDirectoryServiceTest,
-    unittest.TestCase,
-):
-    serviceClass = DirectoryService
-    directoryRecordClass = DirectoryRecord
-
-
+class DirectoryServiceConnectionTestMixIn(object):
     @inlineCallbacks
     def test_connect_defaults(self):
         """
@@ -188,6 +180,18 @@ class DirectoryServiceTest(
         )
 
         self.assertTrue(connection.tls_enabled)
+
+
+
+class DirectoryServiceTest(
+    BaseTestCase,
+    DirectoryServiceConvenienceTestMixIn,
+    DirectoryServiceConnectionTestMixIn,
+    test_directory.BaseDirectoryServiceTest,
+    unittest.TestCase,
+):
+    serviceClass = DirectoryService
+    directoryRecordClass = DirectoryRecord
 
 
 
