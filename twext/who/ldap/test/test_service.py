@@ -115,26 +115,29 @@ class DirectoryServiceTest(
         Connect with UsernamePassword credentials.
         """
         credentials = UsernamePassword(
-            "cn=wsanchez,ou=calendarserver,o=org",
-            "__password__"
+            u"uid=wsanchez,cn=user,dc=calendarserver,dc=org",
+            u"__password__"
         )
         service = self.service(credentials=credentials)
         self.assertFailure(service._connect(), LDAPBindAuthError)
 
 
+    @inlineCallbacks
     def test_connect_withUsernamePassword_valid(self):
         """
         Connect with UsernamePassword credentials.
         """
         credentials = UsernamePassword(
-            "cn=wsanchez,ou=calendarserver,o=org",
-            "__password__"
+            u"uid=wsanchez,cn=user,dc=calendarserver,dc=org",
+            u"zehcnasw"
         )
         service = self.service(credentials=credentials)
+        connection = yield service._connect()
 
-        raise NotImplementedError(service)
-
-    test_connect_withUsernamePassword_valid.todo = "unimplemented"
+        self.assertEquals(
+            connection.methods_called(),
+            ["initialize", "simple_bind_s"]
+        )
 
 
     @inlineCallbacks
@@ -195,32 +198,48 @@ def mockDirectoryDataFromXML(tmp):
     ou = u"calendarserver"
 
     data = {
-        u"o={0}".format(o): dict(o=o),
-        u"ou={0}".format(ou): dict(ou=ou),
+        u"o={o}".format(o=o): dict(o=o),
+        u"ou={ou}".format(ou=ou): dict(ou=ou),
     }
+
+    def toAttribute(fieldName):
+        return unicode({
+            service.fieldName.uid: u"recordid",
+            service.fieldName.guid: u"guid",
+            service.fieldName.recordType: u"objectclass",
+            service.fieldName.shortNames: u"uid",
+            service.fieldName.fullNames: u"cn",
+            service.fieldName.emailAddresses: u"mail",
+            service.fieldName.password: u"userPassword",
+        }.get(fieldName, fieldName.name))
+
+    def toUnicode(obj):
+        if isinstance(obj, (NamedConstant, ValueConstant)):
+            return obj.name
+
+        if isinstance(obj, (tuple, list)):
+            return [unicode(x) for x in obj]
+
+        return unicode(obj)
+
+    def tuplify(record, fieldName):
+        name = toAttribute(fieldName)
+        value = toUnicode(record.fields[fieldName])
+        return (name, value)
 
     for records in service.index[service.fieldName.uid].itervalues():
         for record in records:
-            cn = record.shortNames[0]
-
-            key = u"cn={0},ou={1},o={2}".format(cn, ou, o)
-
-            def toUnicode(obj):
-                if isinstance(obj, (NamedConstant, ValueConstant)):
-                    return obj.name
-
-                if isinstance(obj, (tuple, list)):
-                    return [unicode(x) for x in obj]
-
-                return unicode(obj)
+            dn = u"uid={uid},cn={cn},dc={ou},dc={o}".format(
+                uid=record.shortNames[0], cn=record.recordType.name, ou=ou, o=o
+            )
 
             recordData = dict(
-                (fieldName.name, toUnicode(record.fields[fieldName]))
+                tuplify(record, fieldName)
                 for fieldName in service.fieldName.iterconstants()
                 if fieldName in record.fields
             )
 
-            data[key] = recordData
+            data[dn] = recordData
 
     # from pprint import pprint
     # print("")
