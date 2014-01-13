@@ -20,6 +20,7 @@ OpenDirectory service tests.
 
 from twisted.trial import unittest
 
+from ...idirectory import QueryNotSupportedError
 from ...expression import (
     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 )
@@ -247,6 +248,10 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Unknown expression.
         """
-        raise NotImplementedError()
+        service = DirectoryService()
 
-    test_queryStringFromExpression_unknown.todo = "unimplemented"
+        self.assertRaises(
+            QueryNotSupportedError,
+            ldapQueryStringFromExpression,
+            object(), self.attrMap(service)
+        )
