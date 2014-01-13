@@ -145,6 +145,41 @@ class LDAPQueryTestCase(unittest.TestCase):
         self.assertEquals(queryString, expected)
 
 
+    def test_queryStringFromMatchExpression_unknownFieldName(self):
+        """
+        Unknown expression.
+        """
+        service = DirectoryService()
+
+        expression = MatchExpression(
+            object(), u"xyzzy",
+        )
+
+        self.assertRaises(
+            QueryNotSupportedError,
+            ldapQueryStringFromMatchExpression,
+            expression, self.attrMap(service)
+        )
+
+
+    def test_queryStringFromMatchExpression_unknownMatchType(self):
+        """
+        Unknown expression.
+        """
+        service = DirectoryService()
+
+        expression = MatchExpression(
+            service.fieldName.shortNames, u"xyzzy",
+            matchType=object()
+        )
+
+        self.assertRaises(
+            QueryNotSupportedError,
+            ldapQueryStringFromMatchExpression,
+            expression, self.attrMap(service)
+        )
+
+
     def test_queryStringFromCompoundExpression_single(
         self, queryFunction=ldapQueryStringFromCompoundExpression
     ):
