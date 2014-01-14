@@ -155,7 +155,7 @@ class DirectoryServiceConnectionTestMixIn(object):
             timeout=18,
             tlsCACertificateFile=FilePath("/path/to/cert"),
             tlsCACertificateDirectory=FilePath("/path/to/certdir"),
-            debug=True,
+            _debug=True,
         )
         connection = yield service._connect()
 

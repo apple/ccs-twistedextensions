@@ -163,11 +163,45 @@ class DirectoryService(BaseDirectoryService):
         tlsCACertificateFile=None,
         tlsCACertificateDirectory=None,
         useTLS=False,
-        debug=False,
         fieldNameToAttributeMap=DEFAULT_FIELDNAME_MAP,
         recordTypeToObjectClassMap=DEFAULT_RECORDTYPE_MAP,
         uidField=BaseFieldName.uid,
+        _debug=False,
     ):
+        """
+        @param url: The URL of the LDAP server to connect to.
+        @type url: L{unicode}
+
+        @param baseDN: The base DN for queries.
+        @type baseDN: L{unicode}
+
+        @param credentials: The credentials to use to authenticate with the
+            LDAP server.
+        @type credentials: L{IUsernamePassword}
+
+        @param timeout: A timeout, in seconds, for LDAP queries.
+        @type timeout: number
+
+        @param tlsCACertificateFile: ...
+        @type tlsCACertificateFile: L{FilePath}
+
+        @param tlsCACertificateDirectory: ...
+        @type tlsCACertificateDirectory: L{FilePath}
+
+        @param useTLS: Enable the use of TLS.
+        @type useTLS: L{bool}
+
+        @param fieldNameToAttributeMap: A mapping of field names to LDAP
+            attribute names.
+        @type fieldNameToAttributeMap: mapping with L{NamedConstant} keys and
+            L{unicode} values
+
+        @param recordTypeToObjectClassMap: A mapping of record types to LDAP
+            object classes.
+        @type recordTypeToObjectClassMap: mapping with L{NamedConstant} keys
+            and L{unicode} values
+        """
+
         self.url = url
         self._baseDN = baseDN
         self._credentials = credentials
@@ -185,7 +219,7 @@ class DirectoryService(BaseDirectoryService):
 
         self._useTLS = useTLS
 
-        if debug:
+        if _debug:
             self._debug = 255
         else:
             self._debug = None
