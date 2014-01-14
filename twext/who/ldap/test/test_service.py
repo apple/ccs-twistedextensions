@@ -53,7 +53,7 @@ class BaseTestCase(object):
     """
 
     url = "ldap://localhost/"
-    baseDN = u"o=org"
+    baseDN = u"ou=calendarserver,o=org"
     realmName = unicode(url)
 
 
@@ -84,22 +84,6 @@ class BaseTestCase(object):
 class DirectoryServiceConvenienceTestMixIn(
     BaseDirectoryServiceConvenienceTestMixIn
 ):
-    def test_recordWithUID(self):
-        return (
-            BaseDirectoryServiceConvenienceTestMixIn.test_recordWithUID(self)
-        )
-
-    test_recordWithUID.todo = "needs a seed?"
-
-
-    def test_recordWithGUID(self):
-        return (
-            BaseDirectoryServiceConvenienceTestMixIn.test_recordWithGUID(self)
-        )
-
-    test_recordWithGUID.todo = "needs a seed?"
-
-
     def test_recordsWithRecordType(self):
         return (
             BaseDirectoryServiceConvenienceTestMixIn
@@ -107,24 +91,6 @@ class DirectoryServiceConvenienceTestMixIn(
         )
 
     test_recordsWithRecordType.todo = "needs a seed?"
-
-
-    def test_recordWithShortName(self):
-        return (
-            BaseDirectoryServiceConvenienceTestMixIn
-            .test_recordWithShortName(self)
-        )
-
-    test_recordWithShortName.todo = "needs a seed?"
-
-
-    def test_recordsWithEmailAddress(self):
-        return (
-            BaseDirectoryServiceConvenienceTestMixIn
-            .test_recordsWithEmailAddress(self)
-        )
-
-    test_recordsWithEmailAddress.todo = "needs a seed?"
 
 
 
@@ -155,7 +121,7 @@ class DirectoryServiceConnectionTestMixIn(object):
         Connect with UsernamePassword credentials.
         """
         credentials = UsernamePassword(
-            u"uid=wsanchez,cn=user,dc=calendarserver,dc=org",
+            u"uid=wsanchez,cn=user,ou=calendarserver,o=org",
             u"__password__"
         )
         service = self.service(credentials=credentials)
@@ -168,7 +134,7 @@ class DirectoryServiceConnectionTestMixIn(object):
         Connect with UsernamePassword credentials.
         """
         credentials = UsernamePassword(
-            u"uid=wsanchez,cn=user,dc=calendarserver,dc=org",
+            u"uid=wsanchez,cn=user,ou=calendarserver,o=org",
             u"zehcnasw"
         )
         service = self.service(credentials=credentials)
@@ -249,7 +215,7 @@ def mockDirectoryDataFromXMLService(service):
 
     data = {
         u"o={o}".format(o=o): dict(o=o),
-        u"ou={ou}".format(ou=ou): dict(ou=ou),
+        u"ou={ou},o={o}".format(ou=ou, o=o): dict(ou=ou),
     }
 
     def toUnicode(obj):
@@ -273,7 +239,7 @@ def mockDirectoryDataFromXMLService(service):
 
     for records in service.index[service.fieldName.uid].itervalues():
         for record in records:
-            dn = u"uid={uid},cn={cn},dc={ou},dc={o}".format(
+            dn = u"uid={uid},cn={cn},ou={ou},o={o}".format(
                 uid=record.shortNames[0], cn=record.recordType.name, ou=ou, o=o
             )
 

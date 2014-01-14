@@ -21,6 +21,8 @@ from __future__ import print_function
 LDAP directory service implementation.
 """
 
+from uuid import UUID
+
 import ldap
 
 # from zope.interface import implementer
@@ -36,7 +38,7 @@ from ..idirectory import (
     DirectoryServiceError, DirectoryAvailabilityError,
     # InvalidDirectoryRecordError,
     # QueryNotSupportedError,
-    # FieldName as BaseFieldName,
+    FieldName as BaseFieldName,
     RecordType as BaseRecordType,
     # IPlaintextPasswordVerifier, IHTTPDigestVerifier,
 )
@@ -52,12 +54,33 @@ from ..util import (
     # iterFlags,
     ConstantsContainer,
 )
-from ._constants import DEFAULT_FIELDNAME_MAP, DEFAULT_RECORDTYPE_MAP
+from ._constants import LDAPAttribute, LDAPObjectClass
 from ._util import (
     ldapQueryStringFromMatchExpression,
     ldapQueryStringFromCompoundExpression,
     # ldapQueryStringFromExpression,
 )
+
+
+
+# Maps field name -> LDAP attribute name
+# FIXME: Use constants
+DEFAULT_FIELDNAME_MAP = {
+    BaseFieldName.uid: LDAPAttribute.who_uid.value,
+    BaseFieldName.guid: LDAPAttribute.generatedUUID.value,
+    BaseFieldName.recordType: LDAPAttribute.objectClass.value,
+    BaseFieldName.shortNames: LDAPAttribute.uid.value,
+    BaseFieldName.fullNames: LDAPAttribute.cn.value,
+    BaseFieldName.emailAddresses: LDAPAttribute.mail.value,
+    BaseFieldName.password: LDAPAttribute.userPassword.value,
+}
+
+
+# Maps record type -> LDAP object class name
+DEFAULT_RECORDTYPE_MAP = {
+    BaseRecordType.user: LDAPObjectClass.person.value,
+    BaseRecordType.group: LDAPObjectClass.groupOfUniqueNames.value,
+}
 
 
 
@@ -73,6 +96,13 @@ class LDAPError(DirectoryServiceError):
     def __init__(self, message, ldapError=None):
         super(LDAPError, self).__init__(message)
         self.ldapError = ldapError
+
+
+
+class LDAPConfigurationError(ValueError):
+    """
+    LDAP configuration error.
+    """
 
 
 
@@ -134,8 +164,9 @@ class DirectoryService(BaseDirectoryService):
         tlsCACertificateDirectory=None,
         useTLS=False,
         debug=False,
-        fieldNameMap=DEFAULT_FIELDNAME_MAP,
-        recordTypeMap=DEFAULT_RECORDTYPE_MAP,
+        fieldNameToAttributeMap=DEFAULT_FIELDNAME_MAP,
+        recordTypeToObjectClassMap=DEFAULT_RECORDTYPE_MAP,
+        uidField=BaseFieldName.uid,
     ):
         self.url = url
         self._baseDN = baseDN
@@ -159,8 +190,27 @@ class DirectoryService(BaseDirectoryService):
         else:
             self._debug = None
 
-        self._fieldNameMap = fieldNameMap
-        self._recordTypeMap = recordTypeMap
+        def reverseDict(source):
+            new = {}
+
+            for k, v in source.iteritems():
+                if v in new:
+                    raise LDAPConfigurationError(
+                        u"Field name map has duplicate values: {0}".format(v)
+                    )
+                new[v] = k
+
+            return new
+
+        self._fieldNameToAttributeMap = fieldNameToAttributeMap
+        self._attributeToFieldNameMap = reverseDict(fieldNameToAttributeMap)
+
+        self._recordTypeToObjectClassMap = recordTypeToObjectClassMap
+        self._objectClassToRecordTypeMap = reverseDict(
+            recordTypeToObjectClassMap
+        )
+
+        self._uidField = uidField
 
 
     @property
@@ -236,20 +286,81 @@ class DirectoryService(BaseDirectoryService):
     def _recordsFromQueryString(self, queryString):
         connection = yield self._connect()
 
-        # print("+" * 80)
-        # print("Query:", repr(queryString))
+        self.log.debug("Performing LDAP query: {query}", query=queryString)
 
         reply = connection.search_s(
             self._baseDN, ldap.SCOPE_SUBTREE, queryString  # attrs
         )
 
-        # print("Reply:", repr(reply))
-        # print("+" * 80)
-
         records = []
 
-        for recordData in reply:
-            raise NotImplementedError(reply)
+        # Note: self._uidField is the name of the field in
+        # self._fieldNameToAttributeMap that tells us which LDAP attribute
+        # we are using to determine the UID of the record.
+
+        uidField = self.fieldName.uid
+        uidAttribute = self._fieldNameToAttributeMap[self._uidField]
+
+        recordTypeField = self.fieldName.recordType
+        recordTypeAttribute = (
+            self._fieldNameToAttributeMap[self.fieldName.recordType]
+        )
+
+        for dn, recordData in reply:
+
+            if recordTypeAttribute not in recordData:
+                self.log.debug(
+                    "Ignoring LDAP record data with no record type attribute "
+                    "{source.fieldName.recordType!r}: {recordData!r}",
+                    self=self, recordData=recordData
+                )
+                continue
+
+            # Make a dict of fields -> values from the incoming dict of
+            # attributes -> values.
+
+            fields = dict([
+                (self._attributeToFieldNameMap[k], v)
+                for k, v in recordData.iteritems()
+            ])
+
+            # Make sure the UID is populated
+
+            try:
+                fields[uidField] = recordData[uidAttribute]
+            except KeyError:
+                self.log.debug(
+                    "Ignoring LDAP record data with no UID attribute "
+                    "{source._uidField!r}: {recordData!r}",
+                    self=self, recordData=recordData
+                )
+                continue
+
+
+            # Coerce data to the correct type
+
+            for fieldName, value in fields.iteritems():
+                valueType = self.fieldName.valueType(fieldName)
+
+                if fieldName is recordTypeField:
+                    value = self._objectClassToRecordTypeMap[value]
+                elif valueType in (unicode, UUID):
+                    value = valueType(value)
+                else:
+                    raise LDAPConfigurationError(
+                        "Unknown value type {0} for field {1}".format(
+                            valueType, fieldName
+                        )
+                    )
+
+                fields[fieldName] = value
+
+            # Make a record object from fields.
+
+            record = DirectoryRecord(self, fields)
+            records.append(record)
+
+        self.log.debug("LDAP results: {records}", records=records)
 
         returnValue(records)
 
@@ -257,7 +368,8 @@ class DirectoryService(BaseDirectoryService):
     def recordsFromNonCompoundExpression(self, expression, records=None):
         if isinstance(expression, MatchExpression):
             queryString = ldapQueryStringFromMatchExpression(
-                expression, self._fieldNameMap, self._recordTypeMap
+                expression,
+                self._fieldNameToAttributeMap, self._recordTypeToObjectClassMap
             )
             return self._recordsFromQueryString(queryString)
 
@@ -271,7 +383,8 @@ class DirectoryService(BaseDirectoryService):
             return ()
 
         queryString = ldapQueryStringFromCompoundExpression(
-            expression, self._fieldNameMap, self._recordTypeMap
+            expression,
+            self._fieldNameToAttributeMap, self._recordTypeToObjectClassMap
         )
         return self._recordsFromQueryString(queryString)
 

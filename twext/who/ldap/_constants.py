@@ -22,10 +22,8 @@ from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
 )
 
-from ..idirectory import (
-    FieldName as BaseFieldName, RecordType as BaseRecordType
-)
 from ..expression import MatchType
+from ..util import ConstantsContainer
 
 
 
@@ -119,25 +117,25 @@ class RFC4519Attribute(Values):
     See U{RFC 4519, section 2<http://tools.ietf.org/html/rfc4519#section-2>}.
     """
     businessCategory = ValueConstant(u"businessCategory")
-    countryName = ValueConstant(u"c")
-    commonName = ValueConstant(u"cn")
-    domainComponent = ValueConstant(u"dc")
+    c = ValueConstant(u"c")  # country name
+    cn = ValueConstant(u"cn")  # common name
+    domainComponent = ValueConstant(u"dc")  # domain component
     description = ValueConstant(u"description")
     destinationIndicator = ValueConstant(u"destinationIndicator")
     distinguishedName = ValueConstant(u"distinguishedName")
     dnQualifier = ValueConstant(u"dnQualifier")
-    enhancedSearchGuide = ValueConstant(u"enhanced search guide")
+    enhancedSearchGuide = ValueConstant(u"enhancedSearchGuide")
     facsimileTelephoneNumber = ValueConstant(u"facsimileTelephoneNumber")
     generationQualifier = ValueConstant(u"generationQualifier")
     givenName = ValueConstant(u"givenName")
     houseIdentifier = ValueConstant(u"houseIdentifier")
     initials = ValueConstant(u"initials")
     internationalISDNNumber = ValueConstant(u"internationalISDNNumber")
-    localityName = ValueConstant(u"l")
+    l = ValueConstant(u"l")  # location name
     member = ValueConstant(u"member")
     name = ValueConstant(u"name")
-    organizationName = ValueConstant(u"o")
-    organizationalUnitName = ValueConstant(u"ou")
+    o = ValueConstant(u"o")  # organization name
+    ou = ValueConstant(u"ou")  # organizational unit name
     owner = ValueConstant(u"owner")
     physicalDeliveryOfficeName = ValueConstant(u"physicalDeliveryOfficeName")
     postalAddress = ValueConstant(u"postalAddress")
@@ -149,23 +147,19 @@ class RFC4519Attribute(Values):
     searchGuide = ValueConstant(u"searchGuide")
     seeAlso = ValueConstant(u"seeAlso")
     serialNumber = ValueConstant(u"serialNumber")
-    surname = ValueConstant(u"sn")
-    stateOrProvinceName = ValueConstant(u"st")
+    sn = ValueConstant(u"sn")  # surname
+    st = ValueConstant(u"st")  # state or province name
     street = ValueConstant(u"street")
     telephoneNumber = ValueConstant(u"telephoneNumber")
     teletexTerminalIdentifier = ValueConstant(u"teletexTerminalIdentifier")
     telexNumber = ValueConstant(u"telexNumber")
     title = ValueConstant(u"title")
-    userID = ValueConstant(u"uid")
+    uid = ValueConstant(u"uid")  # user id
     uniqueMember = ValueConstant(u"uniqueMember")
     userPassword = ValueConstant(u"userPassword")
     x121Address = ValueConstant(u"x121Address")
     x500UniqueIdentifier = ValueConstant(u"x500UniqueIdentifier")
 
-
-for c in RFC4519Attribute.iterconstants():
-    if c.name != c.value:
-        setattr(RFC4519Attribute, c.value, c)
 
 
 class RFC4519ObjectClass(Values):
@@ -188,28 +182,30 @@ class RFC4519ObjectClass(Values):
     uidObject = ValueConstant(u"uidObject")
 
 
+
+class WhoAttribute(Values):
+    """
+    Attributes needed internally that have no standard name.
+    """
+    who_uid = ValueConstant(u"__who_uid")
+    generatedUUID = ValueConstant(u"__who_guid")
+    objectClass = ValueConstant(u"__who_objectClass")
+    mail = ValueConstant(u"__who_mail")
+
+
+
+LDAPAttribute = ConstantsContainer((
+    RFC4519Attribute,
+    WhoAttribute,
+))
+
+LDAPObjectClass = ConstantsContainer((
+    RFC4519ObjectClass,
+))
+
+
 # http://tools.ietf.org/html/rfc4524
 # http://tools.ietf.org/html/rfc3112 auth schemes
 # http://tools.ietf.org/html/rfc2307
 # http://tools.ietf.org/html/rfc2798
 # http://tools.ietf.org/html/rfc2739 calendar
-
-
-
-# Maps field name -> LDAP attribute name
-DEFAULT_FIELDNAME_MAP = {
-    BaseFieldName.uid: u"uid",  # FIXME
-    BaseFieldName.guid: u"entryUUID",  # FIXME
-    BaseFieldName.recordType: u"objectClass",
-    BaseFieldName.shortNames: RFC4519Attribute.userID.value,
-    BaseFieldName.fullNames: RFC4519Attribute.commonName.value,
-    BaseFieldName.emailAddresses: u"mail",  # FIXME
-    BaseFieldName.password: u"userPassword",  # FIXME
-}
-
-
-# Maps record type -> LDAP organizational unit name
-DEFAULT_RECORDTYPE_MAP = {
-    BaseRecordType.user: u"People",  # FIXME
-    BaseRecordType.group: u"Group",  # FIXME
-}
