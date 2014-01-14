@@ -84,40 +84,47 @@ class BaseTestCase(object):
 class DirectoryServiceConvenienceTestMixIn(
     BaseDirectoryServiceConvenienceTestMixIn
 ):
-    def _unimplemented(self):
-        raise NotImplementedError()
-
-    _unimplemented.todo = "unimplemented"
-
-
     def test_recordWithUID(self):
-        return BaseDirectoryServiceConvenienceTestMixIn.test_recordWithUID(self)
+        return (
+            BaseDirectoryServiceConvenienceTestMixIn.test_recordWithUID(self)
+        )
 
-    test_recordWithUID.todo = "needs a seed"
+    test_recordWithUID.todo = "needs a seed?"
 
 
     def test_recordWithGUID(self):
-        return BaseDirectoryServiceConvenienceTestMixIn.test_recordWithGUID(self)
+        return (
+            BaseDirectoryServiceConvenienceTestMixIn.test_recordWithGUID(self)
+        )
 
-    test_recordWithGUID.todo = "needs a seed"
+    test_recordWithGUID.todo = "needs a seed?"
 
 
     def test_recordsWithRecordType(self):
-        return BaseDirectoryServiceConvenienceTestMixIn.test_recordsWithRecordType(self)
+        return (
+            BaseDirectoryServiceConvenienceTestMixIn
+            .test_recordsWithRecordType(self)
+        )
 
-    test_recordsWithRecordType.todo = "needs a seed"
+    test_recordsWithRecordType.todo = "needs a seed?"
 
 
     def test_recordWithShortName(self):
-        return BaseDirectoryServiceConvenienceTestMixIn.test_recordWithShortName(self)
+        return (
+            BaseDirectoryServiceConvenienceTestMixIn
+            .test_recordWithShortName(self)
+        )
 
-    test_recordWithShortName.todo = "needs a seed"
+    test_recordWithShortName.todo = "needs a seed?"
 
 
     def test_recordsWithEmailAddress(self):
-        return BaseDirectoryServiceConvenienceTestMixIn.test_recordsWithEmailAddress(self)
+        return (
+            BaseDirectoryServiceConvenienceTestMixIn
+            .test_recordsWithEmailAddress(self)
+        )
 
-    test_recordsWithEmailAddress.todo = "needs a seed"
+    test_recordsWithEmailAddress.todo = "needs a seed?"
 
 
 
