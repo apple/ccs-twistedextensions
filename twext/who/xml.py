@@ -310,14 +310,15 @@ class DirectoryService(BaseDirectoryService):
                 if unknownFieldElements is not None:
                     unknownFieldElements.add(fieldNode.tag)
 
-            vType = BaseFieldName.valueType(fieldName)
+            vType = self.fieldName.valueType(fieldName)
 
             if vType in (unicode, UUID):
                 value = vType(fieldNode.text)
             else:
                 raise AssertionError(
-                    "Unknown value type {0} for field {1}",
-                    vType, fieldName
+                    "Unknown value type {0} for field {1}".format(
+                        vType, fieldName
+                    )
                 )
 
             if self.fieldName.isMultiValue(fieldName):
