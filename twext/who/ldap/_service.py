@@ -322,6 +322,7 @@ class DirectoryService(BaseDirectoryService):
             fields = dict([
                 (self._attributeToFieldNameMap[k], v)
                 for k, v in recordData.iteritems()
+                if k in self._attributeToFieldNameMap
             ])
 
             # Make sure the UID is populated
