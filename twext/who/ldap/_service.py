@@ -25,40 +25,26 @@ from uuid import UUID
 
 import ldap
 
-# from zope.interface import implementer
-
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
 from twisted.cred.credentials import IUsernamePassword
-# from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
 
 from ..idirectory import (
     DirectoryServiceError, DirectoryAvailabilityError,
-    # InvalidDirectoryRecordError,
-    # QueryNotSupportedError,
-    FieldName as BaseFieldName,
-    RecordType as BaseRecordType,
-    # IPlaintextPasswordVerifier, IHTTPDigestVerifier,
+    FieldName as BaseFieldName, RecordType as BaseRecordType,
 )
 from ..directory import (
     DirectoryService as BaseDirectoryService,
     DirectoryRecord as BaseDirectoryRecord,
 )
-from ..expression import (
-    # CompoundExpression, Operand,
-    MatchExpression,  # MatchFlags,
-)
-from ..util import (
-    # iterFlags,
-    ConstantsContainer,
-)
+from ..expression import MatchExpression
+from ..util import ConstantsContainer
 from ._constants import LDAPAttribute, LDAPObjectClass
 from ._util import (
     ldapQueryStringFromMatchExpression,
     ldapQueryStringFromCompoundExpression,
-    # ldapQueryStringFromExpression,
 )
 
 
