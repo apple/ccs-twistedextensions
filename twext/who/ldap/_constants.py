@@ -114,12 +114,14 @@ class LDAPMatchType(Names):
 
 class RFC4519Attribute(Values):
     """
+    User application attributes.
+
     See U{RFC 4519, section 2<http://tools.ietf.org/html/rfc4519#section-2>}.
     """
     businessCategory = ValueConstant(u"businessCategory")
     c = ValueConstant(u"c")  # country name
     cn = ValueConstant(u"cn")  # common name
-    domainComponent = ValueConstant(u"dc")  # domain component
+    dc = ValueConstant(u"dc")  # domain component
     description = ValueConstant(u"description")
     destinationIndicator = ValueConstant(u"destinationIndicator")
     distinguishedName = ValueConstant(u"distinguishedName")
@@ -131,7 +133,7 @@ class RFC4519Attribute(Values):
     houseIdentifier = ValueConstant(u"houseIdentifier")
     initials = ValueConstant(u"initials")
     internationalISDNNumber = ValueConstant(u"internationalISDNNumber")
-    l = ValueConstant(u"l")  # location name
+    l = ValueConstant(u"l")  # locality name
     member = ValueConstant(u"member")
     name = ValueConstant(u"name")
     o = ValueConstant(u"o")  # organization name
@@ -164,7 +166,9 @@ class RFC4519Attribute(Values):
 
 class RFC4519ObjectClass(Values):
     """
-    See U{RFC 4519, section 3<http://tools.ietf.org/html/rfc4519#section-2>}.
+    User application object classes.
+
+    See U{RFC 4519, section 3<http://tools.ietf.org/html/rfc4519#section-3>}.
     """
     applicationProcess = ValueConstant(u"applicationProcess")
     country = ValueConstant(u"country")
@@ -183,14 +187,74 @@ class RFC4519ObjectClass(Values):
 
 
 
+# class RFC2307Attribute(Values):
+#     """
+#     Network Information Service attributes.
+
+#     See U{RFC 2307, section 2.2
+#     <http://tools.ietf.org/html/rfc2307#section-2.2>}.
+#     """
+#     uidNumber = ValueConstant(u"uidNumber")
+#     gidNumber = ValueConstant(u"gidNumber")
+#     gecos = ValueConstant(u"gecos")
+#     homeDirectory = ValueConstant(u"homeDirectory")
+#     loginShell = ValueConstant(u"loginShell")
+#     shadowLastChange = ValueConstant(u"shadowLastChange")
+#     shadowMin = ValueConstant(u"shadowMin")
+#     shadowMax = ValueConstant(u"shadowMax")
+#     shadowWarning = ValueConstant(u"shadowWarning")
+#     shadowInactive = ValueConstant(u"shadowInactive")
+#     shadowExpire = ValueConstant(u"shadowExpire")
+#     shadowFlag = ValueConstant(u"shadowFlag")
+#     memberUid = ValueConstant(u"memberUid")
+#     memberNisNetgroup = ValueConstant(u"memberNisNetgroup")
+#     nisNetgroupTriple = ValueConstant(u"nisNetgroupTriple")
+#     ipServicePort = ValueConstant(u"ipServicePort")
+#     ipServiceProtocol = ValueConstant(u"ipServiceProtocol")
+#     ipProtocolNumber = ValueConstant(u"ipProtocolNumber")
+#     oncRpcNumber = ValueConstant(u"oncRpcNumber")
+#     ipHostNumber = ValueConstant(u"ipHostNumber")
+#     ipNetworkNumber = ValueConstant(u"ipNetworkNumber")
+#     ipNetmaskNumber = ValueConstant(u"ipNetmaskNumber")
+#     macAddress = ValueConstant(u"macAddress")
+#     bootParameter = ValueConstant(u"bootParameter")
+#     bootFile = ValueConstant(u"bootFile")
+#     nisMapName = ValueConstant(u"nisMapName")
+#     nisMapEntry = ValueConstant(u"nisMapEntry")
+
+
+
+# class RFC2307ObjectClass(Values):
+#     """
+#     Network Information Service object classes.
+
+#     See U{RFC 2307, section 2.3
+#     <http://tools.ietf.org/html/rfc2307#section-2.3>}.
+#     """
+#     posixAccount = ValueConstant(u"posixAccount")
+#     shadowAccount = ValueConstant(u"shadowAccount")
+#     posixGroup = ValueConstant(u"posixGroup")
+#     ipService = ValueConstant(u"ipService")
+#     ipProtocol = ValueConstant(u"ipProtocol")
+#     oncRpc = ValueConstant(u"oncRpc")
+#     ipHost = ValueConstant(u"ipHost")
+#     ipNetwork = ValueConstant(u"ipNetwork")
+#     nisNetgroup = ValueConstant(u"nisNetgroup")
+#     nisMap = ValueConstant(u"nisMap")
+#     nisObject = ValueConstant(u"nisObject")
+#     ieee802Device = ValueConstant(u"ieee802Device")
+#     bootableDevice = ValueConstant(u"bootableDevice")
+
+
+
 class WhoAttribute(Values):
     """
     Attributes needed internally that have no standard name.
     """
-    who_uid = ValueConstant(u"__who_uid")
-    generatedUUID = ValueConstant(u"__who_guid")
-    objectClass = ValueConstant(u"__who_objectClass")
-    mail = ValueConstant(u"__who_mail")
+    who_uid = ValueConstant(u"__who_uid__")
+    generatedUUID = ValueConstant(u"entryUUID")
+    objectClass = ValueConstant(u"objectClass")
+    mail = ValueConstant(u"mail")
 
 
 
@@ -204,8 +268,7 @@ LDAPObjectClass = ConstantsContainer((
 ))
 
 
-# http://tools.ietf.org/html/rfc4524
+# http://tools.ietf.org/html/rfc4524 COSINE
 # http://tools.ietf.org/html/rfc3112 auth schemes
-# http://tools.ietf.org/html/rfc2307
-# http://tools.ietf.org/html/rfc2798
+# http://tools.ietf.org/html/rfc2798 inetOrgPerson
 # http://tools.ietf.org/html/rfc2739 calendar

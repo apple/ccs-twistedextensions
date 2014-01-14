@@ -30,9 +30,6 @@ from twisted.cred.credentials import UsernamePassword
 from twisted.trial import unittest
 
 from ...idirectory import QueryNotSupportedError, FieldName as BaseFieldName
-# from ...expression import (
-#     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
-# )
 from .._service import (
     DEFAULT_FIELDNAME_MAP, DEFAULT_RECORDTYPE_MAP,
     LDAPBindAuthError,
