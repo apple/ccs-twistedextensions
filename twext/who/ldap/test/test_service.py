@@ -50,7 +50,7 @@ class BaseTestCase(object):
     """
 
     url = "ldap://localhost/"
-    baseDN = u"ou=calendarserver,o=org"
+    baseDN = u"dc=calendarserver,dc=org"
     realmName = unicode(url)
 
 
@@ -118,7 +118,7 @@ class DirectoryServiceConnectionTestMixIn(object):
         Connect with UsernamePassword credentials.
         """
         credentials = UsernamePassword(
-            u"uid=wsanchez,cn=user,ou=calendarserver,o=org",
+            u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
             u"__password__"
         )
         service = self.service(credentials=credentials)
@@ -131,7 +131,7 @@ class DirectoryServiceConnectionTestMixIn(object):
         Connect with UsernamePassword credentials.
         """
         credentials = UsernamePassword(
-            u"uid=wsanchez,cn=user,ou=calendarserver,o=org",
+            u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
             u"zehcnasw"
         )
         service = self.service(credentials=credentials)
@@ -207,12 +207,12 @@ class DirectoryServiceTest(
 
 
 def mockDirectoryDataFromXMLService(service):
-    o = u"org"
-    ou = u"calendarserver"
+    dc0 = u"org"
+    dc1 = u"calendarserver"
 
     data = {
-        u"o={o}".format(o=o): dict(o=o),
-        u"ou={ou},o={o}".format(ou=ou, o=o): dict(ou=ou),
+        u"dc={dc0}".format(dc0=dc0): dict(dc=dc0),
+        u"dc={dc1},dc={dc0}".format(dc1=dc1, dc0=dc0): dict(dc=[dc1, dc0]),
     }
 
     def toUnicode(obj):
@@ -236,8 +236,10 @@ def mockDirectoryDataFromXMLService(service):
 
     for records in service.index[service.fieldName.uid].itervalues():
         for record in records:
-            dn = u"uid={uid},cn={cn},ou={ou},o={o}".format(
-                uid=record.shortNames[0], cn=record.recordType.name, ou=ou, o=o
+            dn = u"uid={uid},cn={cn},dc={dc1},dc={dc0}".format(
+                uid=record.shortNames[0],
+                cn=record.recordType.name,
+                dc1=dc1, dc0=dc0
             )
 
             recordData = dict(
