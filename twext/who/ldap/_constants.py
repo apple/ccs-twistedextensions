@@ -22,6 +22,9 @@ from twisted.python.constants import (
     Names, NamedConstant, Values, ValueConstant
 )
 
+from ..idirectory import (
+    FieldName as BaseFieldName, RecordType as BaseRecordType
+)
 from ..expression import MatchType
 
 
@@ -153,7 +156,7 @@ class RFC4519Attribute(Values):
     teletexTerminalIdentifier = ValueConstant(u"teletexTerminalIdentifier")
     telexNumber = ValueConstant(u"telexNumber")
     title = ValueConstant(u"title")
-    userid = ValueConstant(u"uid")
+    userID = ValueConstant(u"uid")
     uniqueMember = ValueConstant(u"uniqueMember")
     userPassword = ValueConstant(u"userPassword")
     x121Address = ValueConstant(u"x121Address")
@@ -190,3 +193,23 @@ class RFC4519ObjectClass(Values):
 # http://tools.ietf.org/html/rfc2307
 # http://tools.ietf.org/html/rfc2798
 # http://tools.ietf.org/html/rfc2739 calendar
+
+
+
+# Maps field name -> LDAP attribute name
+DEFAULT_FIELDNAME_MAP = {
+    BaseFieldName.uid: u"uid",  # FIXME
+    BaseFieldName.guid: u"entryUUID",  # FIXME
+    BaseFieldName.recordType: u"objectClass",
+    BaseFieldName.shortNames: RFC4519Attribute.userID.value,
+    BaseFieldName.fullNames: RFC4519Attribute.commonName.value,
+    BaseFieldName.emailAddresses: u"mail",  # FIXME
+    BaseFieldName.password: u"userPassword",  # FIXME
+}
+
+
+# Maps record type -> LDAP organizational unit name
+DEFAULT_RECORDTYPE_MAP = {
+    BaseRecordType.user: u"People",  # FIXME
+    BaseRecordType.group: u"Group",  # FIXME
+}

@@ -29,17 +29,22 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.cred.credentials import UsernamePassword
 from twisted.trial import unittest
 
+from ...idirectory import FieldName as BaseFieldName
 # from ...expression import (
 #     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 # )
 from .._service import (
-    DEFAULT_URL,
+    DEFAULT_FIELDNAME_MAP, DEFAULT_RECORDTYPE_MAP,
     LDAPBindAuthError,
     DirectoryService, DirectoryRecord,
 )
 
 from ...test import test_directory
-from ...test.test_xml import xmlService
+from ...test.test_xml import (
+    xmlService,
+    DirectoryServiceConvenienceTestMixIn
+    as BaseDirectoryServiceConvenienceTestMixIn,
+)
 
 
 class BaseTestCase(object):
@@ -47,12 +52,23 @@ class BaseTestCase(object):
     Tests for L{DirectoryService}.
     """
 
-    url = DEFAULT_URL
-    realmName = unicode(DEFAULT_URL)
+    url = "ldap://localhost/"
+    baseDN = u"o=org"
+    realmName = unicode(url)
 
 
     def setUp(self):
-        self.mockLDAP = MockLdap(mockDirectoryDataFromXML(self.mktemp()))
+        self.xmlSeedService = xmlService(self.mktemp())
+        self.mockData = mockDirectoryDataFromXMLService(self.xmlSeedService)
+
+        if False:
+            from pprint import pprint
+            print("")
+            print("-" * 80)
+            pprint(self.mockData)
+            print("-" * 80)
+
+        self.mockLDAP = MockLdap(self.mockData)
         self.mockLDAP.start()
 
 
@@ -61,22 +77,47 @@ class BaseTestCase(object):
 
 
     def service(self, **kwargs):
-        return DirectoryService(**kwargs)
+        return DirectoryService(url=self.url, baseDN=self.baseDN, **kwargs)
 
 
 
-class DirectoryServiceConvenienceTestMixIn(object):
+class DirectoryServiceConvenienceTestMixIn(
+    BaseDirectoryServiceConvenienceTestMixIn
+):
     def _unimplemented(self):
         raise NotImplementedError()
 
     _unimplemented.todo = "unimplemented"
 
 
-    test_recordWithUID = _unimplemented
-    test_recordWithGUID = _unimplemented
-    test_recordsWithRecordType = _unimplemented
-    test_recordWithShortName = _unimplemented
-    test_recordsWithEmailAddress = _unimplemented
+    def test_recordWithUID(self):
+        return BaseDirectoryServiceConvenienceTestMixIn.test_recordWithUID(self)
+
+    test_recordWithUID.todo = "needs a seed"
+
+
+    def test_recordWithGUID(self):
+        return BaseDirectoryServiceConvenienceTestMixIn.test_recordWithGUID(self)
+
+    test_recordWithGUID.todo = "needs a seed"
+
+
+    def test_recordsWithRecordType(self):
+        return BaseDirectoryServiceConvenienceTestMixIn.test_recordsWithRecordType(self)
+
+    test_recordsWithRecordType.todo = "needs a seed"
+
+
+    def test_recordWithShortName(self):
+        return BaseDirectoryServiceConvenienceTestMixIn.test_recordWithShortName(self)
+
+    test_recordWithShortName.todo = "needs a seed"
+
+
+    def test_recordsWithEmailAddress(self):
+        return BaseDirectoryServiceConvenienceTestMixIn.test_recordsWithEmailAddress(self)
+
+    test_recordsWithEmailAddress.todo = "needs a seed"
 
 
 
@@ -195,9 +236,7 @@ class DirectoryServiceTest(
 
 
 
-def mockDirectoryDataFromXML(tmp):
-    service = xmlService(tmp)
-
+def mockDirectoryDataFromXMLService(service):
     o = u"org"
     ou = u"calendarserver"
 
@@ -205,17 +244,6 @@ def mockDirectoryDataFromXML(tmp):
         u"o={o}".format(o=o): dict(o=o),
         u"ou={ou}".format(ou=ou): dict(ou=ou),
     }
-
-    def toAttribute(fieldName):
-        return unicode({
-            service.fieldName.uid: u"recordid",
-            service.fieldName.guid: u"guid",
-            service.fieldName.recordType: u"objectclass",
-            service.fieldName.shortNames: u"uid",
-            service.fieldName.fullNames: u"cn",
-            service.fieldName.emailAddresses: u"mail",
-            service.fieldName.password: u"userPassword",
-        }.get(fieldName, fieldName.name))
 
     def toUnicode(obj):
         if isinstance(obj, (NamedConstant, ValueConstant)):
@@ -227,8 +255,13 @@ def mockDirectoryDataFromXML(tmp):
         return unicode(obj)
 
     def tuplify(record, fieldName):
-        name = toAttribute(fieldName)
-        value = toUnicode(record.fields[fieldName])
+        name = DEFAULT_FIELDNAME_MAP.get(fieldName, fieldName.name)
+
+        if fieldName is BaseFieldName.recordType:
+            value = DEFAULT_RECORDTYPE_MAP[record.fields[fieldName]]
+        else:
+            value = toUnicode(record.fields[fieldName])
+
         return (name, value)
 
     for records in service.index[service.fieldName.uid].itervalues():
@@ -244,11 +277,5 @@ def mockDirectoryDataFromXML(tmp):
             )
 
             data[dn] = recordData
-
-    # from pprint import pprint
-    # print("")
-    # print("-" * 80)
-    # pprint(data)
-    # print("-" * 80)
 
     return data

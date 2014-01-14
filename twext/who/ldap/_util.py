@@ -15,7 +15,7 @@
 # limitations under the License.
 ##
 
-from ..idirectory import QueryNotSupportedError
+from ..idirectory import QueryNotSupportedError, FieldName
 from ..expression import (
     CompoundExpression, Operand,
     MatchExpression, MatchFlags,
@@ -25,23 +25,29 @@ from ._constants import LDAPMatchType
 
 
 
-def ldapQueryStringFromMatchExpression(expression, attrMap):
+def ldapQueryStringFromMatchExpression(
+    expression, fieldNameMap, recordTypeMap
+):
     """
     Generates an LDAP query string from a match expression.
 
     @param expression: A match expression.
     @type expression: L{MatchExpression}
 
-    @param attrMap: A mapping from L{FieldName}s to native LDAP attribute
+    @param fieldNameMap: A mapping from L{FieldName}s to native LDAP attribute
         names.
-    @type attrMap: L{dict}
+    @type fieldNameMap: L{dict}
+
+    @param recordTypeMap: A mapping from L{RecordType}s to native LDAP object
+        class names.
+    @type recordTypeMap: L{dict}
 
     @return: An LDAP query string.
     @rtype: C{unicode}
 
     @raises QueryNotSupportedError: If the expression's match type is unknown,
         or if the expresion references an unknown field name (meaning a field
-        name not in C{attrMap}).
+        name not in C{fieldNameMap}).
     """
     matchType = LDAPMatchType.fromMatchType(expression.matchType)
     if matchType is None:
@@ -63,14 +69,24 @@ def ldapQueryStringFromMatchExpression(expression, attrMap):
     # if MatchFlags.caseInsensitive not in flags:
     #     raise NotImplementedError("Need to handle case sensitive")
 
+    fieldName = expression.fieldName
     try:
-        attribute = attrMap[expression.fieldName]
+        attribute = fieldNameMap[fieldName]
     except KeyError:
         raise QueryNotSupportedError(
-            "Unknown field name: {0}".format(expression.fieldName)
+            "Unmapped field name: {0}".format(expression.fieldName)
         )
 
-    value = unicode(expression.fieldValue)       # We want unicode
+    if fieldName is FieldName.recordType:
+        try:
+            value = recordTypeMap[expression.fieldValue]
+        except KeyError:
+            raise QueryNotSupportedError(
+                "Unmapped record type: {0}".format(expression.fieldValue)
+            )
+    else:
+        value = unicode(expression.fieldValue)
+
     value = value.translate(LDAP_QUOTING_TABLE)  # Escape special chars
 
     return matchType.queryString.format(
@@ -78,16 +94,18 @@ def ldapQueryStringFromMatchExpression(expression, attrMap):
     )
 
 
-def ldapQueryStringFromCompoundExpression(expression, attrMap):
+def ldapQueryStringFromCompoundExpression(
+    expression, fieldNameMap, recordTypeMap
+):
     """
     Generates an LDAP query string from a compound expression.
 
     @param expression: A compound expression.
     @type expression: L{MatchExpression}
 
-    @param attrMap: A mapping from L{FieldName}s to native LDAP attribute
+    @param fieldNameMap: A mapping from L{FieldName}s to native LDAP attribute
         names.
-    @type attrMap: L{dict}
+    @type fieldNameMap: L{dict}
 
     @return: An LDAP query string.
     @rtype: C{unicode}
@@ -107,7 +125,9 @@ def ldapQueryStringFromCompoundExpression(expression, attrMap):
 
     for subExpression in expression.expressions:
         queryTokens.append(
-            ldapQueryStringFromExpression(subExpression, attrMap)
+            ldapQueryStringFromExpression(
+                subExpression, fieldNameMap, recordTypeMap
+            )
         )
 
     if len(expression.expressions) > 1:
@@ -116,13 +136,15 @@ def ldapQueryStringFromCompoundExpression(expression, attrMap):
     return u"".join(queryTokens)
 
 
-def ldapQueryStringFromExpression(expression, attrMap):
+def ldapQueryStringFromExpression(
+    expression, fieldNameMap, recordTypeMap
+):
     """
     Converts an expression into an LDAP query string.
 
-    @param attrMap: A mapping from L{FieldName}s to native LDAP attribute
+    @param fieldNameMap: A mapping from L{FieldName}s to native LDAP attribute
         names.
-    @type attrMap: L{dict}
+    @type fieldNameMap: L{dict}
 
     @param expression: An expression.
     @type expression: L{MatchExpression} or L{CompoundExpression}
@@ -135,10 +157,14 @@ def ldapQueryStringFromExpression(expression, attrMap):
     """
 
     if isinstance(expression, MatchExpression):
-        return ldapQueryStringFromMatchExpression(expression, attrMap)
+        return ldapQueryStringFromMatchExpression(
+            expression, fieldNameMap, recordTypeMap
+        )
 
     if isinstance(expression, CompoundExpression):
-        return ldapQueryStringFromCompoundExpression(expression, attrMap)
+        return ldapQueryStringFromCompoundExpression(
+            expression, fieldNameMap, recordTypeMap
+        )
 
     raise QueryNotSupportedError(
         "Unknown expression type: {0!r}".format(expression)

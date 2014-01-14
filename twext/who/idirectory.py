@@ -220,7 +220,7 @@ class FieldName(Names):
     @staticmethod
     def valueType(name):
         """
-        Check for the expected type of values for a field.
+        Look up the expected type for values of a field.
 
         @param name: The name of the field.
         @type name: L{NamedConstant}

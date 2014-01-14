@@ -227,8 +227,8 @@ class BaseDirectoryServiceTest(ServiceMixIn):
     @inlineCallbacks
     def test_recordsFromExpression_emptyExpression(self):
         """
-        L{DirectoryService.recordsFromExpression} with an unknown expression
-        type and an empty L{CompoundExpression} returns an empty result.
+        L{DirectoryService.recordsFromExpression} with an empty
+        L{CompoundExpression} returns an empty result.
         """
         service = self.service()
 

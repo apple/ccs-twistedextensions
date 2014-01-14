@@ -38,7 +38,13 @@ class LDAPQueryTestCase(unittest.TestCase):
     Tests for LDAP query generation.
     """
 
-    def attrMap(self, service):
+    def service(self):
+        # Use intentionally funky conenction info, since we don't expect
+        # to connect.
+        return DirectoryService(u"ldap://cretin/", u"o=plugh")
+
+
+    def fieldNameMap(self, service):
         """
         Create a mapping from field names to LDAP attribute names.
         The attribute names returned here are not real LDAP attribute names,
@@ -48,12 +54,22 @@ class LDAPQueryTestCase(unittest.TestCase):
         return dict([(c, c.name) for c in service.fieldName.iterconstants()])
 
 
+    def recordTypeMap(self, service):
+        """
+        Create a mapping from record types to LDAP object class names.
+        The object class names returned here are not real LDAP object class
+        names, but we don't care for these tests, since we're not actually
+        connecting to LDAP.
+        """
+        return dict([(c, c.name) for c in service.recordType.iterconstants()])
+
+
     def test_queryStringFromMatchExpression_matchTypes(self):
         """
         Match expressions with each match type produces the correct
         operator=value string.
         """
-        service = DirectoryService()
+        service = self.service()
 
         for matchType, expected in (
             (MatchType.equals, u"=xyzzy"),
@@ -70,10 +86,11 @@ class LDAPQueryTestCase(unittest.TestCase):
                 matchType=matchType
             )
             queryString = ldapQueryStringFromMatchExpression(
-                expression, self.attrMap(service)
+                expression,
+                self.fieldNameMap(service), self.recordTypeMap(service),
             )
             expected = u"({attribute}{expected})".format(
-                attribute="shortNames", expected=expected
+                attribute=u"shortNames", expected=expected
             )
             self.assertEquals(queryString, expected)
 
@@ -82,17 +99,18 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Match expression with the C{NOT} flag adds the C{!} operator.
         """
-        service = DirectoryService()
+        service = self.service()
 
         expression = MatchExpression(
             service.fieldName.shortNames, u"xyzzy",
             flags=MatchFlags.NOT
         )
         queryString = ldapQueryStringFromMatchExpression(
-            expression, self.attrMap(service)
+            expression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
         expected = u"(!{attribute}=xyzzy)".format(
-            attribute="shortNames",
+            attribute=u"shortNames",
         )
         self.assertEquals(queryString, expected)
 
@@ -102,17 +120,18 @@ class LDAPQueryTestCase(unittest.TestCase):
         Match expression with the C{caseInsensitive} flag adds the C{??????}
         operator.
         """
-        service = DirectoryService()
+        service = self.service()
 
         expression = MatchExpression(
             service.fieldName.shortNames, u"xyzzy",
             flags=MatchFlags.caseInsensitive
         )
         queryString = ldapQueryStringFromMatchExpression(
-            expression, self.attrMap(service)
+            expression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
         expected = u"???????({attribute}=xyzzy)".format(
-            attribute="shortNames",
+            attribute=u"shortNames",
         )
         self.assertEquals(queryString, expected)
 
@@ -126,17 +145,18 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Special characters are quoted properly.
         """
-        service = DirectoryService()
+        service = self.service()
 
         expression = MatchExpression(
             service.fieldName.fullNames,
             u"\\xyzzy: a/b/(c)* ~~ >=< ~~ &| \0!!"
         )
         queryString = ldapQueryStringFromMatchExpression(
-            expression, self.attrMap(service)
+            expression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
         expected = u"({attribute}={expected})".format(
-            attribute="fullNames",
+            attribute=u"fullNames",
             expected=(
                 u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
                 "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
@@ -149,7 +169,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Unknown expression.
         """
-        service = DirectoryService()
+        service = self.service()
 
         expression = MatchExpression(
             object(), u"xyzzy",
@@ -158,7 +178,8 @@ class LDAPQueryTestCase(unittest.TestCase):
         self.assertRaises(
             QueryNotSupportedError,
             ldapQueryStringFromMatchExpression,
-            expression, self.attrMap(service)
+            expression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
 
 
@@ -166,7 +187,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Unknown expression.
         """
-        service = DirectoryService()
+        service = self.service()
 
         expression = MatchExpression(
             service.fieldName.shortNames, u"xyzzy",
@@ -176,7 +197,8 @@ class LDAPQueryTestCase(unittest.TestCase):
         self.assertRaises(
             QueryNotSupportedError,
             ldapQueryStringFromMatchExpression,
-            expression, self.attrMap(service)
+            expression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
 
 
@@ -192,7 +214,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         The Operand shouldn't make any difference here, so we test AND and OR,
         expecting the same result.
         """
-        service = DirectoryService()
+        service = self.service()
 
         for operand in (Operand.AND, Operand.OR):
             matchExpression = MatchExpression(
@@ -203,11 +225,13 @@ class LDAPQueryTestCase(unittest.TestCase):
                 operand
             )
             queryString = queryFunction(
-                compoundExpression, self.attrMap(service)
+                compoundExpression,
+                self.fieldNameMap(service), self.recordTypeMap(service),
             )
             expected = u"{match}".format(
                 match=ldapQueryStringFromMatchExpression(
-                    matchExpression, self.attrMap(service)
+                    matchExpression,
+                    self.fieldNameMap(service), self.recordTypeMap(service),
                 )
             )
             self.assertEquals(queryString, expected)
@@ -221,7 +245,7 @@ class LDAPQueryTestCase(unittest.TestCase):
 
         The sub-expressions should be grouped with the given operand.
         """
-        service = DirectoryService()
+        service = self.service()
 
         for (operand, token) in ((Operand.AND, u"&"), (Operand.OR, u"|")):
             matchExpression1 = MatchExpression(
@@ -235,15 +259,18 @@ class LDAPQueryTestCase(unittest.TestCase):
                 operand
             )
             queryString = queryFunction(
-                compoundExpression, self.attrMap(service)
+                compoundExpression,
+                self.fieldNameMap(service), self.recordTypeMap(service),
             )
             expected = u"({op}{match1}{match2})".format(
                 op=token,
                 match1=ldapQueryStringFromMatchExpression(
-                    matchExpression1, self.attrMap(service)
+                    matchExpression1,
+                    self.fieldNameMap(service), self.recordTypeMap(service),
                 ),
                 match2=ldapQueryStringFromMatchExpression(
-                    matchExpression2, self.attrMap(service)
+                    matchExpression2,
+                    self.fieldNameMap(service), self.recordTypeMap(service),
                 ),
             )
             self.assertEquals(queryString, expected)
@@ -253,16 +280,18 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Match expression.
         """
-        service = DirectoryService()
+        service = self.service()
 
         matchExpression = MatchExpression(
             service.fieldName.shortNames, u"xyzzy"
         )
         queryString = ldapQueryStringFromExpression(
-            matchExpression, self.attrMap(service)
+            matchExpression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
         expected = ldapQueryStringFromMatchExpression(
-            matchExpression, self.attrMap(service)
+            matchExpression,
+            self.fieldNameMap(service), self.recordTypeMap(service),
         )
         self.assertEquals(queryString, expected)
 
@@ -283,10 +312,10 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
         Unknown expression.
         """
-        service = DirectoryService()
+        service = self.service()
 
         self.assertRaises(
             QueryNotSupportedError,
             ldapQueryStringFromExpression,
-            object(), self.attrMap(service)
+            object(), self.fieldNameMap(service), self.recordTypeMap(service)
         )
