@@ -85,11 +85,16 @@ class DirectoryServiceConvenienceTestMixIn(BaseTest):
 
 
     @inlineCallbacks
-    def test_recordsWithRecordType(self):
+    def test_recordsWithRecordType_unknown(self):
         service = self.service()
 
         records = (yield service.recordsWithRecordType(object()))
         self.assertEquals(set(records), set())
+
+
+    @inlineCallbacks
+    def test_recordsWithRecordType(self):
+        service = self.service()
 
         records = (
             yield service.recordsWithRecordType(service.recordType.user)

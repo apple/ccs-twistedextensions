@@ -29,7 +29,7 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.cred.credentials import UsernamePassword
 from twisted.trial import unittest
 
-from ...idirectory import FieldName as BaseFieldName
+from ...idirectory import QueryNotSupportedError, FieldName as BaseFieldName
 # from ...expression import (
 #     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 # )
@@ -84,13 +84,13 @@ class BaseTestCase(object):
 class DirectoryServiceConvenienceTestMixIn(
     BaseDirectoryServiceConvenienceTestMixIn
 ):
-    def test_recordsWithRecordType(self):
-        return (
-            BaseDirectoryServiceConvenienceTestMixIn
-            .test_recordsWithRecordType(self)
-        )
+    def test_recordsWithRecordType_unknown(self):
+        service = self.service()
 
-    test_recordsWithRecordType.todo = "needs a seed?"
+        self.assertRaises(
+            QueryNotSupportedError,
+            service.recordsWithRecordType, object()
+        )
 
 
 
