@@ -50,9 +50,7 @@ from ._util import (
 
 
 # Maps field name -> LDAP attribute name
-# FIXME: Use constants
 DEFAULT_FIELDNAME_MAP = {
-    BaseFieldName.uid: LDAPAttribute.who_uid.value,
     BaseFieldName.guid: LDAPAttribute.generatedUUID.value,
     BaseFieldName.recordType: LDAPAttribute.objectClass.value,
     BaseFieldName.shortNames: LDAPAttribute.uid.value,

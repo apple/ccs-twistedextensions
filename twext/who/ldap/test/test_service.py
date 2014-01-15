@@ -44,6 +44,12 @@ from ...test.test_xml import (
 )
 
 
+
+TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_MAP)
+TEST_FIELDNAME_MAP[BaseFieldName.uid] = u"__who_uid__"
+
+
+
 class BaseTestCase(object):
     """
     Tests for L{DirectoryService}.
@@ -74,7 +80,12 @@ class BaseTestCase(object):
 
 
     def service(self, **kwargs):
-        return DirectoryService(url=self.url, baseDN=self.baseDN, **kwargs)
+        return DirectoryService(
+            url=self.url,
+            baseDN=self.baseDN,
+            fieldNameToAttributeMap=TEST_FIELDNAME_MAP,
+            **kwargs
+        )
 
 
 
@@ -225,7 +236,7 @@ def mockDirectoryDataFromXMLService(service):
         return unicode(obj)
 
     def tuplify(record, fieldName):
-        name = DEFAULT_FIELDNAME_MAP.get(fieldName, fieldName.name)
+        name = TEST_FIELDNAME_MAP.get(fieldName, fieldName.name)
 
         if fieldName is BaseFieldName.recordType:
             value = DEFAULT_RECORDTYPE_MAP[record.fields[fieldName]]

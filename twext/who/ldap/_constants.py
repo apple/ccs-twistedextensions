@@ -251,7 +251,6 @@ class WhoAttribute(Values):
     """
     Attributes needed internally that have no standard name.
     """
-    who_uid = ValueConstant(u"__who_uid__")
     generatedUUID = ValueConstant(u"entryUUID")
     objectClass = ValueConstant(u"objectClass")
     mail = ValueConstant(u"mail")
