@@ -23,7 +23,6 @@ OpenDirectory directory service implementation.
 
 from zope.interface import implementer
 
-from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, fail
 from twisted.web.guard import DigestCredentialFactory
 
@@ -48,7 +47,8 @@ from ..util import iterFlags, ConstantsContainer
 
 from ._odframework import ODSession, ODNode, ODQuery
 from ._constants import (
-    ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod
+    FieldName,
+    ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod,
 )
 
 
@@ -89,25 +89,6 @@ class OpenDirectoryDataError(OpenDirectoryError):
     """
     OpenDirectory data error.
     """
-
-
-
-#
-# Constants
-#
-
-class FieldName(Names):
-    searchPath = NamedConstant()
-    searchPath.description = u"search path"
-    searchPath.multiValue = False
-
-    metaNodeLocation = NamedConstant()
-    metaNodeLocation.description = u"source OD node"
-    metaNodeLocation.multiValue = False
-
-    metaRecordName = NamedConstant()
-    metaRecordName.description = u"meta record name"
-    metaRecordName.multiValue = False
 
 
 
