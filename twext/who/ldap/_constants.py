@@ -112,6 +112,66 @@ class LDAPMatchType(Names):
 
 
 
+# class RFC2307Attribute(Values):
+#     """
+#     Network Information Service attributes.
+
+#     See U{RFC 2307, section 2.2
+#     <http://tools.ietf.org/html/rfc2307#section-2.2>}.
+#     """
+#     uidNumber = ValueConstant(u"uidNumber")
+#     gidNumber = ValueConstant(u"gidNumber")
+#     gecos = ValueConstant(u"gecos")
+#     homeDirectory = ValueConstant(u"homeDirectory")
+#     loginShell = ValueConstant(u"loginShell")
+#     shadowLastChange = ValueConstant(u"shadowLastChange")
+#     shadowMin = ValueConstant(u"shadowMin")
+#     shadowMax = ValueConstant(u"shadowMax")
+#     shadowWarning = ValueConstant(u"shadowWarning")
+#     shadowInactive = ValueConstant(u"shadowInactive")
+#     shadowExpire = ValueConstant(u"shadowExpire")
+#     shadowFlag = ValueConstant(u"shadowFlag")
+#     memberUid = ValueConstant(u"memberUid")
+#     memberNisNetgroup = ValueConstant(u"memberNisNetgroup")
+#     nisNetgroupTriple = ValueConstant(u"nisNetgroupTriple")
+#     ipServicePort = ValueConstant(u"ipServicePort")
+#     ipServiceProtocol = ValueConstant(u"ipServiceProtocol")
+#     ipProtocolNumber = ValueConstant(u"ipProtocolNumber")
+#     oncRpcNumber = ValueConstant(u"oncRpcNumber")
+#     ipHostNumber = ValueConstant(u"ipHostNumber")
+#     ipNetworkNumber = ValueConstant(u"ipNetworkNumber")
+#     ipNetmaskNumber = ValueConstant(u"ipNetmaskNumber")
+#     macAddress = ValueConstant(u"macAddress")
+#     bootParameter = ValueConstant(u"bootParameter")
+#     bootFile = ValueConstant(u"bootFile")
+#     nisMapName = ValueConstant(u"nisMapName")
+#     nisMapEntry = ValueConstant(u"nisMapEntry")
+
+
+
+# class RFC2307ObjectClass(Values):
+#     """
+#     Network Information Service object classes.
+
+#     See U{RFC 2307, section 2.3
+#     <http://tools.ietf.org/html/rfc2307#section-2.3>}.
+#     """
+#     posixAccount = ValueConstant(u"posixAccount")
+#     shadowAccount = ValueConstant(u"shadowAccount")
+#     posixGroup = ValueConstant(u"posixGroup")
+#     ipService = ValueConstant(u"ipService")
+#     ipProtocol = ValueConstant(u"ipProtocol")
+#     oncRpc = ValueConstant(u"oncRpc")
+#     ipHost = ValueConstant(u"ipHost")
+#     ipNetwork = ValueConstant(u"ipNetwork")
+#     nisNetgroup = ValueConstant(u"nisNetgroup")
+#     nisMap = ValueConstant(u"nisMap")
+#     nisObject = ValueConstant(u"nisObject")
+#     ieee802Device = ValueConstant(u"ieee802Device")
+#     bootableDevice = ValueConstant(u"bootableDevice")
+
+
+
 class RFC4519Attribute(Values):
     """
     User application attributes.
@@ -187,63 +247,54 @@ class RFC4519ObjectClass(Values):
 
 
 
-# class RFC2307Attribute(Values):
-#     """
-#     Network Information Service attributes.
+class RFC4524Attribute(Values):
+    """
+    COSINE and Internet X.500 attributes.
 
-#     See U{RFC 2307, section 2.2
-#     <http://tools.ietf.org/html/rfc2307#section-2.2>}.
-#     """
-#     uidNumber = ValueConstant(u"uidNumber")
-#     gidNumber = ValueConstant(u"gidNumber")
-#     gecos = ValueConstant(u"gecos")
-#     homeDirectory = ValueConstant(u"homeDirectory")
-#     loginShell = ValueConstant(u"loginShell")
-#     shadowLastChange = ValueConstant(u"shadowLastChange")
-#     shadowMin = ValueConstant(u"shadowMin")
-#     shadowMax = ValueConstant(u"shadowMax")
-#     shadowWarning = ValueConstant(u"shadowWarning")
-#     shadowInactive = ValueConstant(u"shadowInactive")
-#     shadowExpire = ValueConstant(u"shadowExpire")
-#     shadowFlag = ValueConstant(u"shadowFlag")
-#     memberUid = ValueConstant(u"memberUid")
-#     memberNisNetgroup = ValueConstant(u"memberNisNetgroup")
-#     nisNetgroupTriple = ValueConstant(u"nisNetgroupTriple")
-#     ipServicePort = ValueConstant(u"ipServicePort")
-#     ipServiceProtocol = ValueConstant(u"ipServiceProtocol")
-#     ipProtocolNumber = ValueConstant(u"ipProtocolNumber")
-#     oncRpcNumber = ValueConstant(u"oncRpcNumber")
-#     ipHostNumber = ValueConstant(u"ipHostNumber")
-#     ipNetworkNumber = ValueConstant(u"ipNetworkNumber")
-#     ipNetmaskNumber = ValueConstant(u"ipNetmaskNumber")
-#     macAddress = ValueConstant(u"macAddress")
-#     bootParameter = ValueConstant(u"bootParameter")
-#     bootFile = ValueConstant(u"bootFile")
-#     nisMapName = ValueConstant(u"nisMapName")
-#     nisMapEntry = ValueConstant(u"nisMapEntry")
+    See U{RFC 4524, section 2<http://tools.ietf.org/html/rfc4524#section-2>}.
+    """
+    associatedDomain = ValueConstant(u"associatedDomain")
+    associatedName = ValueConstant(u"associatedName")
+    buildingName = ValueConstant(u"buildingName")
+    co = ValueConstant(u"co")  # Friendly country name
+    documentAuthor = ValueConstant(u"documentAuthor")
+    documentIdentifier = ValueConstant(u"documentIdentifier")
+    documentLocation = ValueConstant(u"documentLocation")
+    documentPublisher = ValueConstant(u"documentPublisher")
+    documentTitle = ValueConstant(u"documentTitle")
+    documentVersion = ValueConstant(u"documentVersion")
+    drink = ValueConstant(u"drink")  # Favorite drink.  Seriously.
+    homePhone = ValueConstant(u"homePhone")
+    homePostalAddress = ValueConstant(u"homePostalAddress")
+    host = ValueConstant(u"host")
+    info = ValueConstant(u"info")
+    mail = ValueConstant(u"mail")
+    manager = ValueConstant(u"manager")
+    mobile = ValueConstant(u"mobile")
+    pager = ValueConstant(u"pager")
+    personalTitle = ValueConstant(u"personalTitle")
+    roomNumber = ValueConstant(u"roomNumber")
+    secretary = ValueConstant(u"secretary")
+    uniqueIdentifier = ValueConstant(u"uniqueIdentifier")
+    userClass = ValueConstant(u"userClass")
 
 
 
-# class RFC2307ObjectClass(Values):
-#     """
-#     Network Information Service object classes.
+class RFC4524ObjectClass(Values):
+    """
+    COSINE and Internet X.500 object classes.
 
-#     See U{RFC 2307, section 2.3
-#     <http://tools.ietf.org/html/rfc2307#section-2.3>}.
-#     """
-#     posixAccount = ValueConstant(u"posixAccount")
-#     shadowAccount = ValueConstant(u"shadowAccount")
-#     posixGroup = ValueConstant(u"posixGroup")
-#     ipService = ValueConstant(u"ipService")
-#     ipProtocol = ValueConstant(u"ipProtocol")
-#     oncRpc = ValueConstant(u"oncRpc")
-#     ipHost = ValueConstant(u"ipHost")
-#     ipNetwork = ValueConstant(u"ipNetwork")
-#     nisNetgroup = ValueConstant(u"nisNetgroup")
-#     nisMap = ValueConstant(u"nisMap")
-#     nisObject = ValueConstant(u"nisObject")
-#     ieee802Device = ValueConstant(u"ieee802Device")
-#     bootableDevice = ValueConstant(u"bootableDevice")
+    See U{RFC 4524, section 2<http://tools.ietf.org/html/rfc4524#section-3>}.
+    """
+    account = ValueConstant(u"account")
+    document = ValueConstant(u"document")
+    documentSeries = ValueConstant(u"documentSeries")
+    domain = ValueConstant(u"domain")
+    domainRelatedObject = ValueConstant(u"domainRelatedObject")
+    friendlyCountry = ValueConstant(u"friendlyCountry")
+    rFC822LocalPart = ValueConstant(u"rFC822LocalPart")
+    room = ValueConstant(u"room")
+    simpleSecurityObject = ValueConstant(u"simpleSecurityObject")
 
 
 
@@ -253,21 +304,21 @@ class WhoAttribute(Values):
     """
     generatedUUID = ValueConstant(u"entryUUID")
     objectClass = ValueConstant(u"objectClass")
-    mail = ValueConstant(u"mail")
 
 
 
 LDAPAttribute = ConstantsContainer((
     RFC4519Attribute,
+    RFC4524Attribute,
     WhoAttribute,
 ))
 
 LDAPObjectClass = ConstantsContainer((
     RFC4519ObjectClass,
+    RFC4524ObjectClass,
 ))
 
 
-# http://tools.ietf.org/html/rfc4524 COSINE
 # http://tools.ietf.org/html/rfc3112 auth schemes
 # http://tools.ietf.org/html/rfc2798 inetOrgPerson
 # http://tools.ietf.org/html/rfc2739 calendar
