@@ -181,6 +181,10 @@ class MatchFlags(Flags):
         return flags._normalize
 
 
+# Lame way to create a FlagsConstant with no flags in it:
+MatchFlags.none = MatchFlags.NOT & MatchFlags.caseInsensitive
+
+
 
 class MatchExpression(object):
     """
@@ -198,12 +202,8 @@ class MatchExpression(object):
     def __init__(
         self,
         fieldName, fieldValue,
-        matchType=MatchType.equals, flags=None
+        matchType=MatchType.equals, flags=MatchFlags.none
     ):
-        if flags is None:
-            # Gross way to get a FlagsConstant with no flags in it:
-            flags = MatchFlags.NOT & MatchFlags.caseInsensitive
-
         self.fieldName = fieldName
         self.fieldValue = fieldValue
         self.matchType = matchType
