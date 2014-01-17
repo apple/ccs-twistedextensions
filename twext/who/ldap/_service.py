@@ -49,21 +49,21 @@ from ._util import (
 
 
 
-# Maps field name -> LDAP attribute name
-DEFAULT_FIELDNAME_MAP = {
-    BaseFieldName.guid: LDAPAttribute.generatedUUID.value,
-    BaseFieldName.recordType: LDAPAttribute.objectClass.value,
-    BaseFieldName.shortNames: LDAPAttribute.uid.value,
-    BaseFieldName.fullNames: LDAPAttribute.cn.value,
-    BaseFieldName.emailAddresses: LDAPAttribute.mail.value,
-    BaseFieldName.password: LDAPAttribute.userPassword.value,
+# Maps field name -> LDAP attribute names
+DEFAULT_FIELDNAME_ATTRIBUTE_MAP = {
+    BaseFieldName.guid: (LDAPAttribute.generatedUUID.value,),
+    BaseFieldName.recordType: (LDAPAttribute.objectClass.value,),
+    BaseFieldName.shortNames: (LDAPAttribute.uid.value,),
+    BaseFieldName.fullNames: (LDAPAttribute.cn.value,),
+    BaseFieldName.emailAddresses: (LDAPAttribute.mail.value,),
+    BaseFieldName.password: (LDAPAttribute.userPassword.value,),
 }
 
 
-# Maps record type -> LDAP object class name
-DEFAULT_RECORDTYPE_MAP = {
-    BaseRecordType.user: LDAPObjectClass.person.value,
-    BaseRecordType.group: LDAPObjectClass.groupOfNames.value,
+# Maps record type -> LDAP object class names
+DEFAULT_RECORDTYPE_OBJECTCLASS_MAP = {
+    BaseRecordType.user: (LDAPObjectClass.person.value,),
+    BaseRecordType.group: (LDAPObjectClass.groupOfNames.value,),
 }
 
 
@@ -147,8 +147,8 @@ class DirectoryService(BaseDirectoryService):
         tlsCACertificateFile=None,
         tlsCACertificateDirectory=None,
         useTLS=False,
-        fieldNameToAttributeMap=DEFAULT_FIELDNAME_MAP,
-        recordTypeToObjectClassMap=DEFAULT_RECORDTYPE_MAP,
+        fieldNameToAttributeMap=DEFAULT_FIELDNAME_ATTRIBUTE_MAP,
+        recordTypeToObjectClassMap=DEFAULT_RECORDTYPE_OBJECTCLASS_MAP,
         uidField=BaseFieldName.uid,
         _debug=False,
     ):
@@ -178,12 +178,12 @@ class DirectoryService(BaseDirectoryService):
         @param fieldNameToAttributeMap: A mapping of field names to LDAP
             attribute names.
         @type fieldNameToAttributeMap: mapping with L{NamedConstant} keys and
-            L{unicode} values
+            sequence of L{unicode} values
 
         @param recordTypeToObjectClassMap: A mapping of record types to LDAP
             object classes.
         @type recordTypeToObjectClassMap: mapping with L{NamedConstant} keys
-            and L{unicode} values
+            and sequence of L{unicode} values
         """
 
         self.url = url
@@ -208,24 +208,28 @@ class DirectoryService(BaseDirectoryService):
         else:
             self._debug = None
 
-        def reverseDict(source):
+        def reverseDict(sourceName, source):
             new = {}
 
-            for k, v in source.iteritems():
-                if v in new:
-                    raise LDAPConfigurationError(
-                        u"Field name map has duplicate values: {0}".format(v)
-                    )
-                new[v] = k
+            for key, values in source.iteritems():
+                for value in values:
+                    if value in new:
+                        raise LDAPConfigurationError(
+                            u"{0} map has duplicate values: {1}"
+                            .format(sourceName, value)
+                        )
+                    new[value] = key
 
             return new
 
         self._fieldNameToAttributeMap = fieldNameToAttributeMap
-        self._attributeToFieldNameMap = reverseDict(fieldNameToAttributeMap)
+        self._attributeToFieldNameMap = reverseDict(
+            "Field name", fieldNameToAttributeMap
+        )
 
         self._recordTypeToObjectClassMap = recordTypeToObjectClassMap
         self._objectClassToRecordTypeMap = reverseDict(
-            recordTypeToObjectClassMap
+            "Record type", recordTypeToObjectClassMap
         )
 
         self._uidField = uidField
@@ -317,22 +321,27 @@ class DirectoryService(BaseDirectoryService):
         # we are using to determine the UID of the record.
 
         uidField = self.fieldName.uid
-        uidAttribute = self._fieldNameToAttributeMap[self._uidField]
+        uidAttribute = self._fieldNameToAttributeMap[self._uidField][0]
 
         recordTypeField = self.fieldName.recordType
-        recordTypeAttribute = (
+        recordTypeAttributes = (
             self._fieldNameToAttributeMap[self.fieldName.recordType]
         )
 
         for dn, recordData in reply:
 
-            if recordTypeAttribute not in recordData:
-                self.log.debug(
-                    "Ignoring LDAP record data with no record type attribute "
-                    "{source.fieldName.recordType!r}: {recordData!r}",
-                    self=self, recordData=recordData
-                )
-                continue
+            # Attributes used to determine the record type are required, since
+            # record type is very much required.
+
+            for recordTypeAttribute in recordTypeAttributes:
+                if recordTypeAttribute not in recordData:
+                    self.log.debug(
+                        "Ignoring LDAP record data without record type "
+                        "attribute {attribute!r}: "
+                        "{recordData!r}",
+                        attribute=recordTypeAttribute, recordData=recordData,
+                    )
+                    continue
 
             # Make a dict of fields -> values from the incoming dict of
             # attributes -> values.
@@ -351,7 +360,7 @@ class DirectoryService(BaseDirectoryService):
                 self.log.debug(
                     "Ignoring LDAP record data with no UID attribute "
                     "{source._uidField!r}: {recordData!r}",
-                    self=self, recordData=recordData
+                    recordData=recordData
                 )
                 continue
 

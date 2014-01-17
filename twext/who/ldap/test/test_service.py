@@ -20,6 +20,8 @@ from __future__ import print_function
 LDAP directory service tests.
 """
 
+from itertools import chain
+
 import ldap
 from mockldap import MockLdap
 
@@ -31,7 +33,7 @@ from twisted.trial import unittest
 
 from ...idirectory import QueryNotSupportedError, FieldName as BaseFieldName
 from .._service import (
-    DEFAULT_FIELDNAME_MAP, DEFAULT_RECORDTYPE_MAP,
+    DEFAULT_FIELDNAME_ATTRIBUTE_MAP, DEFAULT_RECORDTYPE_OBJECTCLASS_MAP,
     LDAPBindAuthError,
     DirectoryService, DirectoryRecord,
 )
@@ -45,8 +47,8 @@ from ...test.test_xml import (
 
 
 
-TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_MAP)
-TEST_FIELDNAME_MAP[BaseFieldName.uid] = u"__who_uid__"
+TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
+TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
 
 
 
@@ -236,14 +238,16 @@ def mockDirectoryDataFromXMLService(service):
         return unicode(obj)
 
     def tuplify(record, fieldName):
-        name = TEST_FIELDNAME_MAP.get(fieldName, fieldName.name)
-
         if fieldName is BaseFieldName.recordType:
-            value = DEFAULT_RECORDTYPE_MAP[record.fields[fieldName]]
+            values = DEFAULT_RECORDTYPE_OBJECTCLASS_MAP[
+                record.fields[fieldName]
+            ]
         else:
-            value = toUnicode(record.fields[fieldName])
+            values = (toUnicode(record.fields[fieldName]),)
 
-        return (name, value)
+        for name in TEST_FIELDNAME_MAP.get(fieldName, fieldName.name):
+            for value in values:
+                yield (name, value)
 
     for records in service.index[service.fieldName.uid].itervalues():
         for record in records:
@@ -253,11 +257,11 @@ def mockDirectoryDataFromXMLService(service):
                 dc1=dc1, dc0=dc0
             )
 
-            recordData = dict(
-                tuplify(record, fieldName)
+            recordData = dict(chain(*(
+                list(tuplify(record, fieldName))
                 for fieldName in service.fieldName.iterconstants()
                 if fieldName in record.fields
-            )
+            )))
 
             data[dn] = recordData
 

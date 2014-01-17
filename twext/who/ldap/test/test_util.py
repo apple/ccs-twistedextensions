@@ -24,8 +24,10 @@ from ...idirectory import QueryNotSupportedError
 from ...expression import (
     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 )
+from .._constants import LDAPOperand
 from .._service import DirectoryService
 from .._util import (
+    ldapQueryStringFromQueryStrings,
     ldapQueryStringFromMatchExpression,
     ldapQueryStringFromCompoundExpression,
     ldapQueryStringFromExpression,
@@ -51,7 +53,10 @@ class LDAPQueryTestCase(unittest.TestCase):
         but we don't care for these tests, since we're not actually connecting
         to LDAP.
         """
-        return dict([(c, c.name) for c in service.fieldName.iterconstants()])
+        return dict([
+            (c, (c.name,))
+            for c in service.fieldName.iterconstants()
+        ])
 
 
     def recordTypeMap(self, service):
@@ -61,7 +66,42 @@ class LDAPQueryTestCase(unittest.TestCase):
         names, but we don't care for these tests, since we're not actually
         connecting to LDAP.
         """
-        return dict([(c, c.name) for c in service.recordType.iterconstants()])
+        return dict([
+            (c, (c.name,))
+            for c in service.recordType.iterconstants()
+        ])
+
+
+    def _test_ldapQueryStringFromQueryStrings(self, queryStrings, expected):
+        for operand in (LDAPOperand.AND.value, LDAPOperand.OR.value):
+            compound = ldapQueryStringFromQueryStrings(operand, queryStrings)
+            self.assertEquals(compound, expected.format(operand=operand))
+
+
+    def test_ldapQueryStringFromQueryStrings_empty(self):
+        """
+        A single expression should just be returned as-is.
+        """
+        return self._test_ldapQueryStringFromQueryStrings((), u"")
+
+
+    def test_ldapQueryStringFromQueryStrings_single(self):
+        """
+        A single expression should just be returned as-is.
+        """
+        queryStrings = (u"(x=yzzy)",)
+        return self._test_ldapQueryStringFromQueryStrings(
+            queryStrings, queryStrings[0]
+        )
+
+
+    def test_ldapQueryStringFromQueryStrings_multiple(self):
+        """
+        Multiple expressions should just be combined with an operator.
+        """
+        return self._test_ldapQueryStringFromQueryStrings(
+            (u"(x=yzzy)", u"(xy=zzy)"), u"({operand}(x=yzzy)(xy=zzy))"
+        )
 
 
     def test_queryStringFromMatchExpression_matchTypes(self):
@@ -199,6 +239,110 @@ class LDAPQueryTestCase(unittest.TestCase):
             ldapQueryStringFromMatchExpression,
             expression,
             self.fieldNameMap(service), self.recordTypeMap(service),
+        )
+
+
+    def _test_queryStringFromMatchExpression_multiAttribute(
+        self, flags, expected
+    ):
+        service = self.service()
+
+        expression = MatchExpression(
+            service.fieldName.emailAddresses, u"xyzzy",
+            flags=flags,
+        )
+
+        fieldNameToAttributeMap = {
+            service.fieldName.emailAddresses: (u"mail", u"alternateMail"),
+        }
+
+        queryString = ldapQueryStringFromMatchExpression(
+            expression, fieldNameToAttributeMap, self.recordTypeMap(service)
+        )
+
+        self.assertEquals(queryString, expected)
+
+
+    def test_queryStringFromMatchExpression_multipleAttribute(self):
+        """
+        Match expression when the queried field name maps to multiple
+        attributes.
+        """
+
+        # We want a match for either attribute.
+        expected = u"(|(mail=xyzzy)(alternateMail=xyzzy))"
+
+        return self._test_queryStringFromMatchExpression_multiAttribute(
+            MatchFlags.none, expected
+        )
+
+
+    def test_queryStringFromMatchExpression_multipleAttribute_not(self):
+        """
+        Match expression when the queried field name maps to multiple
+        attributes and the NOT flag is set.
+        """
+
+        # We want a NOT match for both attributes.
+        expected = u"(&(!mail=xyzzy)(!alternateMail=xyzzy))"
+
+        return self._test_queryStringFromMatchExpression_multiAttribute(
+            MatchFlags.NOT, expected
+        )
+
+
+    def _test_queryStringFromMatchExpression_multiRecordType(
+        self, flags, expected
+    ):
+        service = self.service()
+
+        recordTypeField = service.fieldName.recordType
+
+        expression = MatchExpression(
+            recordTypeField, service.recordType.user,
+            flags=flags,
+        )
+
+        fieldNameToAttributeMap = self.fieldNameMap(service)
+
+        recordTypeToObjectClassMap = {
+            service.recordType.user: (u"person", u"account"),
+        }
+
+        queryString = ldapQueryStringFromMatchExpression(
+            expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+        )
+
+        self.assertEquals(
+            queryString,
+            expected.format(attr=fieldNameToAttributeMap[recordTypeField][0])
+        )
+
+
+    def test_queryStringFromMatchExpression_multipleRecordType(self):
+        """
+        Match expression when the queried field name is the record type field,
+        which maps to multiple attributes.
+        """
+
+        # We want a match for both values.
+        expected = u"(&({attr}=person)({attr}=account))"
+
+        return self._test_queryStringFromMatchExpression_multiRecordType(
+            MatchFlags.none, expected
+        )
+
+    def test_queryStringFromMatchExpression_multipleRecordType_not(self):
+        """
+        Match expression when the queried field name is the record type field,
+        which maps to multiple attributes and the NOT flag is set.
+        """
+
+        # We want a NOT match for either value.
+        expected = u"(|(!{attr}=person)(!{attr}=account))"
+
+        return self._test_queryStringFromMatchExpression_multiRecordType(
+            MatchFlags.NOT, expected
         )
 
 
