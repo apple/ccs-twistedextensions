@@ -87,8 +87,10 @@ def ldapQueryStringFromMatchExpression(
 
     if MatchFlags.NOT in flags:
         notOp = LDAPMatchFlags.NOT.value
+        operand = LDAPOperand.AND.value
     else:
         notOp = u""
+        operand = LDAPOperand.OR.value
 
     # FIXME: It doesn't look like LDAP queries can be case sensitive.
     # This would mean that it's up to the callers to filter out the false
@@ -121,11 +123,6 @@ def ldapQueryStringFromMatchExpression(
 
     # Compose an query using each of the LDAP attributes cooresponding to the
     # target field name.
-
-    if notOp:
-        operand = LDAPOperand.AND.value
-    else:
-        operand = LDAPOperand.OR.value
 
     if notOp:
         valueOperand = LDAPOperand.OR.value
