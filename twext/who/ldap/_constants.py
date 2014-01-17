@@ -27,9 +27,18 @@ from ..util import ConstantsContainer
 
 
 
+class LDAPOperand(Values):
+    """
+    LDAP operands.
+    """
+    AND = ValueConstant(u"&")
+    OR = ValueConstant(u"|")
+
+
+
 class LDAPMatchType(Names):
     """
-    Constants for native LDAP match types.
+    LDAP match types.
 
     For each constant defined, if there is an equivalent L{MatchType} constant,
     the attribute C{matchType} reference that constant.  It is otherwise unset.
@@ -109,6 +118,14 @@ class LDAPMatchType(Names):
             ))
 
         return cls._matchTypeByMatchType.get(matchType, None)
+
+
+
+class LDAPMatchFlags(Values):
+    """
+    LDAP match flags.
+    """
+    NOT = ValueConstant(u"!")
 
 
 
