@@ -129,63 +129,63 @@ class LDAPMatchFlags(Values):
 
 
 
-# class RFC2307Attribute(Values):
-#     """
-#     Network Information Service attributes.
+class RFC2307Attribute(Values):
+    """
+    Network Information Service attributes.
 
-#     See U{RFC 2307, section 2.2
-#     <http://tools.ietf.org/html/rfc2307#section-2.2>}.
-#     """
-#     uidNumber = ValueConstant(u"uidNumber")
-#     gidNumber = ValueConstant(u"gidNumber")
-#     gecos = ValueConstant(u"gecos")
-#     homeDirectory = ValueConstant(u"homeDirectory")
-#     loginShell = ValueConstant(u"loginShell")
-#     shadowLastChange = ValueConstant(u"shadowLastChange")
-#     shadowMin = ValueConstant(u"shadowMin")
-#     shadowMax = ValueConstant(u"shadowMax")
-#     shadowWarning = ValueConstant(u"shadowWarning")
-#     shadowInactive = ValueConstant(u"shadowInactive")
-#     shadowExpire = ValueConstant(u"shadowExpire")
-#     shadowFlag = ValueConstant(u"shadowFlag")
-#     memberUid = ValueConstant(u"memberUid")
-#     memberNisNetgroup = ValueConstant(u"memberNisNetgroup")
-#     nisNetgroupTriple = ValueConstant(u"nisNetgroupTriple")
-#     ipServicePort = ValueConstant(u"ipServicePort")
-#     ipServiceProtocol = ValueConstant(u"ipServiceProtocol")
-#     ipProtocolNumber = ValueConstant(u"ipProtocolNumber")
-#     oncRpcNumber = ValueConstant(u"oncRpcNumber")
-#     ipHostNumber = ValueConstant(u"ipHostNumber")
-#     ipNetworkNumber = ValueConstant(u"ipNetworkNumber")
-#     ipNetmaskNumber = ValueConstant(u"ipNetmaskNumber")
-#     macAddress = ValueConstant(u"macAddress")
-#     bootParameter = ValueConstant(u"bootParameter")
-#     bootFile = ValueConstant(u"bootFile")
-#     nisMapName = ValueConstant(u"nisMapName")
-#     nisMapEntry = ValueConstant(u"nisMapEntry")
+    See U{RFC 2307, section 2.2
+    <http://tools.ietf.org/html/rfc2307#section-2.2>}.
+    """
+    uidNumber = ValueConstant(u"uidNumber")
+    gidNumber = ValueConstant(u"gidNumber")
+    gecos = ValueConstant(u"gecos")
+    homeDirectory = ValueConstant(u"homeDirectory")
+    loginShell = ValueConstant(u"loginShell")
+    shadowLastChange = ValueConstant(u"shadowLastChange")
+    shadowMin = ValueConstant(u"shadowMin")
+    shadowMax = ValueConstant(u"shadowMax")
+    shadowWarning = ValueConstant(u"shadowWarning")
+    shadowInactive = ValueConstant(u"shadowInactive")
+    shadowExpire = ValueConstant(u"shadowExpire")
+    shadowFlag = ValueConstant(u"shadowFlag")
+    memberUid = ValueConstant(u"memberUid")
+    memberNisNetgroup = ValueConstant(u"memberNisNetgroup")
+    nisNetgroupTriple = ValueConstant(u"nisNetgroupTriple")
+    ipServicePort = ValueConstant(u"ipServicePort")
+    ipServiceProtocol = ValueConstant(u"ipServiceProtocol")
+    ipProtocolNumber = ValueConstant(u"ipProtocolNumber")
+    oncRpcNumber = ValueConstant(u"oncRpcNumber")
+    ipHostNumber = ValueConstant(u"ipHostNumber")
+    ipNetworkNumber = ValueConstant(u"ipNetworkNumber")
+    ipNetmaskNumber = ValueConstant(u"ipNetmaskNumber")
+    macAddress = ValueConstant(u"macAddress")
+    bootParameter = ValueConstant(u"bootParameter")
+    bootFile = ValueConstant(u"bootFile")
+    nisMapName = ValueConstant(u"nisMapName")
+    nisMapEntry = ValueConstant(u"nisMapEntry")
 
 
 
-# class RFC2307ObjectClass(Values):
-#     """
-#     Network Information Service object classes.
+class RFC2307ObjectClass(Values):
+    """
+    Network Information Service object classes.
 
-#     See U{RFC 2307, section 2.3
-#     <http://tools.ietf.org/html/rfc2307#section-2.3>}.
-#     """
-#     posixAccount = ValueConstant(u"posixAccount")
-#     shadowAccount = ValueConstant(u"shadowAccount")
-#     posixGroup = ValueConstant(u"posixGroup")
-#     ipService = ValueConstant(u"ipService")
-#     ipProtocol = ValueConstant(u"ipProtocol")
-#     oncRpc = ValueConstant(u"oncRpc")
-#     ipHost = ValueConstant(u"ipHost")
-#     ipNetwork = ValueConstant(u"ipNetwork")
-#     nisNetgroup = ValueConstant(u"nisNetgroup")
-#     nisMap = ValueConstant(u"nisMap")
-#     nisObject = ValueConstant(u"nisObject")
-#     ieee802Device = ValueConstant(u"ieee802Device")
-#     bootableDevice = ValueConstant(u"bootableDevice")
+    See U{RFC 2307, section 2.3
+    <http://tools.ietf.org/html/rfc2307#section-2.3>}.
+    """
+    posixAccount = ValueConstant(u"posixAccount")
+    shadowAccount = ValueConstant(u"shadowAccount")
+    posixGroup = ValueConstant(u"posixGroup")
+    ipService = ValueConstant(u"ipService")
+    ipProtocol = ValueConstant(u"ipProtocol")
+    oncRpc = ValueConstant(u"oncRpc")
+    ipHost = ValueConstant(u"ipHost")
+    ipNetwork = ValueConstant(u"ipNetwork")
+    nisNetgroup = ValueConstant(u"nisNetgroup")
+    nisMap = ValueConstant(u"nisMap")
+    nisObject = ValueConstant(u"nisObject")
+    ieee802Device = ValueConstant(u"ieee802Device")
+    bootableDevice = ValueConstant(u"bootableDevice")
 
 
 
@@ -353,6 +353,7 @@ class WhoAttribute(Values):
 
 
 LDAPAttribute = ConstantsContainer((
+    RFC2307Attribute,
     RFC2798Attribute,
     RFC4519Attribute,
     RFC4524Attribute,
@@ -360,6 +361,7 @@ LDAPAttribute = ConstantsContainer((
 ))
 
 LDAPObjectClass = ConstantsContainer((
+    RFC2307ObjectClass,
     RFC2798ObjectClass,
     RFC4519ObjectClass,
     RFC4524ObjectClass,
