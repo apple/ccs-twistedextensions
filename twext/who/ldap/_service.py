@@ -30,6 +30,7 @@ from twisted.internet.threads import deferToThread
 from twisted.cred.credentials import IUsernamePassword
 
 from twext.python.log import Logger
+from twext.python.types import MappingProxyType
 
 from ..idirectory import (
     DirectoryServiceError, DirectoryAvailabilityError,
@@ -50,21 +51,21 @@ from ._util import (
 
 
 # Maps field name -> LDAP attribute names
-DEFAULT_FIELDNAME_ATTRIBUTE_MAP = {
+DEFAULT_FIELDNAME_ATTRIBUTE_MAP = MappingProxyType({
     BaseFieldName.guid: (LDAPAttribute.generatedUUID.value,),
     BaseFieldName.recordType: (LDAPAttribute.objectClass.value,),
     BaseFieldName.shortNames: (LDAPAttribute.uid.value,),
     BaseFieldName.fullNames: (LDAPAttribute.cn.value,),
     BaseFieldName.emailAddresses: (LDAPAttribute.mail.value,),
     BaseFieldName.password: (LDAPAttribute.userPassword.value,),
-}
+})
 
 
 # Maps record type -> LDAP object class names
-DEFAULT_RECORDTYPE_OBJECTCLASS_MAP = {
+DEFAULT_RECORDTYPE_OBJECTCLASS_MAP = MappingProxyType({
     BaseRecordType.user: (LDAPObjectClass.inetOrgPerson.value,),
     BaseRecordType.group: (LDAPObjectClass.groupOfNames.value,),
-}
+})
 
 
 
