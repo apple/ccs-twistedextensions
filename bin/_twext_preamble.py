@@ -33,8 +33,3 @@ depslib = joinpath(srcroot, ".develop", "lib")
 
 addsitedir(depslib)
 sys.path.insert(0, srcroot)
-
-if False:
-    print("PYTHONPATH:")
-    for path in sys.path:
-        print("  ", path)
