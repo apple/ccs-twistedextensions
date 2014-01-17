@@ -29,7 +29,7 @@ except ImportError as e:
         raise SkipTest("addSQLToSchema is not available: {0}".format(e))
 from twext.enterprise.dal.syntax import (
     Select, Insert, Update, Delete, Lock, SQLFragment,
-    TableMismatch, Parameter, Max, Len, NotEnoughValues,
+    TableMismatch, Parameter, Max, Min, Len, NotEnoughValues,
     Savepoint, RollbackToSavepoint, ReleaseSavepoint, SavepointAction,
     Union, Intersect, Except, SetExpression, DALError,
     ResultAliasSyntax, Count, QueryGenerator, ALL_COLUMNS,
@@ -1016,6 +1016,17 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Select([Max(self.schema.BOZ.QUX)], From=self.schema.BOZ).toSQL(),
             SQLFragment("select max(QUX) from BOZ")
+        )
+
+
+    def test_min(self):
+        """
+        L{Min}C{(column)} produces an object in the C{columns} clause that
+        renders the C{min} aggregate in SQL.
+        """
+        self.assertEquals(
+            Select([Min(self.schema.BOZ.QUX)], From=self.schema.BOZ).toSQL(),
+            SQLFragment("select min(QUX) from BOZ")
         )
 
 

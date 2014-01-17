@@ -600,6 +600,7 @@ class Function(object):
 Count = Function("count")
 Sum = Function("sum")
 Max = Function("max")
+Min = Function("min")
 Len = Function("character_length", "length")
 Upper = Function("upper")
 Lower = Function("lower")
