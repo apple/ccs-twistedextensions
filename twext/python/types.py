@@ -30,6 +30,10 @@ class MappingProxyType(object):
     entries, which means that when the mapping changes, the view reflects these
     changes.
 
+    Note that for an ummutable mapping, one would have to prevent modifications
+    to the underlying mapping.  Note also that mutable values remain mutable
+    when accessed via a proxy.
+
     Backport of Python 3's L{types.MappingProxyType
     <http://docs.python.org/dev/library/types.html#types.MappingProxyType>}.
     """
