@@ -44,6 +44,11 @@ find_tool ()
 
 for py_version in "2.7" "2.6"; do
 
+    if ! type -p "python${py_version}" > /dev/null; then
+        echo "Python ${py_version} not found.";
+        continue;
+    fi;
+
     easy_install="$(find_tool "easy_install" "${py_version}")";
 
     sudo "${easy_install}" --upgrade setuptools;
