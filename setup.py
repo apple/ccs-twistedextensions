@@ -23,8 +23,7 @@ import errno
 import os
 from os.path import dirname, abspath, join as joinpath
 import subprocess
-
-# from distutils.core import setup
+from itertools import chain
 from setuptools import setup, find_packages as setuptools_find_packages
 
 
@@ -118,19 +117,23 @@ install_requirements = [
     "twisted>=13.2.0",
 ]
 
-if os.environ.get("TWEXT_DEVELOP", "false") == "true":
-    # For testing
-    install_requirements.append("mockldap>=0.1.4")
-
-    # FIXME: It would be better to figure out how to get `setup.py develop` to
-    # fetch the extras_requirements...
-    install_requirements.append("python-ldap>=2.4.13")
-    install_requirements.append("sqlparse==0.1.2")
-
 extras_requirements = {
     "LDAP": ["python-ldap>=2.4.13"],
     "DAL": ["sqlparse==0.1.2"],
 }
+
+# Requirements for development and testing
+develop_requirements = [
+    "mockldap>=0.1.4",
+]
+
+if os.environ.get("TWEXT_DEVELOP", "false") == "true":
+    install_requirements.extend(develop_requirements)
+
+    # FIXME: It would be better to figure out how to get `setup.py develop` to
+    # fetch the extras_requirements...
+    install_requirements.extend(chain(*extras_requirements.values()))
+
 
 
 #
