@@ -62,7 +62,7 @@ DEFAULT_FIELDNAME_ATTRIBUTE_MAP = {
 
 # Maps record type -> LDAP object class names
 DEFAULT_RECORDTYPE_OBJECTCLASS_MAP = {
-    BaseRecordType.user: (LDAPObjectClass.person.value,),
+    BaseRecordType.user: (LDAPObjectClass.inetOrgPerson.value,),
     BaseRecordType.group: (LDAPObjectClass.groupOfNames.value,),
 }
 

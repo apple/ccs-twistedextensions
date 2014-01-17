@@ -189,6 +189,34 @@ class LDAPMatchFlags(Values):
 
 
 
+class RFC2798Attribute(Values):
+    """
+    inetOrgPerson object class attributes.
+
+    See U{RFC 2798, section 2<http://tools.ietf.org/html/rfc2798#section-2>}.
+    """
+    carLicense = ValueConstant(u"carLicense")
+    departmentNumber = ValueConstant(u"departmentNumber")
+    displayName = ValueConstant(u"displayName")
+    employeeNumber = ValueConstant(u"employeeNumber")
+    employeeType = ValueConstant(u"employeeType")
+    jpegPhoto = ValueConstant(u"jpegPhoto")
+    preferredLanguage = ValueConstant(u"preferredLanguage")
+    userSMIMECertificate = ValueConstant(u"userSMIMECertificate")
+    userPKCS12 = ValueConstant(u"userPKCS12")
+
+
+
+class RFC2798ObjectClass(Values):
+    """
+    inetOrgPerson object class.
+
+    See U{RFC 2798, section 3<http://tools.ietf.org/html/rfc2798#section-3>}.
+    """
+    inetOrgPerson = ValueConstant(u"inetOrgPerson")
+
+
+
 class RFC4519Attribute(Values):
     """
     User application attributes.
@@ -325,17 +353,19 @@ class WhoAttribute(Values):
 
 
 LDAPAttribute = ConstantsContainer((
+    RFC2798Attribute,
     RFC4519Attribute,
     RFC4524Attribute,
     WhoAttribute,
 ))
 
 LDAPObjectClass = ConstantsContainer((
+    RFC2798ObjectClass,
     RFC4519ObjectClass,
     RFC4524ObjectClass,
 ))
 
 
 # http://tools.ietf.org/html/rfc3112 auth schemes
-# http://tools.ietf.org/html/rfc2798 inetOrgPerson
 # http://tools.ietf.org/html/rfc2739 calendar
+# http://tools.ietf.org/html/rfc3698 additional matching rules
