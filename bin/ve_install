@@ -20,7 +20,7 @@ set -e
 set -u
 
 wd="$(cd "$(dirname "$0")" && pwd)/..";
-ve_root="${HOME}/.local"
+ve_root="${HOME}/.local";
 
 export tmp="$(mktemp -d -t foo)";
 cd "${tmp}";
