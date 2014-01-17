@@ -100,9 +100,7 @@ def version():
 #
 
 description = "Extensions to Twisted"
-long_description = """
-Extensions to the Twisted Framework (http://twistedmatrix.com/).
-"""
+long_description = file(joinpath(dirname(__file__), "README.rst")).read()
 classifiers = None
 
 
@@ -124,6 +122,7 @@ extras_requirements = {
 
 # Requirements for development and testing
 develop_requirements = [
+    "docutils>=0.11",
     "mockldap>=0.1.4",
 ]
 
