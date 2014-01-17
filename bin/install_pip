@@ -50,7 +50,7 @@ for py_version in "2.7" "2.6"; do
     sudo "${easy_install}" --upgrade setuptools;
 
     if ! pip="$(find_tool "pip" "${py_version}")"; then
-        sudo "python${py_version}" "${wd}/bin/get_pip";
+        sudo "python${py_version}" "${wd}/bin/_get_pip";
     fi;
 
     pip="$(find_tool "pip" "${py_version}")";
