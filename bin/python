@@ -19,7 +19,7 @@
 set -e
 set -u
 
-wd="$(cd "$(dirname "$0")" && pwd)";
+wd="$(cd "$(dirname "$0")/.." && pwd)";
 
 . "${wd}/develop";
 
