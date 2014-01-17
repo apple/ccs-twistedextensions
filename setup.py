@@ -100,8 +100,19 @@ def version():
 #
 
 description = "Extensions to Twisted"
+
 long_description = file(joinpath(dirname(__file__), "README.rst")).read()
-classifiers = None
+
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: Twisted",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 2 :: Only",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 
 #
@@ -183,7 +194,7 @@ def doSetup():
         url="http://trac.calendarserver.org/wiki/twext",
         classifiers=classifiers,
         author="Apple Inc.",
-        author_email=None,
+        author_email="calendarserver-dev@lists.macosforge.org",
         license="Apache License, Version 2.0",
         platforms=["all"],
         packages=find_packages(),
