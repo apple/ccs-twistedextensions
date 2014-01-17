@@ -16,9 +16,6 @@
 # limitations under the License.
 ##
 
-set -e
-set -u
-
 if [ -z "${wd:-}" ]; then
   wd="$(cd "$(dirname "$0")/.." && pwd)";
 fi;
