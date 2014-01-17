@@ -25,21 +25,37 @@ ve_root="${HOME}/.local";
 export tmp="$(mktemp -d -t foo)";
 cd "${tmp}";
 
+
+find_tool ()
+{
+    local tool="$1"; shift;
+    local version="$1"; shift;
+    local cmd;
+
+    for cmd in "${tool}-${py_version}" "${tool}${py_version}"; do
+        if type -p "${cmd}" > /dev/null; then
+            echo "${cmd}";
+            return 0
+        fi;
+    done;
+
+    return 1;
+}
+
+
 for py_version in "2.7" "2.6"; do
 
-    #
-    # pip needs to be installed on the system.
-    #
-    # FIXME: Not *really* but it's a PITA... maybe let's figure that
-    # out.  Later.
-    #
+    easy_install="$(find_tool "easy_install" "${py_version}")";
 
-    if ! type -p "pip-${py_version}" > /dev/null; then
+    sudo "${easy_install}" --upgrade setuptools;
+
+    if ! pip="$(find_tool "pip" "${py_version}")"; then
         sudo "python${py_version}" "${wd}/bin/get_pip";
     fi;
 
-    sudo "pip-${py_version}" install --upgrade pip;
-    sudo "pip-${py_version}" install --upgrade virtualenv;
+    pip="$(find_tool "pip" "${py_version}")";
+
+    sudo "${pip}" install --upgrade pip;
 
 done;
 
