@@ -165,7 +165,7 @@ class MatchFlags(Flags):
     @staticmethod
     def normalizer(flags):
         """
-        Determine a predicate function for the given flags.
+        Determine a normalize function for the given flags.
 
         @param flags: Match expression flags.
         @type flags: L{MatchFlags}
