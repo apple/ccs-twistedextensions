@@ -90,20 +90,6 @@ class LDAPBindAuthError(LDAPConnectionError):
 
 
 
-# class LDAPQueryError(LDAPError):
-#     """
-#     LDAP query error.
-#     """
-
-
-
-# class LDAPDataError(LDAPError):
-#     """
-#     LDAP data error.
-#     """
-
-
-
 #
 # LDAP schema descriptions
 #

@@ -16,19 +16,25 @@
 
 __all__ = [
     "LDAPError",
+    "LDAPConfigurationError",
     "LDAPConnectionError",
-    # "LDAPQueryError",
-    # "LDAPDataError",
+    "LDAPBindAuthError",
+    "RecordTypeSchema",
     "DirectoryService",
+    "LDAPAttribute",
+    "LDAPObjectClass",
 ]
 
 
-try:
-    from ._service import (
-        LDAPError, LDAPConnectionError,  # LDAPQueryError, LDAPDataError,
-        DirectoryService,
-    )
-except ImportError:
-    raise
-    LDAPError = LDAPConnectionError = None
-    # LDAPQueryError = LDAPDataError = None
+from ._service import (
+    LDAPError,
+    LDAPConfigurationError,
+    LDAPConnectionError,
+    LDAPBindAuthError,
+    RecordTypeSchema,
+    DirectoryService,
+)
+from ._constants import (
+    LDAPAttribute,
+    LDAPObjectClass,
+)
