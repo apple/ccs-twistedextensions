@@ -53,7 +53,7 @@ class BaseTest(object):
 
 
 
-class DirectoryServiceConvenienceTestMixIn(BaseTest):
+class DirectoryServiceConvenienceTestMixIn(object):
     @inlineCallbacks
     def test_recordWithUID(self):
         service = self.service()
@@ -183,24 +183,7 @@ class DirectoryServiceConvenienceTestMixIn(BaseTest):
 
 
 
-class DirectoryServiceTest(
-    unittest.TestCase,
-    DirectoryServiceConvenienceTestMixIn,
-    test_index.BaseDirectoryServiceTest,
-):
-    serviceClass = DirectoryService
-    directoryRecordClass = DirectoryRecord
-
-    def test_repr(self):
-        service = self.service()
-
-        self.assertEquals(repr(service), "<TestService (not loaded)>")
-        service.loadRecords()
-        self.assertEquals(repr(service), "<TestService u'xyzzy'>")
-
-
-
-class DirectoryServiceRealmTest(unittest.TestCase, BaseTest):
+class DirectoryServiceRealmTestMixIn(object):
     def test_realmNameImmutable(self):
         def setRealmName():
             service = self.service()
@@ -210,122 +193,7 @@ class DirectoryServiceRealmTest(unittest.TestCase, BaseTest):
 
 
 
-class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
-    def test_reloadInterval(self):
-        service = self.service()
-
-        service.loadRecords(stat=False)
-        lastRefresh = service._lastRefresh
-        self.assertTrue(service._lastRefresh)
-
-        sleep(1)
-        service.loadRecords(stat=False)
-        self.assertEquals(lastRefresh, service._lastRefresh)
-
-
-    def test_reloadStat(self):
-        service = self.service()
-
-        service.loadRecords(loadNow=True)
-        lastRefresh = service._lastRefresh
-        self.assertTrue(service._lastRefresh)
-
-        sleep(1)
-        service.loadRecords(loadNow=True)
-        self.assertEquals(lastRefresh, service._lastRefresh)
-
-
-    def test_badXML(self):
-        service = self.service(xmlData="Hello")
-
-        self.assertRaises(ParseError, service.loadRecords)
-
-
-    def test_badRootElement(self):
-        service = self.service(xmlData=(dedent(
-            b"""
-            <?xml version="1.0" encoding="utf-8"?>
-
-            <frobnitz />
-            """[1:]
-        )))
-
-        self.assertRaises(ParseError, service.loadRecords)
-        try:
-            service.loadRecords()
-        except ParseError as e:
-            self.assertTrue(str(e).startswith("Incorrect root element"), e)
-        else:
-            raise AssertionError("Expected ParseError")
-
-
-    def test_noRealmName(self):
-        service = self.service(xmlData=(dedent(
-            b"""
-            <?xml version="1.0" encoding="utf-8"?>
-
-            <directory />
-            """[1:]
-        )))
-
-        self.assertRaises(ParseError, service.loadRecords)
-        try:
-            service.loadRecords()
-        except ParseError as e:
-            self.assertTrue(str(e).startswith("No realm name"), e)
-        else:
-            raise AssertionError("Expected ParseError")
-
-
-    def test_unknownFieldElementsClean(self):
-        service = self.service()
-        self.assertEquals(set(service.unknownFieldElements), set())
-
-
-    def test_unknownFieldElementsDirty(self):
-        service = self.service(xmlData=(dedent(
-            b"""
-            <?xml version="1.0" encoding="utf-8"?>
-
-            <directory realm="Unknown Record Types">
-              <record type="user">
-                <uid>__wsanchez__</uid>
-                <short-name>wsanchez</short-name>
-                <political-affiliation>Community and Freedom Party</political-affiliation>
-              </record>
-            </directory>
-            """[1:]
-        )))
-        self.assertEquals(
-            set(service.unknownFieldElements),
-            set((u"political-affiliation",))
-        )
-
-
-    def test_unknownRecordTypesClean(self):
-        service = self.service()
-        self.assertEquals(set(service.unknownRecordTypes), set())
-
-
-    def test_unknownRecordTypesDirty(self):
-        service = self.service(xmlData=(dedent(
-            b"""
-            <?xml version="1.0" encoding="utf-8"?>
-
-            <directory realm="Unknown Record Types">
-              <record type="camera">
-                <uid>__d600__</uid>
-                <short-name>d600</short-name>
-                <full-name>Nikon D600</full-name>
-              </record>
-            </directory>
-            """[1:]
-        )))
-        self.assertEquals(set(service.unknownRecordTypes), set((u"camera",)))
-
-
-
-class DirectoryServiceQueryTest(unittest.TestCase, BaseTest):
+class DirectoryServiceQueryTestMixIn(object):
     @inlineCallbacks
     def test_queryAnd(self):
         service = self.service()
@@ -687,7 +555,7 @@ class DirectoryServiceQueryTest(unittest.TestCase, BaseTest):
 
 
 
-class DirectoryServiceMutableTest(unittest.TestCase, BaseTest):
+class DirectoryServiceMutableTestMixIn(object):
     @inlineCallbacks
     def test_updateRecord(self):
         service = self.service()
@@ -777,6 +645,142 @@ class DirectoryServiceMutableTest(unittest.TestCase, BaseTest):
         service = self.service()
 
         return service.removeRecords((u"__plugh__",))
+
+
+
+class DirectoryServiceTest(
+    unittest.TestCase,
+    BaseTest,
+    DirectoryServiceConvenienceTestMixIn,
+    DirectoryServiceRealmTestMixIn,
+    DirectoryServiceQueryTestMixIn,
+    DirectoryServiceMutableTestMixIn,
+    test_index.BaseDirectoryServiceTest,
+):
+    serviceClass = DirectoryService
+    directoryRecordClass = DirectoryRecord
+
+    def test_repr(self):
+        service = self.service()
+
+        self.assertEquals(repr(service), "<TestService (not loaded)>")
+        service.loadRecords()
+        self.assertEquals(repr(service), "<TestService u'xyzzy'>")
+
+
+
+class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
+    def test_reloadInterval(self):
+        service = self.service()
+
+        service.loadRecords(stat=False)
+        lastRefresh = service._lastRefresh
+        self.assertTrue(service._lastRefresh)
+
+        sleep(1)
+        service.loadRecords(stat=False)
+        self.assertEquals(lastRefresh, service._lastRefresh)
+
+
+    def test_reloadStat(self):
+        service = self.service()
+
+        service.loadRecords(loadNow=True)
+        lastRefresh = service._lastRefresh
+        self.assertTrue(service._lastRefresh)
+
+        sleep(1)
+        service.loadRecords(loadNow=True)
+        self.assertEquals(lastRefresh, service._lastRefresh)
+
+
+    def test_badXML(self):
+        service = self.service(xmlData="Hello")
+
+        self.assertRaises(ParseError, service.loadRecords)
+
+
+    def test_badRootElement(self):
+        service = self.service(xmlData=(dedent(
+            b"""
+            <?xml version="1.0" encoding="utf-8"?>
+
+            <frobnitz />
+            """[1:]
+        )))
+
+        self.assertRaises(ParseError, service.loadRecords)
+        try:
+            service.loadRecords()
+        except ParseError as e:
+            self.assertTrue(str(e).startswith("Incorrect root element"), e)
+        else:
+            raise AssertionError("Expected ParseError")
+
+
+    def test_noRealmName(self):
+        service = self.service(xmlData=(dedent(
+            b"""
+            <?xml version="1.0" encoding="utf-8"?>
+
+            <directory />
+            """[1:]
+        )))
+
+        self.assertRaises(ParseError, service.loadRecords)
+        try:
+            service.loadRecords()
+        except ParseError as e:
+            self.assertTrue(str(e).startswith("No realm name"), e)
+        else:
+            raise AssertionError("Expected ParseError")
+
+
+    def test_unknownFieldElementsClean(self):
+        service = self.service()
+        self.assertEquals(set(service.unknownFieldElements), set())
+
+
+    def test_unknownFieldElementsDirty(self):
+        service = self.service(xmlData=(dedent(
+            b"""
+            <?xml version="1.0" encoding="utf-8"?>
+
+            <directory realm="Unknown Record Types">
+              <record type="user">
+                <uid>__wsanchez__</uid>
+                <short-name>wsanchez</short-name>
+                <political-affiliation>Community and Freedom Party</political-affiliation>
+              </record>
+            </directory>
+            """[1:]
+        )))
+        self.assertEquals(
+            set(service.unknownFieldElements),
+            set((u"political-affiliation",))
+        )
+
+
+    def test_unknownRecordTypesClean(self):
+        service = self.service()
+        self.assertEquals(set(service.unknownRecordTypes), set())
+
+
+    def test_unknownRecordTypesDirty(self):
+        service = self.service(xmlData=(dedent(
+            b"""
+            <?xml version="1.0" encoding="utf-8"?>
+
+            <directory realm="Unknown Record Types">
+              <record type="camera">
+                <uid>__d600__</uid>
+                <short-name>d600</short-name>
+                <full-name>Nikon D600</full-name>
+              </record>
+            </directory>
+            """[1:]
+        )))
+        self.assertEquals(set(service.unknownRecordTypes), set((u"camera",)))
 
 
 

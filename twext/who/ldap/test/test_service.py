@@ -41,6 +41,7 @@ from .._service import (
 from ...test import test_directory
 from ...test.test_xml import (
     xmlService,
+    BaseTest as XMLBaseTest,
     DirectoryServiceConvenienceTestMixIn
     as BaseDirectoryServiceConvenienceTestMixIn,
 )
@@ -52,7 +53,7 @@ TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
 
 
 
-class BaseTestCase(object):
+class BaseTestCase(XMLBaseTest):
     """
     Tests for L{DirectoryService}.
     """

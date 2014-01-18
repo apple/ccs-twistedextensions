@@ -27,12 +27,13 @@ from ..aggregate import DirectoryService
 from ..util import ConstantsContainer
 from . import test_directory, test_xml
 from .test_xml import (
+    BaseTest as XMLBaseTest,
     QueryMixIn, xmlService, TestService as XMLTestService,
     DirectoryServiceConvenienceTestMixIn
 )
 
 
-class BaseTest(object):
+class BaseTest(XMLBaseTest):
     def service(self, services=None):
         if services is None:
             services = (self.xmlService(),)
@@ -77,7 +78,11 @@ class DirectoryServiceTest(
 
 
 
-class DirectoryServiceQueryTest(BaseTest, test_xml.DirectoryServiceQueryTest):
+class DirectoryServiceQueryTest(
+    unittest.TestCase,
+    BaseTest,
+    test_xml.DirectoryServiceQueryTestMixIn
+):
     pass
 
 
@@ -124,8 +129,9 @@ class DirectoryServiceAggregatedBaseTest(
 
 
 class DirectoryServiceAggregatedQueryTest(
+    unittest.TestCase,
     AggregatedBaseTest,
-    test_xml.DirectoryServiceQueryTest,
+    test_xml.DirectoryServiceQueryTestMixIn,
 ):
     pass
 
