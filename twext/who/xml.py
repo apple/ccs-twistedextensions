@@ -169,7 +169,7 @@ class DirectoryService(BaseDirectoryService):
     @realmName.setter
     def realmName(self, value):
         if value is not noRealmName:
-            raise AssertionError("realmName may not be set directly")
+            raise AttributeError("realmName may not be set directly")
 
 
     @property

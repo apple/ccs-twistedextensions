@@ -189,7 +189,7 @@ class DirectoryServiceRealmTestMixIn(object):
             service = self.service()
             service.realmName = u"foo"
 
-        self.assertRaises(AssertionError, setRealmName)
+        self.assertRaises(AttributeError, setRealmName)
 
 
 
