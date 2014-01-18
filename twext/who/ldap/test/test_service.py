@@ -44,6 +44,7 @@ from ...test.test_xml import (
     BaseTest as XMLBaseTest,
     DirectoryServiceConvenienceTestMixIn
     as BaseDirectoryServiceConvenienceTestMixIn,
+    DirectoryServiceRealmTestMixIn as BaseDirectoryServiceRealmTestMixIn,
 )
 
 
@@ -211,6 +212,7 @@ class DirectoryServiceConnectionTestMixIn(object):
 class DirectoryServiceTest(
     BaseTestCase,
     DirectoryServiceConvenienceTestMixIn,
+    BaseDirectoryServiceRealmTestMixIn,
     DirectoryServiceConnectionTestMixIn,
     test_directory.BaseDirectoryServiceTest,
     unittest.TestCase,
