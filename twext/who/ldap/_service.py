@@ -25,7 +25,7 @@ from uuid import UUID
 
 import ldap
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import succeed, inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
 from twisted.cred.credentials import IUsernamePassword
 
@@ -432,7 +432,7 @@ class DirectoryService(BaseDirectoryService):
 
     def recordsFromCompoundExpression(self, expression, records=None):
         if not expression.expressions:
-            return ()
+            return succeed(())
 
         queryString = ldapQueryStringFromCompoundExpression(
             expression,
@@ -446,6 +446,18 @@ class DirectoryRecord(BaseDirectoryRecord):
     """
     LDAP directory record.
     """
+
+    @inlineCallbacks
+    def members(self):
+        if self.recordType != self.service.recordType.group:
+            returnValue(())
+
+        raise NotImplementedError()
+
+
+    @inlineCallbacks
+    def groups(self):
+        raise NotImplementedError()
 
 
 

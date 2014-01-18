@@ -41,16 +41,22 @@ from .._service import (
 from ...test import test_directory
 from ...test.test_xml import (
     xmlService,
-    BaseTest as XMLBaseTest,
+    BaseTest as XMLBaseTest, QueryMixIn,
     DirectoryServiceConvenienceTestMixIn
     as BaseDirectoryServiceConvenienceTestMixIn,
-    DirectoryServiceRealmTestMixIn as BaseDirectoryServiceRealmTestMixIn,
+    DirectoryServiceRealmTestMixIn,
+    DirectoryServiceQueryTestMixIn as BaseDirectoryServiceQueryTestMixIn,
 )
 
 
 
 TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
 TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
+
+
+
+class TestService(DirectoryService, QueryMixIn):
+    pass
 
 
 
@@ -84,7 +90,7 @@ class BaseTestCase(XMLBaseTest):
 
 
     def service(self, **kwargs):
-        return DirectoryService(
+        return TestService(
             url=self.url,
             baseDN=self.baseDN,
             fieldNameToAttributesMap=TEST_FIELDNAME_MAP,
@@ -103,6 +109,173 @@ class DirectoryServiceConvenienceTestMixIn(
             QueryNotSupportedError,
             service.recordsWithRecordType, object()
         )
+
+
+class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
+    def test_queryAnd(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryAnd(self)
+
+    test_queryAnd.todo = "?"
+
+
+    def test_queryAndNoneFirst(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryAndNoneFirst(self)
+
+    test_queryAndNoneFirst.todo = "?"
+
+
+    def test_queryAnd(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryAnd(self)
+
+    test_queryAnd.todo = "?"
+
+
+    def test_queryOr(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryOr(self)
+
+    test_queryOr.todo = "?"
+
+
+    def test_queryNot(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryNot(self)
+
+    test_queryNot.todo = "?"
+
+
+    def test_queryAnd(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryAnd(self)
+
+    test_queryAnd.todo = "?"
+
+
+    def test_queryNotNoIndex(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryNotNoIndex(self)
+
+    test_queryNotNoIndex.todo = "?"
+
+
+    def test_queryCaseInsensitive(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn.test_queryCaseInsensitive(self)
+        )
+
+    test_queryCaseInsensitive.todo = "?"
+
+
+    def test_queryCaseInsensitiveNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryCaseInsensitiveNoIndex(self)
+        )
+
+    test_queryCaseInsensitiveNoIndex.todo = "?"
+
+
+    def test_queryStartsWith(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn.test_queryStartsWith(self)
+        )
+
+    test_queryStartsWith.todo = "?"
+
+
+    def test_queryStartsWithNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryStartsWithNoIndex(self)
+        )
+
+    test_queryStartsWithNoIndex.todo = "?"
+
+
+    def test_queryStartsWithNot(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryStartsWithNot(self)
+
+    test_queryStartsWithNot.todo = "?"
+
+
+    def test_queryStartsWithNotAny(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryStartsWithNotAny(self)
+        )
+
+    test_queryStartsWithNotAny.todo = "?"
+
+
+    def test_queryStartsWithNotNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryStartsWithNotNoIndex(self)
+        )
+
+    test_queryStartsWithNotNoIndex.todo = "?"
+
+
+    def test_queryStartsWithCaseInsensitive(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryStartsWithCaseInsensitive(self)
+        )
+
+    test_queryStartsWithCaseInsensitive.todo = "?"
+
+
+    def test_queryStartsWithCaseInsensitiveNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryStartsWithCaseInsensitiveNoIndex(self)
+        )
+
+    test_queryStartsWithCaseInsensitiveNoIndex.todo = "?"
+
+
+    def test_queryContains(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryContains(self)
+
+    test_queryContains.todo = "?"
+
+
+    def test_queryContainsNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryContainsNoIndex(self)
+        )
+
+    test_queryContainsNoIndex.todo = "?"
+
+
+    def test_queryContainsNot(self):
+        return BaseDirectoryServiceQueryTestMixIn.test_queryContainsNot(self)
+
+    test_queryContainsNot.todo = "?"
+
+
+    def test_queryContainsNotNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryContainsNotNoIndex(self)
+        )
+
+    test_queryContainsNotNoIndex.todo = "?"
+
+
+    def test_queryContainsCaseInsensitive(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryContainsCaseInsensitive(self)
+        )
+
+    test_queryContainsCaseInsensitive.todo = "?"
+
+
+    def test_queryContainsCaseInsensitiveNoIndex(self):
+        return (
+            BaseDirectoryServiceQueryTestMixIn
+            .test_queryContainsCaseInsensitiveNoIndex(self)
+        )
+
+    test_queryContainsCaseInsensitiveNoIndex.todo = "?"
 
 
 
@@ -212,13 +385,20 @@ class DirectoryServiceConnectionTestMixIn(object):
 class DirectoryServiceTest(
     BaseTestCase,
     DirectoryServiceConvenienceTestMixIn,
-    BaseDirectoryServiceRealmTestMixIn,
+    DirectoryServiceRealmTestMixIn,
+    DirectoryServiceQueryTestMixIn,
     DirectoryServiceConnectionTestMixIn,
     test_directory.BaseDirectoryServiceTest,
     unittest.TestCase,
 ):
     serviceClass = DirectoryService
     directoryRecordClass = DirectoryRecord
+
+
+    def test_repr(self):
+        service = self.service()
+
+        self.assertEquals(repr(service), u"<TestService u'ldap://localhost/'>")
 
 
 

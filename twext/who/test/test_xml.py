@@ -663,9 +663,9 @@ class DirectoryServiceTest(
     def test_repr(self):
         service = self.service()
 
-        self.assertEquals(repr(service), "<TestService (not loaded)>")
+        self.assertEquals(repr(service), u"<TestService (not loaded)>")
         service.loadRecords()
-        self.assertEquals(repr(service), "<TestService u'xyzzy'>")
+        self.assertEquals(repr(service), u"<TestService u'xyzzy'>")
 
 
 
