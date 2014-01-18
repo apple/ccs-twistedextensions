@@ -125,6 +125,7 @@ class LDAPMatchFlags(Values):
     """
     LDAP match flags.
     """
+    none = ValueConstant(u"")
     NOT = ValueConstant(u"!")
 
 

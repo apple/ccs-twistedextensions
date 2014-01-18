@@ -33,7 +33,7 @@ def ldapQueryStringFromQueryStrings(operand, queryStrings):
     @type operand: L{unicode}
 
     @param queryStrings: LDAP query strings.
-    @type queryStrings: iterable of L{unicode}
+    @type queryStrings: sequence of L{unicode}
     """
     if len(queryStrings) == 1:
         return queryStrings[0]
@@ -51,7 +51,7 @@ def ldapQueryStringFromQueryStrings(operand, queryStrings):
 
 
 def ldapQueryStringFromMatchExpression(
-    expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+    expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
     """
     Generates an LDAP query string from a match expression.
@@ -59,15 +59,14 @@ def ldapQueryStringFromMatchExpression(
     @param expression: A match expression.
     @type expression: L{MatchExpression}
 
-    @param fieldNameToAttributeMap: A mapping from field names to native LDAP
+    @param fieldNameToAttributesMap: A mapping from field names to native LDAP
         attribute names.
-    @type fieldNameToAttributeMap: L{dict} with L{FieldName} keys and sequence
+    @type fieldNameToAttributesMap: L{dict} with L{FieldName} keys and sequence
         of L{unicode} values.
 
-    @param recordTypeToObjectClassMap: A mapping from L{RecordType}s to native
-        LDAP object class names.
-    @type recordTypeToObjectClassMap: L{dict} with L{RecordType} keys and
-        sequence of L{unicode} values.
+    @param recordTypeSchemas: Schema information for record types.
+    @type recordTypeSchemas: mapping from L{NamedConstant} to
+        L{RecordTypeSchema}
 
     @return: An LDAP query string.
     @rtype: L{unicode}
@@ -89,7 +88,7 @@ def ldapQueryStringFromMatchExpression(
         notOp = LDAPMatchFlags.NOT.value
         operand = LDAPOperand.AND.value
     else:
-        notOp = u""
+        notOp = LDAPMatchFlags.none.value
         operand = LDAPOperand.OR.value
 
     # FIXME: It doesn't look like LDAP queries can be case sensitive.
@@ -100,53 +99,63 @@ def ldapQueryStringFromMatchExpression(
     #     raise NotImplementedError("Need to handle case sensitive")
 
     fieldName = expression.fieldName
-    try:
-        attributes = fieldNameToAttributeMap[fieldName]
-    except KeyError:
-        raise QueryNotSupportedError(
-            "Unmapped field name: {0}".format(expression.fieldName)
-        )
 
     if fieldName is FieldName.recordType:
+        if matchType is not LDAPMatchType.equals:
+            raise QueryNotSupportedError(
+                "Match type for record type must be equals, not {0!r}"
+                .format(expression.matchType)
+            )
+
         try:
-            values = recordTypeToObjectClassMap[expression.fieldValue]
+            schema = recordTypeSchemas[expression.fieldValue]
         except KeyError:
             raise QueryNotSupportedError(
                 "Unmapped record type: {0}".format(expression.fieldValue)
             )
+
+        if notOp:
+            valueOperand = LDAPOperand.OR.value
+        else:
+            valueOperand = LDAPOperand.AND.value
+
+        queryStrings = [
+            matchType.queryString.format(
+                notOp=notOp, attribute=attribute, value=value,
+            )
+            for attribute, value in schema.attributes
+        ]
+
+        return ldapQueryStringFromQueryStrings(valueOperand, queryStrings)
+
     else:
-        values = (unicode(expression.fieldValue),)
+        try:
+            attributes = fieldNameToAttributesMap[fieldName]
+        except KeyError:
+            raise QueryNotSupportedError(
+                "Unmapped field name: {0}".format(expression.fieldName)
+            )
 
-    # Escape special LDAP query characters
-    values = [value.translate(LDAP_QUOTING_TABLE) for value in values]
-    del value  # Symbol used below; ensure non-reuse of data
+        # Covert to unicode and escape special LDAP query characters
+        value = unicode(expression.fieldValue).translate(LDAP_QUOTING_TABLE)
 
-    # Compose an query using each of the LDAP attributes cooresponding to the
-    # target field name.
+        # Compose an query using each of the LDAP attributes cooresponding to
+        # the target field name.
 
-    if notOp:
-        valueOperand = LDAPOperand.OR.value
-    else:
-        valueOperand = LDAPOperand.AND.value
+        queryStrings = [
+            matchType.queryString.format(
+                notOp=notOp, attribute=attribute, value=value
+            )
+            for attribute in attributes
+        ]
 
-    queryStrings = [
-        ldapQueryStringFromQueryStrings(
-            valueOperand,
-            [
-                matchType.queryString.format(
-                    notOp=notOp, attribute=attribute, value=value
-                )
-                for value in values
-            ]
-        )
-        for attribute in attributes
-    ]
+        return ldapQueryStringFromQueryStrings(operand, queryStrings)
 
-    return ldapQueryStringFromQueryStrings(operand, queryStrings)
+    raise AssertionError("We shouldn't be here.")
 
 
 def ldapQueryStringFromCompoundExpression(
-    expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+    expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
     """
     Generates an LDAP query string from a compound expression.
@@ -154,15 +163,14 @@ def ldapQueryStringFromCompoundExpression(
     @param expression: A compound expression.
     @type expression: L{MatchExpression}
 
-    @param fieldNameToAttributeMap: A mapping from field names to native LDAP
+    @param fieldNameToAttributesMap: A mapping from field names to native LDAP
         attribute names.
-    @type fieldNameToAttributeMap: L{dict} with L{FieldName} keys and sequence
+    @type fieldNameToAttributesMap: L{dict} with L{FieldName} keys and sequence
         of L{unicode} values.
 
-    @param recordTypeToObjectClassMap: A mapping from L{RecordType}s to native
-        LDAP object class names.
-    @type recordTypeToObjectClassMap: L{dict} with L{RecordType} keys and
-        sequence of L{unicode} values.
+    @param recordTypeSchemas: Schema information for record types.
+    @type recordTypeSchemas: mapping from L{NamedConstant} to
+        L{RecordTypeSchema}
 
     @return: An LDAP query string.
     @rtype: L{unicode}
@@ -179,7 +187,7 @@ def ldapQueryStringFromCompoundExpression(
     queryStrings = [
         ldapQueryStringFromExpression(
             subExpression,
-            fieldNameToAttributeMap, recordTypeToObjectClassMap
+            fieldNameToAttributesMap, recordTypeSchemas
         )
         for subExpression in expression.expressions
     ]
@@ -188,7 +196,7 @@ def ldapQueryStringFromCompoundExpression(
 
 
 def ldapQueryStringFromExpression(
-    expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+    expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
     """
     Converts an expression into an LDAP query string.
@@ -196,15 +204,14 @@ def ldapQueryStringFromExpression(
     @param expression: An expression.
     @type expression: L{MatchExpression} or L{CompoundExpression}
 
-    @param fieldNameToAttributeMap: A mapping from field names to native LDAP
+    @param fieldNameToAttributesMap: A mapping from field names to native LDAP
         attribute names.
-    @type fieldNameToAttributeMap: L{dict} with L{FieldName} keys and sequence
+    @type fieldNameToAttributesMap: L{dict} with L{FieldName} keys and sequence
         of L{unicode} values.
 
-    @param recordTypeToObjectClassMap: A mapping from L{RecordType}s to native
-        LDAP object class names.
-    @type recordTypeToObjectClassMap: L{dict} with L{RecordType} keys and
-        sequence of L{unicode} values.
+    @param recordTypeSchemas: Schema information for record types.
+    @type recordTypeSchemas: mapping from L{NamedConstant} to
+        L{RecordTypeSchema}
 
     @return: An LDAP query string.
     @rtype: L{unicode}
@@ -215,12 +222,12 @@ def ldapQueryStringFromExpression(
 
     if isinstance(expression, MatchExpression):
         return ldapQueryStringFromMatchExpression(
-            expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+            expression, fieldNameToAttributesMap, recordTypeSchemas
         )
 
     if isinstance(expression, CompoundExpression):
         return ldapQueryStringFromCompoundExpression(
-            expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+            expression, fieldNameToAttributesMap, recordTypeSchemas
         )
 
     raise QueryNotSupportedError(

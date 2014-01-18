@@ -33,7 +33,7 @@ from twisted.trial import unittest
 
 from ...idirectory import QueryNotSupportedError, FieldName as BaseFieldName
 from .._service import (
-    DEFAULT_FIELDNAME_ATTRIBUTE_MAP, DEFAULT_RECORDTYPE_OBJECTCLASS_MAP,
+    DEFAULT_FIELDNAME_ATTRIBUTE_MAP, DEFAULT_RECORDTYPE_SCHEMAS,
     LDAPBindAuthError,
     DirectoryService, DirectoryRecord,
 )
@@ -85,7 +85,7 @@ class BaseTestCase(object):
         return DirectoryService(
             url=self.url,
             baseDN=self.baseDN,
-            fieldNameToAttributeMap=TEST_FIELDNAME_MAP,
+            fieldNameToAttributesMap=TEST_FIELDNAME_MAP,
             **kwargs
         )
 
@@ -238,16 +238,22 @@ def mockDirectoryDataFromXMLService(service):
         return unicode(obj)
 
     def tuplify(record, fieldName):
-        if fieldName is BaseFieldName.recordType:
-            values = DEFAULT_RECORDTYPE_OBJECTCLASS_MAP[
-                record.fields[fieldName]
-            ]
-        else:
-            values = (toUnicode(record.fields[fieldName]),)
+        fieldValue = record.fields[fieldName]
 
-        for name in TEST_FIELDNAME_MAP.get(fieldName, fieldName.name):
-            for value in values:
-                yield (name, value)
+        if fieldName is BaseFieldName.recordType:
+            schema = DEFAULT_RECORDTYPE_SCHEMAS[fieldValue]
+
+            return schema.attributes
+
+        else:
+            value = toUnicode(fieldValue)
+
+            return (
+                (name, value)
+                for name in TEST_FIELDNAME_MAP.get(
+                    fieldName, (u"__" + fieldName.name,)
+                )
+            )
 
     for records in service.index[service.fieldName.uid].itervalues():
         for record in records:

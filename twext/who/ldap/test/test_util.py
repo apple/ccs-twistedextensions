@@ -25,7 +25,7 @@ from ...expression import (
     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 )
 from .._constants import LDAPOperand
-from .._service import DirectoryService
+from .._service import DirectoryService, RecordTypeSchema
 from .._util import (
     ldapQueryStringFromQueryStrings,
     ldapQueryStringFromMatchExpression,
@@ -59,7 +59,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         ])
 
 
-    def recordTypeMap(self, service):
+    def recordTypeSchemas(self, service):
         """
         Create a mapping from record types to LDAP object class names.
         The object class names returned here are not real LDAP object class
@@ -67,7 +67,15 @@ class LDAPQueryTestCase(unittest.TestCase):
         connecting to LDAP.
         """
         return dict([
-            (c, (c.name,))
+            (
+                c,
+                RecordTypeSchema(
+                    relativeDN=NotImplemented,  # Don't expect this to be used
+                    attributes=(
+                        (u"recordTypeAttribute", c.name),
+                    )
+                )
+            )
             for c in service.recordType.iterconstants()
         ])
 
@@ -127,7 +135,7 @@ class LDAPQueryTestCase(unittest.TestCase):
             )
             queryString = ldapQueryStringFromMatchExpression(
                 expression,
-                self.fieldNameMap(service), self.recordTypeMap(service),
+                self.fieldNameMap(service), self.recordTypeSchemas(service),
             )
             expected = u"({attribute}{expected})".format(
                 attribute=u"shortNames", expected=expected
@@ -147,7 +155,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         queryString = ldapQueryStringFromMatchExpression(
             expression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
         expected = u"(!{attribute}=xyzzy)".format(
             attribute=u"shortNames",
@@ -168,7 +176,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         queryString = ldapQueryStringFromMatchExpression(
             expression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
         expected = u"???????({attribute}=xyzzy)".format(
             attribute=u"shortNames",
@@ -193,7 +201,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         queryString = ldapQueryStringFromMatchExpression(
             expression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
         expected = u"({attribute}={expected})".format(
             attribute=u"fullNames",
@@ -219,7 +227,7 @@ class LDAPQueryTestCase(unittest.TestCase):
             QueryNotSupportedError,
             ldapQueryStringFromMatchExpression,
             expression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
 
 
@@ -238,7 +246,7 @@ class LDAPQueryTestCase(unittest.TestCase):
             QueryNotSupportedError,
             ldapQueryStringFromMatchExpression,
             expression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
 
 
@@ -257,7 +265,8 @@ class LDAPQueryTestCase(unittest.TestCase):
         }
 
         queryString = ldapQueryStringFromMatchExpression(
-            expression, fieldNameToAttributeMap, self.recordTypeMap(service)
+            expression,
+            fieldNameToAttributeMap, self.recordTypeSchemas(service)
         )
 
         self.assertEquals(queryString, expected)
@@ -305,17 +314,37 @@ class LDAPQueryTestCase(unittest.TestCase):
 
         fieldNameToAttributeMap = self.fieldNameMap(service)
 
-        recordTypeToObjectClassMap = {
-            service.recordType.user: (u"person", u"account"),
+        recordTypeAttr = fieldNameToAttributeMap[recordTypeField][0]
+        type1 = u"person"
+        type2 = u"coolPerson"
+
+        statusAttr = u"accountStatus"
+        status1 = u"active"
+
+        recordTypeSchemas = {
+            service.recordType.user: RecordTypeSchema(
+                relativeDN=NotImplemented,  # Don't expect this to be used.
+                attributes=(
+                    (recordTypeAttr, type1),
+                    (recordTypeAttr, type2),
+                    (statusAttr, status1),
+                )
+            )
         }
 
         queryString = ldapQueryStringFromMatchExpression(
-            expression, fieldNameToAttributeMap, recordTypeToObjectClassMap
+            expression, fieldNameToAttributeMap, recordTypeSchemas
         )
 
         self.assertEquals(
             queryString,
-            expected.format(attr=fieldNameToAttributeMap[recordTypeField][0])
+            expected.format(
+                recordType=recordTypeAttr,
+                type1=type1,
+                type2=type2,
+                accountStatus=statusAttr,
+                status1=status1,
+            )
         )
 
 
@@ -326,7 +355,11 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
 
         # We want a match for both values.
-        expected = u"(&({attr}=person)({attr}=account))"
+        expected = (
+            u"(&({recordType}={type1})"
+            u"({recordType}={type2})"
+            u"({accountStatus}={status1}))"
+        )
 
         return self._test_queryStringFromMatchExpression_multiRecordType(
             MatchFlags.none, expected
@@ -339,7 +372,11 @@ class LDAPQueryTestCase(unittest.TestCase):
         """
 
         # We want a NOT match for either value.
-        expected = u"(|(!{attr}=person)(!{attr}=account))"
+        expected = (
+            u"(|(!{recordType}={type1})"
+            u"(!{recordType}={type2})"
+            u"(!{accountStatus}={status1}))"
+        )
 
         return self._test_queryStringFromMatchExpression_multiRecordType(
             MatchFlags.NOT, expected
@@ -370,12 +407,13 @@ class LDAPQueryTestCase(unittest.TestCase):
             )
             queryString = queryFunction(
                 compoundExpression,
-                self.fieldNameMap(service), self.recordTypeMap(service),
+                self.fieldNameMap(service), self.recordTypeSchemas(service),
             )
             expected = u"{match}".format(
                 match=ldapQueryStringFromMatchExpression(
                     matchExpression,
-                    self.fieldNameMap(service), self.recordTypeMap(service),
+                    self.fieldNameMap(service),
+                    self.recordTypeSchemas(service),
                 )
             )
             self.assertEquals(queryString, expected)
@@ -404,17 +442,19 @@ class LDAPQueryTestCase(unittest.TestCase):
             )
             queryString = queryFunction(
                 compoundExpression,
-                self.fieldNameMap(service), self.recordTypeMap(service),
+                self.fieldNameMap(service), self.recordTypeSchemas(service),
             )
             expected = u"({op}{match1}{match2})".format(
                 op=token,
                 match1=ldapQueryStringFromMatchExpression(
                     matchExpression1,
-                    self.fieldNameMap(service), self.recordTypeMap(service),
+                    self.fieldNameMap(service),
+                    self.recordTypeSchemas(service),
                 ),
                 match2=ldapQueryStringFromMatchExpression(
                     matchExpression2,
-                    self.fieldNameMap(service), self.recordTypeMap(service),
+                    self.fieldNameMap(service),
+                    self.recordTypeSchemas(service),
                 ),
             )
             self.assertEquals(queryString, expected)
@@ -431,11 +471,11 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         queryString = ldapQueryStringFromExpression(
             matchExpression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
         expected = ldapQueryStringFromMatchExpression(
             matchExpression,
-            self.fieldNameMap(service), self.recordTypeMap(service),
+            self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
         self.assertEquals(queryString, expected)
 
@@ -461,5 +501,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         self.assertRaises(
             QueryNotSupportedError,
             ldapQueryStringFromExpression,
-            object(), self.fieldNameMap(service), self.recordTypeMap(service)
+            object(),
+            self.fieldNameMap(service), self.recordTypeSchemas(service)
         )
