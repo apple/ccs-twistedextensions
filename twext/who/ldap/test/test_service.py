@@ -387,6 +387,7 @@ def mockDirectoryDataFromXMLService(service):
 
 #
 # mockldap patches
+# See https://bitbucket.org/psagers/mockldap/issue/4/
 #
 
 class WildcardExpression(object):
