@@ -641,10 +641,11 @@ class LogLevelFilterPredicate(object):
     Events that not not have a log level or namespace are also dropped.
     """
 
-    defaultLogLevel = LogLevel.info
-
-
     def __init__(self):
+        # FIXME: Make this a class variable. But that raises an
+        # _initializeEnumerants constants error in Twisted 12.2.0.
+        self.defaultLogLevel = LogLevel.info
+
         self._logLevelsByNamespace = {}
         self.clearLogLevels()
 
