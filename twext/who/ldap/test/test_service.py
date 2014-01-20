@@ -444,7 +444,7 @@ def mockldap_matches(self, dn, attrs):
     if type(values) is unicode:
         values = [values]
 
-    # Case insensitive?  Always true.
+    # Case insensitive?  Always true in LDAP, it seems.
     if True:
         normalize = lambda s: s.lower()
     else:
