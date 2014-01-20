@@ -37,7 +37,16 @@ from twisted.web.guard import (
 from twisted.web.static import Data
 
 from twext.who.directory import DirectoryRecord
+
 from twext.who.test.test_xml import xmlService as XMLDirectoryService
+
+try:
+    from twext.who.ldap.test.test_service import BaseTestCase as LDAPScaffold
+    LDAPDirectoryService = LDAPScaffold.service
+
+except ImportError:
+    LDAPDirectoryService = None
+
 try:
     from twext.who.opendirectory import (
         DirectoryService as OpenDirectoryDirectoryService,
@@ -45,6 +54,7 @@ try:
     )
 except ImportError:
     OpenDirectoryDirectoryService = None
+
 from twext.who.checker import UsernamePasswordCredentialChecker
 from twext.who.checker import HTTPDigestCredentialChecker
 
@@ -84,16 +94,25 @@ rootResource = Data(
          </head>
          <body>
           <ul>
+
            <li>XML Directory Service</li>
            <ul>
             <li><a href="auth_resource.rpy/XMLBasic" >Basic </a></li>
             <li><a href="auth_resource.rpy/XMLDigest">Digest</a></li>
            </ul>
+
+           <li>LDAP Directory Service</li>
+           <ul>
+            <li><a href="auth_resource.rpy/LDAPBasic" >Basic </a></li>
+            <li><a href="auth_resource.rpy/LDAPDigest">Digest</a></li>
+           </ul>
+
            <li>OpenDirectory Directory Service</li>
            <ul>
-            <li><a href="auth_resource.rpy/ODBasic" >Basic </a></li>
-            <li><a href="auth_resource.rpy/ODDigest">Digest</a></li>
+            <li><a href="auth_resource.rpy/OpenDirectoryBasic" >Basic </a></li>
+            <li><a href="auth_resource.rpy/OpenDirectoryDigest">Digest</a></li>
            </ul>
+
           </ul>
          </body>
         </html>
@@ -102,66 +121,49 @@ rootResource = Data(
     type="text/html",
 )
 
-xmlFileBasic = NamedTemporaryFile(delete=True)
-rootResource.putChild(
-    "XMLBasic",
-    HTTPAuthSessionWrapper(
-        Portal(
-            realm,
-            [
-                UsernamePasswordCredentialChecker(
-                    XMLDirectoryService(xmlFileBasic.name)
-                )
-            ]
-        ),
-        [BasicCredentialFactory("XML Basic Realm")]
-    )
-)
 
-xmlFileDigest = NamedTemporaryFile(delete=True)
-rootResource.putChild(
-    "XMLDigest",
-    HTTPAuthSessionWrapper(
-        Portal(
-            realm,
-            [
-                HTTPDigestCredentialChecker(
-                    XMLDirectoryService(xmlFileDigest.name)
-                )
-            ]
-        ),
-        [DigestCredentialFactory("md5", "XML Digest Realm")]
-    )
-)
+def addChild(name, method, service, credentialFactory=None):
+    if method == "Basic":
+        checker = UsernamePasswordCredentialChecker
+        defaultCredentialFactory = BasicCredentialFactory
 
-if OpenDirectoryDirectoryService is not None:
+    elif method == "Digest":
+        checker = HTTPDigestCredentialChecker
+        defaultCredentialFactory = (
+            lambda realmName: DigestCredentialFactory("md5", realmName)
+        )
+
+    if credentialFactory is None:
+        credentialFactory = defaultCredentialFactory
+
+    resourceName = "{0}{1}".format(name, method)
+    print "Adding resource:", resourceName
+
     rootResource.putChild(
-        "ODBasic",
+        resourceName,
         HTTPAuthSessionWrapper(
-            Portal(
-                realm,
-                [
-                    UsernamePasswordCredentialChecker(
-                        OpenDirectoryDirectoryService()
-                    )
-                ]
-            ),
-            [BasicCredentialFactory("OpenDirectory Basic Realm")]
+            Portal(realm, [checker(service)]),
+            [credentialFactory("{0} {1} Realm".format(name, method))]
         )
     )
 
-    rootResource.putChild(
-        "ODDigest",
-        HTTPAuthSessionWrapper(
-            Portal(
-                realm,
-                [
-                    HTTPDigestCredentialChecker(
-                        OpenDirectoryDirectoryService()
-                    )
-                ]
-            ),
-            [NoQOPDigestCredentialFactory("md5", "OpenDirectory Digest Realm")]
+
+xmlFileBasic = NamedTemporaryFile(delete=True)
+addChild("XML", "Basic", XMLDirectoryService(xmlFileBasic.name))
+
+xmlFileDigest = NamedTemporaryFile(delete=True)
+addChild("XML", "Digest", XMLDirectoryService(xmlFileDigest.name))
+
+if LDAPDirectoryService is not None:
+    addChild("LDAP", "Basic", LDAPDirectoryService())
+    addChild("LDAP", "Digest", LDAPDirectoryService())
+
+if OpenDirectoryDirectoryService is not None:
+    addChild("OpenDirectory", "Basic", OpenDirectoryDirectoryService())
+    addChild(
+        "OpenDirectory", "Digest", OpenDirectoryDirectoryService(),
+        credentialFactory=(
+            lambda realmName: NoQOPDigestCredentialFactory("md5", realmName)
         )
     )
 
