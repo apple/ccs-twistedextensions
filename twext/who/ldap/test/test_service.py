@@ -112,40 +112,10 @@ class DirectoryServiceConvenienceTestMixIn(
 
 
 class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
-    def test_queryAnd(self):
-        return BaseDirectoryServiceQueryTestMixIn.test_queryAnd(self)
-
-    test_queryAnd.todo = "?"
-
-
-    def test_queryAndNoneFirst(self):
-        return BaseDirectoryServiceQueryTestMixIn.test_queryAndNoneFirst(self)
-
-    test_queryAndNoneFirst.todo = "?"
-
-
-    def test_queryAnd(self):
-        return BaseDirectoryServiceQueryTestMixIn.test_queryAnd(self)
-
-    test_queryAnd.todo = "?"
-
-
-    def test_queryOr(self):
-        return BaseDirectoryServiceQueryTestMixIn.test_queryOr(self)
-
-    test_queryOr.todo = "?"
-
-
     def test_queryNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryNot(self)
 
     test_queryNot.todo = "?"
-
-
-    def test_queryAnd(self):
-        return BaseDirectoryServiceQueryTestMixIn.test_queryAnd(self)
-
-    test_queryAnd.todo = "?"
 
 
     def test_queryNotNoIndex(self):
