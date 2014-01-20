@@ -25,6 +25,11 @@ from itertools import chain
 import ldap
 from mockldap import MockLdap
 
+from mockldap.filter import (
+    Test as MockLDAPFilterTest,
+    UnsupportedOp as MockLDAPUnsupportedOp,
+)
+
 from twisted.python.constants import NamedConstant, ValueConstant
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
@@ -71,6 +76,32 @@ class BaseTestCase(XMLBaseTest):
 
 
     def setUp(self):
+        def parse_expression(
+            self, upcall=MockLDAPFilterTest._parse_expression
+        ):
+            try:
+                # Try the stock implementation first.
+                return upcall(self)
+
+            except MockLDAPUnsupportedOp as e:
+                if (
+                    len(e.args) == 1 and
+                    e.args[0].startswith(u"Wildcard matches are not supported")
+                ):
+                    return mockldap_parse_wildcard_expression(self)
+
+                raise
+
+        def matches(self, dn, attrs, upcall=MockLDAPFilterTest.matches):
+            if upcall(self, dn, attrs):
+                return True
+            else:
+                return mockldap_matches(self, dn, attrs)
+
+
+        self.patch(MockLDAPFilterTest, "_parse_expression", parse_expression)
+        self.patch(MockLDAPFilterTest, "matches", matches)
+
         self.xmlSeedService = xmlService(self.mktemp())
         self.mockData = mockDirectoryDataFromXMLService(self.xmlSeedService)
 
@@ -139,23 +170,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
         )
 
     test_queryCaseInsensitiveNoIndex.todo = "?"
-
-
-    def test_queryStartsWith(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn.test_queryStartsWith(self)
-        )
-
-    test_queryStartsWith.todo = "?"
-
-
-    def test_queryStartsWithNoIndex(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryStartsWithNoIndex(self)
-        )
-
-    test_queryStartsWithNoIndex.todo = "?"
 
 
     def test_queryStartsWithNot(self):
@@ -425,3 +439,88 @@ def mockDirectoryDataFromXMLService(service):
             data[dn] = recordData
 
     return data
+
+
+
+#
+# mockldap patches
+#
+
+class WildcardExpression(object):
+    first = None
+    middle = []
+    last = None
+
+
+def mockldap_parse_wildcard_expression(self):
+    match = self.TEST_RE.match(self.content)
+
+    if match is None:
+        raise ldap.FILTER_ERROR(
+            u"Failed to parse filter item %r at pos %d"
+            % (self.content, self.start)
+        )
+
+    self.attr, self.op, valueExpression = match.groups()
+
+    if self.op != "=":
+        raise MockLDAPUnsupportedOp(
+            u"Operation %r is not supported" % (self.op,)
+        )
+
+    if (u"*" not in valueExpression):
+        raise NotImplementedError(u"I only deal with wild cards")
+
+    values = []
+
+    for value in valueExpression.split(u"*"):
+        # Resolve all escaped characters
+        values.append(self.UNESCAPE_RE.sub(
+            lambda m: chr(int(m.group(1), 16)),
+            value
+        ))
+
+    exp = WildcardExpression()
+
+    if not valueExpression.startswith(u"*"):
+        exp.first = values.pop(0)
+
+    if not valueExpression.endswith(u"*"):
+        exp.last = values.pop(-1)
+
+    exp.middle = values
+
+    self.value = exp
+
+
+def mockldap_matches(self, dn, attrs):
+    exp = self.value
+
+    if not isinstance(exp, WildcardExpression):
+        return False
+
+    values = attrs.get(self.attr)
+
+    if values is None:
+        return False
+
+    for value in values:
+        if exp.first is not None:
+            if not value.startswith(exp.first):
+                continue
+            value = value[len(exp.first):]
+
+        if exp.last is not None:
+            if not value.endswith(exp.last):
+                continue
+            value = value[:-len(exp.last)]
+
+        if exp.middle:
+            for substr in exp.middle:
+                if not substr:
+                    continue
+                raise NotImplementedError("middle: {0}".format(exp.middle))
+
+        return True
+
+    return False
