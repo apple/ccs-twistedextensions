@@ -843,7 +843,11 @@ class DirectoryRecordTest(
 
 
 class QueryMixIn(object):
-    def query(self, field, value, matchType=MatchType.equals, flags=None):
+    def query(
+        self,
+        field, value,
+        matchType=MatchType.equals, flags=MatchFlags.none
+    ):
         name = getattr(self.fieldName, field)
         assert name is not None
         return MatchExpression(
