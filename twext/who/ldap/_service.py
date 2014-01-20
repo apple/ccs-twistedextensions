@@ -89,6 +89,11 @@ class LDAPBindAuthError(LDAPConnectionError):
     """
 
 
+class LDAPQueryError(LDAPError):
+    """
+    LDAP query error.
+    """
+
 
 #
 # LDAP schema descriptions
@@ -273,7 +278,7 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{LDAPConnectionError} if unable to connect.
         """
         if not hasattr(self, "_connection"):
-            self.log.info("Connecting to LDAP at {source.url}")
+            self.log.info("Connecting to LDAP at {log_source.url}")
             connection = ldap.initialize(self.url)
 
             # FIXME: Use trace_file option to wire up debug logging when
@@ -289,7 +294,7 @@ class DirectoryService(BaseDirectoryService):
                     connection.set_option(option, value)
 
             if self._useTLS:
-                self.log.info("Starting TLS for {source.url}")
+                self.log.info("Starting TLS for {log_source.url}")
                 yield deferToThread(connection.start_tls_s)
 
             if self._credentials is not None:
@@ -332,9 +337,16 @@ class DirectoryService(BaseDirectoryService):
 
         self.log.debug("Performing LDAP query: {query}", query=queryString)
 
-        reply = connection.search_s(
-            self._baseDN, ldap.SCOPE_SUBTREE, queryString  # FIXME: attrs
-        )
+        try:
+            reply = connection.search_s(
+                self._baseDN, ldap.SCOPE_SUBTREE, queryString  # FIXME: attrs
+            )
+        except ldap.FILTER_ERROR as e:
+            self.log.error(
+                "Unable to perform query {0!r}: {1}"
+                .format(queryString, e)
+            )
+            raise LDAPQueryError("Unable to perform query", e)
 
         records = []
 
@@ -358,7 +370,7 @@ class DirectoryService(BaseDirectoryService):
             except KeyError:
                 self.log.debug(
                     "Ignoring LDAP record data; no UID attribute "
-                    "({source._uidField}): {recordData!r}",
+                    "({log_source._uidField}): {recordData!r}",
                     recordData=recordData
                 )
                 continue
