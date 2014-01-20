@@ -15,6 +15,8 @@
 # limitations under the License.
 ##
 
+from __future__ import absolute_import
+
 """
 Extend L{twisted.python.filepath} to provide performance enhancements for
 calendar server.
