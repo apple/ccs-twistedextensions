@@ -214,21 +214,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
     test_queryStartsWithCaseInsensitiveNoIndex.todo = "?"
 
 
-    def test_queryContains(self):
-        return BaseDirectoryServiceQueryTestMixIn.test_queryContains(self)
-
-    test_queryContains.todo = "?"
-
-
-    def test_queryContainsNoIndex(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryContainsNoIndex(self)
-        )
-
-    test_queryContainsNoIndex.todo = "?"
-
-
     def test_queryContainsNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryContainsNot(self)
 
@@ -505,22 +490,40 @@ def mockldap_matches(self, dn, attrs):
         return False
 
     for value in values:
+        start = 0
+        end = len(value)
+
         if exp.first is not None:
             if not value.startswith(exp.first):
                 continue
-            value = value[len(exp.first):]
+            start = len(exp.first)
 
         if exp.last is not None:
-            if not value.endswith(exp.last):
+            if not value[start:].endswith(exp.last):
                 continue
-            value = value[:-len(exp.last)]
+            end -= len(exp.last)
 
         if exp.middle:
-            for substr in exp.middle:
-                if not substr:
-                    continue
-                raise NotImplementedError("middle: {0}".format(exp.middle))
+            if not match_substrings_in_order(exp.middle, value, start, end):
+                continue
 
         return True
 
     return False
+
+
+def match_substrings_in_order(substrings, value, start, end):
+    for substring in substrings:
+        if not substring:
+            continue
+
+        i = value.find(substring, start, end)
+        if i == -1:
+            # Match fails for this substring
+            return False
+
+        # Move start up past this substring substring before testing the next
+        start = i + len(substring)
+
+    # No mismatches
+    return True
