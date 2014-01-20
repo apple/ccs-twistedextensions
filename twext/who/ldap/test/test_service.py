@@ -76,22 +76,6 @@ class BaseTestCase(XMLBaseTest):
 
 
     def setUp(self):
-        def parse_expression(
-            self, upcall=MockLDAPFilterTest._parse_expression
-        ):
-            try:
-                # Try the stock implementation first.
-                return upcall(self)
-
-            except MockLDAPUnsupportedOp as e:
-                if (
-                    len(e.args) == 1 and
-                    e.args[0].startswith(u"Wildcard matches are not supported")
-                ):
-                    return mockldap_parse_wildcard_expression(self)
-
-                raise
-
         def matches(self, dn, attrs, upcall=MockLDAPFilterTest.matches):
             if upcall(self, dn, attrs):
                 return True
@@ -99,8 +83,8 @@ class BaseTestCase(XMLBaseTest):
                 return mockldap_matches(self, dn, attrs)
 
 
-        self.patch(MockLDAPFilterTest, "_parse_expression", parse_expression)
-        self.patch(MockLDAPFilterTest, "matches", matches)
+        self.patch(MockLDAPFilterTest, "_parse_expression", mockldap_parse)
+        self.patch(MockLDAPFilterTest, "matches", mockldap_matches)
 
         self.xmlSeedService = xmlService(self.mktemp())
         self.mockData = mockDirectoryDataFromXMLService(self.xmlSeedService)
@@ -155,23 +139,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
     test_queryNotNoIndex.todo = "?"
 
 
-    def test_queryCaseInsensitive(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn.test_queryCaseInsensitive(self)
-        )
-
-    test_queryCaseInsensitive.todo = "?"
-
-
-    def test_queryCaseInsensitiveNoIndex(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryCaseInsensitiveNoIndex(self)
-        )
-
-    test_queryCaseInsensitiveNoIndex.todo = "?"
-
-
     def test_queryStartsWithNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryStartsWithNot(self)
 
@@ -196,24 +163,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
     test_queryStartsWithNotNoIndex.todo = "?"
 
 
-    def test_queryStartsWithCaseInsensitive(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryStartsWithCaseInsensitive(self)
-        )
-
-    test_queryStartsWithCaseInsensitive.todo = "?"
-
-
-    def test_queryStartsWithCaseInsensitiveNoIndex(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryStartsWithCaseInsensitiveNoIndex(self)
-        )
-
-    test_queryStartsWithCaseInsensitiveNoIndex.todo = "?"
-
-
     def test_queryContainsNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryContainsNot(self)
 
@@ -227,24 +176,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
         )
 
     test_queryContainsNotNoIndex.todo = "?"
-
-
-    def test_queryContainsCaseInsensitive(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryContainsCaseInsensitive(self)
-        )
-
-    test_queryContainsCaseInsensitive.todo = "?"
-
-
-    def test_queryContainsCaseInsensitiveNoIndex(self):
-        return (
-            BaseDirectoryServiceQueryTestMixIn
-            .test_queryContainsCaseInsensitiveNoIndex(self)
-        )
-
-    test_queryContainsCaseInsensitiveNoIndex.todo = "?"
 
 
 
@@ -437,7 +368,7 @@ class WildcardExpression(object):
     last = None
 
 
-def mockldap_parse_wildcard_expression(self):
+def mockldap_parse(self):
     match = self.TEST_RE.match(self.content)
 
     if match is None:
@@ -453,77 +384,88 @@ def mockldap_parse_wildcard_expression(self):
             u"Operation %r is not supported" % (self.op,)
         )
 
-    if (u"*" not in valueExpression):
-        raise NotImplementedError(u"I only deal with wild cards")
+    def unescape(value):
+        return self.UNESCAPE_RE.sub(lambda m: chr(int(m.group(1), 16)), value)
 
-    values = []
+    if (u"*" in valueExpression):
+        # Wild card expression
 
-    for value in valueExpression.split(u"*"):
-        # Resolve all escaped characters
-        values.append(self.UNESCAPE_RE.sub(
-            lambda m: chr(int(m.group(1), 16)),
-            value
-        ))
+        values = [unescape(value) for value in valueExpression.split(u"*")]
 
-    exp = WildcardExpression()
+        exp = WildcardExpression()
 
-    if not valueExpression.startswith(u"*"):
-        exp.first = values.pop(0)
+        if not valueExpression.startswith(u"*"):
+            exp.first = values.pop(0)
 
-    if not valueExpression.endswith(u"*"):
-        exp.last = values.pop(-1)
+        if not valueExpression.endswith(u"*"):
+            exp.last = values.pop(-1)
 
-    exp.middle = values
+        exp.middle = values
 
-    self.value = exp
+        self.value = exp
+
+    else:
+        self.value = unescape(valueExpression)
 
 
 def mockldap_matches(self, dn, attrs):
-    exp = self.value
-
-    if not isinstance(exp, WildcardExpression):
-        return False
-
     values = attrs.get(self.attr)
 
     if values is None:
         return False
 
-    for value in values:
-        start = 0
-        end = len(value)
+    if type(values) is unicode:
+        values = [values]
 
-        if exp.first is not None:
-            if not value.startswith(exp.first):
-                continue
-            start = len(exp.first)
+    # Case insensitive?  Always true.
+    if True:
+        normalize = lambda s: s.lower()
+    else:
+        normalize = lambda s: s
 
-        if exp.last is not None:
-            if not value[start:].endswith(exp.last):
-                continue
-            end -= len(exp.last)
+    if isinstance(self.value, WildcardExpression):
+        def match_substrings_in_order(substrings, value, start, end):
+            for substring in substrings:
+                if not substring:
+                    continue
 
-        if exp.middle:
-            if not match_substrings_in_order(exp.middle, value, start, end):
-                continue
+                i = value.find(substring, start, end)
+                if i == -1:
+                    # Match fails for this substring
+                    return False
 
-        return True
+                # Move start up past this substring substring before testing
+                # the next substring
+                start = i + len(substring)
 
-    return False
+            # No mismatches
+            return True
 
+        for value in values:
+            value = normalize(value)
 
-def match_substrings_in_order(substrings, value, start, end):
-    for substring in substrings:
-        if not substring:
-            continue
+            start = 0
+            end = len(value)
 
-        i = value.find(substring, start, end)
-        if i == -1:
-            # Match fails for this substring
-            return False
+            if self.value.first is not None:
+                if not value.startswith(normalize(self.value.first)):
+                    continue
+                start = len(self.value.first)
 
-        # Move start up past this substring substring before testing the next
-        start = i + len(substring)
+            if self.value.last is not None:
+                if not value[start:].endswith(normalize(self.value.last)):
+                    continue
+                end -= len(self.value.last)
 
-    # No mismatches
-    return True
+            if self.value.middle:
+                if not match_substrings_in_order(
+                    (normalize(s) for s in self.value.middle),
+                    value, start, end
+                ):
+                    continue
+
+            return True
+
+        return False
+
+    return normalize(self.value) in (normalize(s) for s in values)

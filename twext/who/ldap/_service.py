@@ -335,7 +335,7 @@ class DirectoryService(BaseDirectoryService):
     def _recordsFromQueryString(self, queryString):
         connection = yield self._connect()
 
-        self.log.debug("Performing LDAP query: {query}", query=queryString)
+        self.log.info("Performing LDAP query: {query}", query=queryString)
 
         try:
             reply = connection.search_s(
