@@ -51,6 +51,7 @@ from ...test.test_xml import (
     as BaseDirectoryServiceConvenienceTestMixIn,
     DirectoryServiceRealmTestMixIn,
     DirectoryServiceQueryTestMixIn as BaseDirectoryServiceQueryTestMixIn,
+    DirectoryServiceMutableTestMixIn as BaseDirectoryServiceMutableTestMixIn,
 )
 
 
@@ -129,19 +130,16 @@ class DirectoryServiceConvenienceTestMixIn(
 class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
     def test_queryNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryNot(self)
-
     test_queryNot.todo = "?"
 
 
     def test_queryNotNoIndex(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryNotNoIndex(self)
-
     test_queryNotNoIndex.todo = "?"
 
 
     def test_queryStartsWithNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryStartsWithNot(self)
-
     test_queryStartsWithNot.todo = "?"
 
 
@@ -150,7 +148,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
             BaseDirectoryServiceQueryTestMixIn
             .test_queryStartsWithNotAny(self)
         )
-
     test_queryStartsWithNotAny.todo = "?"
 
 
@@ -159,13 +156,11 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
             BaseDirectoryServiceQueryTestMixIn
             .test_queryStartsWithNotNoIndex(self)
         )
-
     test_queryStartsWithNotNoIndex.todo = "?"
 
 
     def test_queryContainsNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryContainsNot(self)
-
     test_queryContainsNot.todo = "?"
 
 
@@ -174,8 +169,39 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
             BaseDirectoryServiceQueryTestMixIn
             .test_queryContainsNotNoIndex(self)
         )
-
     test_queryContainsNotNoIndex.todo = "?"
+
+
+
+class DirectoryServiceMutableTestMixIn(BaseDirectoryServiceMutableTestMixIn):
+    def test_removeRecord(self):
+        return BaseDirectoryServiceMutableTestMixIn.test_removeRecord(self)
+    test_removeRecord.todo = "?"
+
+
+    def test_removeRecordNoExist(self):
+        return (
+            BaseDirectoryServiceMutableTestMixIn.test_removeRecordNoExist(self)
+        )
+    test_removeRecordNoExist.todo = "?"
+
+
+    def test_addRecord(self):
+        return BaseDirectoryServiceMutableTestMixIn.test_addRecord(self)
+    test_addRecord.todo = "?"
+
+
+    def test_updateRecord(self):
+        return BaseDirectoryServiceMutableTestMixIn.test_updateRecord(self)
+    test_updateRecord.todo = "?"
+
+
+    def test_addRecordNoCreate(self):
+        raise NotImplementedError()
+        return (
+            BaseDirectoryServiceMutableTestMixIn.test_addRecordNoCreate(self)
+        )
+    test_addRecordNoCreate.todo = "?"
 
 
 
@@ -287,6 +313,7 @@ class DirectoryServiceTest(
     DirectoryServiceConvenienceTestMixIn,
     DirectoryServiceRealmTestMixIn,
     DirectoryServiceQueryTestMixIn,
+    DirectoryServiceMutableTestMixIn,
     DirectoryServiceConnectionTestMixIn,
     test_directory.BaseDirectoryServiceTest,
     unittest.TestCase,

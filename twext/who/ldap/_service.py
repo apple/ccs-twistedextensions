@@ -25,6 +25,7 @@ from uuid import UUID
 
 import ldap
 
+from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
 from twisted.cred.credentials import IUsernamePassword
@@ -89,10 +90,22 @@ class LDAPBindAuthError(LDAPConnectionError):
     """
 
 
+
 class LDAPQueryError(LDAPError):
     """
     LDAP query error.
     """
+
+
+
+#
+# Data type extentions
+#
+
+class FieldName(Names):
+    dn = NamedConstant()
+    dn.description = u"distinguished name"
+
 
 
 #
@@ -126,6 +139,7 @@ class RecordTypeSchema(object):
 
 # Maps field name -> LDAP attribute names
 DEFAULT_FIELDNAME_ATTRIBUTE_MAP = MappingProxyType({
+    FieldName.dn: (LDAPAttribute.dn.value,),
     BaseFieldName.guid: (LDAPAttribute.generatedUUID.value,),
     BaseFieldName.shortNames: (LDAPAttribute.uid.value,),
     BaseFieldName.fullNames: (LDAPAttribute.cn.value,),
@@ -176,6 +190,8 @@ class DirectoryService(BaseDirectoryService):
     """
 
     log = Logger()
+
+    fieldName = ConstantsContainer((BaseFieldName, FieldName))
 
     recordType = ConstantsContainer((
         BaseRecordType.user, BaseRecordType.group,
@@ -418,6 +434,7 @@ class DirectoryService(BaseDirectoryService):
 
             fields[self.fieldName.recordType] = recordType
             fields[self.fieldName.uid] = uid
+            fields[self.fieldName.dn] = dn
 
             # Make a record object from fields.
 
@@ -451,6 +468,18 @@ class DirectoryService(BaseDirectoryService):
             self._fieldNameToAttributesMap, self._recordTypeSchemas
         )
         return self._recordsFromQueryString(queryString)
+
+
+    # def updateRecords(self, records, create=False):
+    #     for record in records:
+    #         return fail(NotAllowedError("Record updates not allowed."))
+    #     return succeed(None)
+
+
+    # def removeRecords(self, uids):
+    #     for uid in uids:
+    #         return fail(NotAllowedError("Record removal not allowed."))
+    #     return succeed(None)
 
 
 
