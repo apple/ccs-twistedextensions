@@ -140,6 +140,7 @@ class RecordTypeSchema(object):
 # Maps field name -> LDAP attribute names
 DEFAULT_FIELDNAME_ATTRIBUTE_MAP = MappingProxyType({
     FieldName.dn: (LDAPAttribute.dn.value,),
+    BaseFieldName.uid: (LDAPAttribute.generatedUUID.value,),
     BaseFieldName.guid: (LDAPAttribute.generatedUUID.value,),
     BaseFieldName.shortNames: (LDAPAttribute.uid.value,),
     BaseFieldName.fullNames: (LDAPAttribute.cn.value,),
@@ -209,7 +210,6 @@ class DirectoryService(BaseDirectoryService):
         useTLS=False,
         fieldNameToAttributesMap=DEFAULT_FIELDNAME_ATTRIBUTE_MAP,
         recordTypeSchemas=DEFAULT_RECORDTYPE_SCHEMAS,
-        uidField=BaseFieldName.uid,
         _debug=False,
     ):
         """
@@ -272,10 +272,9 @@ class DirectoryService(BaseDirectoryService):
 
         self._fieldNameToAttributesMap = fieldNameToAttributesMap
         self._attributeToFieldNameMap = reverseDict(
-            "Field name", fieldNameToAttributesMap
+            fieldNameToAttributesMap
         )
         self._recordTypeSchemas = recordTypeSchemas
-        self._uidField = uidField
 
 
     @property
@@ -366,30 +365,19 @@ class DirectoryService(BaseDirectoryService):
 
         records = []
 
-        # self._uidField is the name of the field in
-        # self._fieldNameToAttributesMap that tells us which LDAP attribute
-        # we are using to determine the UID of the record.
-
-        uidAttribute = self._fieldNameToAttributesMap[self._uidField][0]
-
-        # recordTypeAttributes = set(chain(*[
-        #     info[u"attributes"].iterkeys()
-        #     for info in self._recordTypeInfo.itervalues()
-        # ]))
-
         for dn, recordData in reply:
 
-            # Fetch the UID
+            # # Fetch the UID
 
-            try:
-                uid = recordData[uidAttribute]
-            except KeyError:
-                self.log.debug(
-                    "Ignoring LDAP record data; no UID attribute "
-                    "({log_source._uidField}): {recordData!r}",
-                    recordData=recordData
-                )
-                continue
+            # try:
+            #     uid = recordData[uidAttribute]
+            # except KeyError:
+            #     self.log.debug(
+            #         "Ignoring LDAP record data; no UID attribute "
+            #         "({log_source._uidField}): {recordData!r}",
+            #         recordData=recordData
+            #     )
+            #     continue
 
             # Determine the record type
 
@@ -410,30 +398,33 @@ class DirectoryService(BaseDirectoryService):
             fields = {}
 
             for attribute, value in recordData.iteritems():
-                fieldName = self._attributeToFieldNameMap.get(attribute, None)
-                if fieldName is None:
+                fieldNames = self._attributeToFieldNameMap.get(attribute)
+
+                if fieldNames is None:
                     self.log.debug(
                         "Unmapped LDAP attribute {attribute!r} in record "
                         "data: {recordData!r}",
                         attribute=attribute, recordData=recordData,
                     )
+                    continue
 
-                valueType = self.fieldName.valueType(fieldName)
+                for fieldName in fieldNames:
+                    valueType = self.fieldName.valueType(fieldName)
 
-                if valueType in (unicode, UUID):
-                    fields[fieldName] = valueType(value)
+                    if valueType in (unicode, UUID):
+                        fields[fieldName] = valueType(value)
 
-                else:
-                    raise LDAPConfigurationError(
-                        "Unknown value type {0} for field {1}".format(
-                            valueType, fieldName
+                    else:
+                        raise LDAPConfigurationError(
+                            "Unknown value type {0} for field {1}".format(
+                                valueType, fieldName
+                            )
                         )
-                    )
 
             # Set record type and uid fields
 
             fields[self.fieldName.recordType] = recordType
-            fields[self.fieldName.uid] = uid
+            # fields[self.fieldName.uid] = uid
             fields[self.fieldName.dn] = dn
 
             # Make a record object from fields.
@@ -502,17 +493,12 @@ class DirectoryRecord(BaseDirectoryRecord):
 
 
 
-def reverseDict(sourceName, source):
+def reverseDict(source):
     new = {}
 
     for key, values in source.iteritems():
         for value in values:
-            if value in new:
-                raise LDAPConfigurationError(
-                    u"{0} map has duplicate values: {1}"
-                    .format(sourceName, value)
-                )
-            new[value] = key
+            new.setdefault(value, []).append(key)
 
     return new
 
@@ -532,7 +518,7 @@ def recordTypeForRecordData(recordTypeSchemas, recordData):
 
     for recordType, schema in recordTypeSchemas.iteritems():
         for attribute, value in schema.attributes:
-            if recordData.get(attribute, None) != value:
+            if recordData.get(attribute) != value:
                 break
         else:
             return recordType
