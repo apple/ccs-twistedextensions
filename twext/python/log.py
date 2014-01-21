@@ -939,7 +939,13 @@ def replaceTwistedLoggers():
             continue
 
         for name, obj in module.__dict__.iteritems():
-            newLogger = Logger(namespace=module.__name__)
+            try:
+                newLogger = Logger(namespace=module.__name__)
+            except AttributeError:
+                # Can't look up __name__.  A hack in the "six" module causes
+                # this.  Skip the module.
+                # See https://trac.calendarserver.org/ticket/832
+                continue
             legacyLogger = LegacyLogger(logger=newLogger)
 
             if obj is twisted.python.log:
