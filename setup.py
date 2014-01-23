@@ -130,7 +130,6 @@ install_requirements = [
 extras_requirements = {
     "LDAP": ["python-ldap>=2.4.13"],
     "DAL": ["sqlparse==0.1.2"],
-    "Oracle": ["cx_Oracle==5.1.2"],
 }
 
 # Requirements for development and testing
@@ -146,6 +145,11 @@ if os.environ.get("TWEXT_DEVELOP", "false") == "true":
     # fetch the extras_requirements...
     install_requirements.extend(chain(*extras_requirements.values()))
 
+# Add oracle after defining the development requirements, because it's
+# not exactly super portable and so it's potentially a major pain to
+# install.
+
+extras_requirements["Oracle"] = ["cx_Oracle==5.1.2"]
 
 
 #
