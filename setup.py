@@ -123,12 +123,14 @@ setup_requirements = [
 ]
 
 install_requirements = [
+    "cffi==0.6",
     "twisted>=13.2.0",
 ]
 
 extras_requirements = {
     "LDAP": ["python-ldap>=2.4.13"],
     "DAL": ["sqlparse==0.1.2"],
+    "Oracle": ["cx_Oracle==5.1.2"],
 }
 
 # Requirements for development and testing
@@ -177,12 +179,12 @@ def doSetup():
         version_file.write(
             'version = "{0}"\n\n'.format(version_string)
         )
-        version_file.write(
-            "setup_requirements = {0!r}\n".format(setup_requirements)
-        )
-        version_file.write(
-            "install_requirements = {0!r}\n".format(install_requirements)
-        )
+        # version_file.write(
+        #     "setup_requirements = {0!r}\n".format(setup_requirements)
+        # )
+        # version_file.write(
+        #     "install_requirements = {0!r}\n".format(install_requirements)
+        # )
     finally:
         version_file.close()
 
