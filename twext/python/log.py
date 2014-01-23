@@ -946,19 +946,28 @@ def replaceTwistedLoggers():
                 # this.  Skip the module.
                 # See https://trac.calendarserver.org/ticket/832
                 continue
+
             legacyLogger = LegacyLogger(logger=newLogger)
 
             if obj is twisted.python.log:
-                log.info("Replacing Twisted log module object {0} in {1}"
-                         .format(name, module.__name__))
+                log.info(
+                    "Replacing Twisted log module object {0} in {1}"
+                    .format(name, module.__name__)
+                )
                 setattr(module, name, legacyLogger)
+
             elif obj is twisted.python.log.msg:
-                log.info("Replacing Twisted log.msg object {0} in {1}"
-                         .format(name, module.__name__))
+                log.info(
+                    "Replacing Twisted log.msg object {0} in {1}"
+                    .format(name, module.__name__)
+                )
                 setattr(module, name, legacyLogger.msg)
+
             elif obj is twisted.python.log.err:
-                log.info("Replacing Twisted log.err object {0} in {1}"
-                         .format(name, module.__name__))
+                log.info(
+                    "Replacing Twisted log.err object {0} in {1}"
+                    .format(name, module.__name__)
+                )
                 setattr(module, name, legacyLogger.err)
 
 
