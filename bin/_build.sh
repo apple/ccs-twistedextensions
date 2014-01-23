@@ -440,6 +440,14 @@ c_dependency () {
 #
 c_dependencies () {
 
+  if find_header ffi/ffi.h; then
+    using_system "libffi";
+  else
+    c_dependency -m "45f3b6dbc9ee7c7dfbbbc5feba571529" \
+      "libffi" "libffi-3.0.13" \
+      "ftp://sourceware.org/pub/libffi/libffi-3.0.13.tar.gz"
+  fi;
+
   if find_header ldap.h 20428 LDAP_VENDOR_VERSION; then
     using_system "OpenLDAP";
   else
