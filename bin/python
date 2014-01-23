@@ -21,6 +21,10 @@ set -u
 
 wd="$(cd "$(dirname "$0")/.." && pwd)";
 
-. "${wd}/bin/develop";
+export TWEXT_DEVELOP="true";
+
+. "${wd}/bin/_build.sh";
+
+develop;
 
 exec "${python}" "$@";

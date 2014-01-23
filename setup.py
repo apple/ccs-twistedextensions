@@ -20,11 +20,12 @@ from __future__ import print_function
 
 import sys
 import errno
-import os
+from os import listdir, environ as environment
 from os.path import dirname, abspath, join as joinpath
-import subprocess
 from itertools import chain
+import subprocess
 from setuptools import setup, find_packages as setuptools_find_packages
+from pip.req import parse_requirements
 
 
 #
@@ -119,37 +120,39 @@ classifiers = [
 # Dependencies
 #
 
-setup_requirements = [
-]
+requirements_dir = joinpath(dirname(__file__), "requirements")
 
-install_requirements = [
-    "cffi==0.6",
-    "twisted>=13.2.0",
-]
 
-extras_requirements = {
-    "LDAP": ["python-ldap>=2.4.13"],
-    "DAL": ["sqlparse==0.1.2"],
-}
+def read_requirements(reqs_filename):
+    return [
+        str(r.req) for r in
+        parse_requirements(joinpath(requirements_dir, reqs_filename))
+    ]
+
+
+setup_requirements = []
+
+install_requirements = read_requirements("base.txt")
+
+extras_requirements = dict(
+    (reqs_filename[4:-4], read_requirements(reqs_filename))
+    for reqs_filename in listdir(requirements_dir)
+    if reqs_filename.startswith("opt_") and reqs_filename.endswith(".txt")
+)
 
 # Requirements for development and testing
-develop_requirements = [
-    "docutils>=0.11",
-    "mockldap>=0.1.4",
-]
+develop_requirements = read_requirements("develop.txt")
 
-if os.environ.get("TWEXT_DEVELOP", "false") == "true":
+if environment.get("TWEXT_DEVELOP", "false") == "true":
     install_requirements.extend(develop_requirements)
-
-    # FIXME: It would be better to figure out how to get `setup.py develop` to
-    # fetch the extras_requirements...
     install_requirements.extend(chain(*extras_requirements.values()))
 
-# Add oracle after defining the development requirements, because it's
-# not exactly super portable and so it's potentially a major pain to
-# install.
+    # Remove cx_Oracle here because we don't automate it's installation.
+    install_requirements = [
+        r for r in install_requirements
+        if not r.startswith("cx-Oracle")
+    ]
 
-extras_requirements["Oracle"] = ["cx_Oracle==5.1.2"]
 
 
 #

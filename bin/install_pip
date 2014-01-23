@@ -25,41 +25,34 @@ tmp="$(mktemp -d -t foo)";
 cd "${tmp}";
 
 
-find_tool ()
-{
-    local tool="$1"; shift;
-    local version="$1"; shift;
-    local cmd;
-
-    for cmd in "${tool}-${py_version}" "${tool}${py_version}"; do
-        if type -p "${cmd}" > /dev/null; then
-            echo "${cmd}";
-            return 0
-        fi;
-    done;
-
-    return 1;
-}
-
-
 for py_version in "2.7" "2.6"; do
 
-    if ! type -p "python${py_version}" > /dev/null; then
-        echo "Python ${py_version} not found.";
-        continue;
-    fi;
+  python="python${py_version}";
 
-    easy_install="$(find_tool "easy_install" "${py_version}")";
+  if ! "${python}" -V > /dev/null 2>&1; then
+    continue;
+  fi;
 
-    sudo "${easy_install}" --upgrade setuptools;
+  echo "________________________________________";
+  echo "Installing tools for Python ${py_version}...";
 
-    if ! pip="$(find_tool "pip" "${py_version}")"; then
-        sudo "python${py_version}" "${wd}/bin/_get_pip";
-    fi;
+  if ! "${python}" -m easy_install --help > /dev/null; then
+    echo "Setuptools is not installed; cannot continue.";
+    continue;
+  fi;
 
-    pip="$(find_tool "pip" "${py_version}")";
+  echo "";
+  sudo "${python}" -m easy_install --upgrade setuptools;
 
-    sudo "${pip}" install --upgrade pip;
+  if ! python -m pip -V > /dev/null; then
+    echo "";
+    sudo "${python}" "${wd}/bin/_get_pip";
+  fi;
+
+  echo "";
+  sudo python -m pip install --upgrade pip;
+  echo "";
+  sudo python -m pip install --upgrade virtualenv;
 
 done;
 

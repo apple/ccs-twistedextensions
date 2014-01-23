@@ -435,11 +435,23 @@ c_dependency () {
 }
 
 
+ruler () {
+  echo "____________________________________________________________";
+  echo "";
+
+  if [ $# -gt 0 ]; then
+    echo "$@";
+  fi;
+}
+
+
+
 #
 # Build C dependencies
 #
 c_dependencies () {
 
+  ruler;
   if find_header ffi/ffi.h; then
     using_system "libffi";
   else
@@ -448,6 +460,7 @@ c_dependencies () {
       "ftp://sourceware.org/pub/libffi/libffi-3.0.13.tar.gz"
   fi;
 
+  ruler;
   if find_header ldap.h 20428 LDAP_VENDOR_VERSION; then
     using_system "OpenLDAP";
   else
@@ -460,6 +473,7 @@ c_dependencies () {
       --disable-bdb --disable-hdb;
   fi;
 
+  ruler;
   if find_header sasl/sasl.h && ! find_header sasl.h; then
     mkdir -p "${dev_root}/include";
     echo "#include <sasl/sasl.h>" > "${dev_root}/include/sasl.h"
@@ -486,25 +500,54 @@ py_dependencies () {
   mkdir -p "${dev_root}";
   mkdir -p "${dev_libdir}";
 
-  export PYTHONPATH="${dev_libdir}:${PYTHONPATH:-}"
+  # export PYTHONPATH="${dev_libdir}:${PYTHONPATH:-}"
 
-  export              PATH="${dev_root}/bin:${PATH}";
-  export    C_INCLUDE_PATH="${dev_root}/include:${C_INCLUDE_PATH:-}";
-  export   LD_LIBRARY_PATH="${dev_root}/lib:${dev_root}/lib64:${LD_LIBRARY_PATH:-}";
-  export          CPPFLAGS="-I${dev_root}/include ${CPPFLAGS:-} ";
-  export           LDFLAGS="-L${dev_root}/lib -L${dev_root}/lib64 ${LDFLAGS:-} ";
-  export DYLD_LIBRARY_PATH="${dev_root}/lib:${dev_root}/lib64:${DYLD_LIBRARY_PATH:-}";
-  export PKG_CONFIG_PATH="${dev_root}/lib/pkgconfig:${PKG_CONFIG_PATH:-}";
+  # export              PATH="${dev_root}/bin:${PATH}";
+  # export    C_INCLUDE_PATH="${dev_root}/include:${C_INCLUDE_PATH:-}";
+  # export   LD_LIBRARY_PATH="${dev_root}/lib:${dev_root}/lib64:${LD_LIBRARY_PATH:-}";
+  # export          CPPFLAGS="-I${dev_root}/include ${CPPFLAGS:-} ";
+  # export           LDFLAGS="-L${dev_root}/lib -L${dev_root}/lib64 ${LDFLAGS:-} ";
+  # export DYLD_LIBRARY_PATH="${dev_root}/lib:${dev_root}/lib64:${DYLD_LIBRARY_PATH:-}";
+  # export PKG_CONFIG_PATH="${dev_root}/lib/pkgconfig:${PKG_CONFIG_PATH:-}";
 
   cd "${wd}";
 
-  if ! "${python}" ./setup.py develop   \
-      --install-dir "${dev_libdir}"     \
-      --script-dir "${dev_bindir}"      \
-      > "${dev_root}/setup.log" 2>&1; then
-    err=$?;
-    echo "Unable to set up for development:"
-    cat "${dev_root}/setup.log";
-    exit ${err};
-  fi;
+
+  "${bootstrap_python}" -m virtualenv "${dev_root}";
+
+  python="${dev_bindir}/python";
+
+  for requirements in "${wd}/requirements/"*; do
+
+    ruler "Preparing Python requirements: ${requirements}";
+    echo "";
+
+    if ! "${python}" -m pip install               \
+        --requirement "${requirements}"           \
+        --download-cache "${dev_home}/pip_cache"  \
+    ; then
+      err=$?;
+      echo "Unable to set up Python requirements: ${requirements}";
+      if [ "${requirements#${wd}/requirements/opt_}" != "${requirements}" ]; then
+        echo "Requirements ${requirements} are optional; continuing.";
+      else
+        echo "";
+        exit ${err};
+      fi;
+    fi;
+
+  done;
+
+  echo "";
+}
+
+
+
+#
+# Set up for development
+#
+develop () {
+  init_build;
+  c_dependencies;
+  py_dependencies;
 }

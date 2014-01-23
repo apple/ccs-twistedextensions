@@ -48,6 +48,11 @@ try_python () {
 #
 # Detect which version of Python to use, then print out which one was detected.
 #
+# This will prefer the python interpreter in the PYTHON environment variable.
+# If that's not found, it will check for "python2.7", "python2.6" and "python",
+# looking for each in your PATH and, failing that, in a number of well-known
+# locations.
+#
 detect_python_version () {
   local v;
   local p;
@@ -67,9 +72,11 @@ detect_python_version () {
       "/sw/bin/python${v}"                                              \
       ;
     do
-      if try_python "${p}"; then
-        echo "${p}";
-        return 0;
+      if p="$(type -p "${p}")"; then
+        if try_python "${p}"; then
+          echo "${p}";
+          return 0;
+        fi;
       fi;
     done;
   done;
@@ -84,6 +91,8 @@ cmp_version () {
   local  v="$1"; shift;
   local mv="$1"; shift;
 
+  local vh;
+  local mvh;
   local result;
 
   while true; do
@@ -131,7 +140,7 @@ init_py () {
   # important on systems with older system pythons (2.4 or earlier) with an
   # alternate install of Python, or alternate python installation mechanisms
   # like virtualenv.
-  python="$(detect_python_version)";
+  bootstrap_python="$(detect_python_version)";
 
   # Set the $PYTHON environment variable to an absolute path pointing at the
   # appropriate python executable, a standard-ish mechanism used by certain
@@ -139,10 +148,10 @@ init_py () {
   # the part of the PostgreSQL build process which builds pl_python.  Note that
   # detect_python_version, above, already honors $PYTHON, so if this is already
   # set it won't be stomped on, it will just be re-set to the same value.
-  export PYTHON="$(type -p ${python})";
+  export PYTHON="$(type -p ${bootstrap_python})";
 
-  if [ -z "${python:-}" ]; then
-    echo "No suitable python found. Python 2.6+ is required.";
+  if [ -z "${bootstrap_python:-}" ]; then
+    echo "No suitable python found. Python 2.6 or 2.7 is required.";
     exit 1;
-  fi
+  fi;
 }

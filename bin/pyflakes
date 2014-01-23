@@ -21,7 +21,11 @@ set -u;
 
 wd="$(cd "$(dirname "$0")/.." && pwd -L)";
 
-. "${wd}/bin/develop";
+export TWEXT_DEVELOP="true";
+
+. "${wd}/bin/_build.sh";
+
+develop;
 
 pip install pyflakes --no-use-wheel --upgrade --target="${dev_libdir}" > "${dev_root}/pip_pyflakes.log" || true;
 exec "${python}" -m pyflakes "$@";

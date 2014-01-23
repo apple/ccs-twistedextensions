@@ -16,6 +16,9 @@
 # limitations under the License.
 ##
 
+set -e;
+set -u;
+
 if [ -z "${wd:-}" ]; then
   wd="$(cd "$(dirname "$0")/.." && pwd)";
 fi;
@@ -24,6 +27,4 @@ export TWEXT_DEVELOP="true";
 
 . "${wd}/bin/_build.sh";
 
-init_build;
-c_dependencies;
-py_dependencies;
+develop;
