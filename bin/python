@@ -25,6 +25,8 @@ export TWEXT_DEVELOP="true";
 
 . "${wd}/bin/_build.sh";
 
-develop;
+init_build > /dev/null;
+c_dependencies >> "${dev_root}/setup.log";
+py_dependencies >> "${dev_root}/setup.log";
 
 exec "${python}" "$@";

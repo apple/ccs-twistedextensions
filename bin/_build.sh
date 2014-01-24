@@ -100,8 +100,15 @@ init_build () {
 
   mkdir -p "${dep_sources}";
 
+  # Set up virtual environment
+
+  "${bootstrap_python}" -m virtualenv "${dev_root}";
+
+  python="${dev_bindir}/python";
+
   # These variables are defaults for things which might be configured by
   # environment; only set them if they're un-set.
+
   conditional_set wd "$(pwd)";
 
   # Find some hashing commands
@@ -497,9 +504,6 @@ c_dependencies () {
 # Build Python dependencies
 #
 py_dependencies () {
-  mkdir -p "${dev_root}";
-  mkdir -p "${dev_libdir}";
-
   # export PYTHONPATH="${dev_libdir}:${PYTHONPATH:-}"
 
   # export              PATH="${dev_root}/bin:${PATH}";
@@ -510,12 +514,7 @@ py_dependencies () {
   # export DYLD_LIBRARY_PATH="${dev_root}/lib:${dev_root}/lib64:${DYLD_LIBRARY_PATH:-}";
   # export PKG_CONFIG_PATH="${dev_root}/lib/pkgconfig:${PKG_CONFIG_PATH:-}";
 
-  cd "${wd}";
-
-
-  "${bootstrap_python}" -m virtualenv "${dev_root}";
-
-  python="${dev_bindir}/python";
+  # cd "${wd}";
 
   for requirements in "${wd}/requirements/"*; do
 
