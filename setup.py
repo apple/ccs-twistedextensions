@@ -132,16 +132,16 @@ def read_requirements(reqs_filename):
 
 setup_requirements = []
 
-install_requirements = read_requirements("base.txt")
+install_requirements = read_requirements("py_base.txt")
 
 extras_requirements = dict(
     (reqs_filename[4:-4], read_requirements(reqs_filename))
     for reqs_filename in listdir(requirements_dir)
-    if reqs_filename.startswith("opt_") and reqs_filename.endswith(".txt")
+    if reqs_filename.startswith("py_opt_") and reqs_filename.endswith(".txt")
 )
 
 # Requirements for development and testing
-develop_requirements = read_requirements("develop.txt")
+develop_requirements = read_requirements("py_develop.txt")
 
 if environment.get("TWEXT_DEVELOP", "false") == "true":
     install_requirements.extend(develop_requirements)
