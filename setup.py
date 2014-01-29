@@ -79,14 +79,14 @@ def version():
         full_version = base_version
 
         if branch == "trunk":
-            full_version += "b.trunk"
+            full_version += "a"
         elif branch.endswith("-dev"):
-            full_version += "c.dev"
+            full_version += "b"
 
         if svn_revision in ("exported", "Unversioned directory"):
             full_version += "-unknown"
         else:
-            full_version += "-r{revision}".format(revision=svn_revision)
+            full_version += "{revision}".format(revision=svn_revision)
 
         break
     else:
