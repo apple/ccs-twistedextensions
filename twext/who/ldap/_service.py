@@ -139,8 +139,8 @@ class RecordTypeSchema(object):
 
 # Maps field name -> LDAP attribute names
 DEFAULT_FIELDNAME_ATTRIBUTE_MAP = MappingProxyType({
-    FieldName.dn: (LDAPAttribute.dn.value,),
-    BaseFieldName.uid: (LDAPAttribute.dn.value,),
+    # FieldName.dn: (LDAPAttribute.dn.value,),
+    # BaseFieldName.uid: (LDAPAttribute.dn.value,),
     BaseFieldName.guid: (LDAPAttribute.generatedUUID.value,),
     BaseFieldName.shortNames: (LDAPAttribute.uid.value,),
     BaseFieldName.fullNames: (LDAPAttribute.cn.value,),
@@ -366,18 +366,6 @@ class DirectoryService(BaseDirectoryService):
         records = []
 
         for dn, recordData in reply:
-
-            # # Fetch the UID
-
-            # try:
-            #     uid = recordData[uidAttribute]
-            # except KeyError:
-            #     self.log.debug(
-            #         "Ignoring LDAP record data; no UID attribute "
-            #         "({log_source._uidField}): {recordData!r}",
-            #         recordData=recordData
-            #     )
-            #     continue
 
             # Determine the record type
 
