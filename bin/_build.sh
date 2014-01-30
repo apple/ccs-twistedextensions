@@ -472,8 +472,6 @@ ruler () {
 # Build C dependencies
 #
 c_dependencies () {
-  if ! "${do_setup}"; then return 0; fi;
-
      c_glue_root="${dev_roots}/c_glue";
   c_glue_include="${c_glue_root}/include";
 
