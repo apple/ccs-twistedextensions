@@ -41,7 +41,7 @@ from twisted.internet.defer import fail
 from .idirectory import (
     DirectoryServiceError,
     NoSuchRecordError, UnknownRecordTypeError,
-    RecordType, FieldName as BaseFieldName,
+    RecordType as BaseRecordType, FieldName as BaseFieldName,
 )
 from .index import (
     DirectoryService as BaseDirectoryService,
@@ -103,21 +103,15 @@ class Attribute(Values):
 
 
 
-class Value(Values):
-    #
-    # Booleans
-    #
-    true  = ValueConstant(u"true")
-    false = ValueConstant(u"false")
-
+class RecordTypeValue(Values):
     #
     # Record types
     #
     user = ValueConstant(u"user")
-    user.recordType = RecordType.user
+    user.recordType = BaseRecordType.user
 
     group = ValueConstant(u"group")
-    group.recordType = RecordType.group
+    group.recordType = BaseRecordType.group
 
 
 
@@ -130,11 +124,14 @@ class DirectoryService(BaseDirectoryService):
     XML directory service.
     """
 
-    recordType = ConstantsContainer((RecordType.user, RecordType.group))
+    recordType = ConstantsContainer(
+        (BaseRecordType.user, BaseRecordType.group)
+    )
 
-    element   = Element
-    attribute = Attribute
-    value     = Value
+    # XML schema constants
+    element         = Element
+    attribute       = Attribute
+    recordTypeValue = RecordTypeValue
 
     refreshInterval = 4
 
@@ -287,7 +284,9 @@ class DirectoryService(BaseDirectoryService):
         if recordTypeAttribute:
             try:
                 recordType = (
-                    self.value.lookupByValue(recordTypeAttribute).recordType
+                    self.recordTypeValue
+                    .lookupByValue(recordTypeAttribute)
+                    .recordType
                 )
             except (ValueError, AttributeError):
                 raise UnknownRecordTypeError(recordTypeAttribute)
@@ -354,10 +353,8 @@ class DirectoryService(BaseDirectoryService):
 
         # Index the record type -> attribute mappings.
         recordTypes = {}
-        for valueName in self.value.iterconstants():
-            recordType = getattr(valueName, "recordType", None)
-            if recordType is not None:
-                recordTypes[recordType] = valueName.value
+        for valueName in self.recordTypeValue.iterconstants():
+            recordTypes[valueName.recordType] = valueName.value
         del valueName
 
         # Index the field name -> element mappings.
