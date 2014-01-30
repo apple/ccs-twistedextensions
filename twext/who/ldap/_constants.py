@@ -348,7 +348,6 @@ class WhoAttribute(Values):
     """
     Attributes needed internally that have no standard name.
     """
-    dn = ValueConstant(u"__dn__")
     generatedUUID = ValueConstant(u"entryUUID")
     objectClass = ValueConstant(u"objectClass")
 
