@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ##
-# Copyright (c) 2013-2014 Apple Inc. All rights reserved.
+# Copyright (c) 2006-2014 Apple Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from itertools import chain
 import subprocess
 from setuptools import setup, find_packages as setuptools_find_packages
 from pip.req import parse_requirements
+
 
 
 #
@@ -186,12 +187,6 @@ def doSetup():
         version_file.write(
             'version = "{0}"\n\n'.format(version_string)
         )
-        # version_file.write(
-        #     "setup_requirements = {0!r}\n".format(setup_requirements)
-        # )
-        # version_file.write(
-        #     "install_requirements = {0!r}\n".format(install_requirements)
-        # )
     finally:
         version_file.close()
 
