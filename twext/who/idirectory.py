@@ -132,10 +132,6 @@ class RecordType(Names):
 
     @cvar group: Group record.
         Represents a record that contains (references) other records (members).
-
-    @cvar group: Resource record.
-        Represents a non-person not covered by another record type (eg. a
-        projector).
     """
 
     user = NamedConstant()
