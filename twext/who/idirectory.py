@@ -120,7 +120,7 @@ class NotAllowedError(DirectoryServiceError):
 
 
 #
-# Data Types
+# Data types
 #
 
 class RecordType(Names):

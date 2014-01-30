@@ -68,12 +68,15 @@ class ParseError(DirectoryServiceError):
 ##
 
 class Element(Values):
+    """
+    XML element names.
+    """
+
     directory = ValueConstant(u"directory")
     record    = ValueConstant(u"record")
 
-    #
     # Field names
-    #
+
     uid = ValueConstant(u"uid")
     uid.fieldName = BaseFieldName.uid
 
@@ -98,15 +101,20 @@ class Element(Values):
 
 
 class Attribute(Values):
+    """
+    XML attribute names.
+    """
+
     realm      = ValueConstant(u"realm")
     recordType = ValueConstant(u"type")
 
 
 
 class RecordTypeValue(Values):
-    #
-    # Record types
-    #
+    """
+    XML attribute values for record types.
+    """
+
     user = ValueConstant(u"user")
     user.recordType = BaseRecordType.user
 
