@@ -26,6 +26,8 @@ __all__ = [
     "iterFlags",
 ]
 
+from inspect import isclass
+
 from twisted.python.constants import (
     Names, Values, Flags, NamedConstant, ValueConstant, FlagConstant,
 )
@@ -43,7 +45,7 @@ class ConstantsContainer(object):
         self._methods = {}
 
         for source in sources:
-            if issubclass(type(source), type):
+            if isclass(source):
                 if issubclass(source, CONTAINER_CLASSES):
                     self._addConstants(source.iterconstants())
                     self._addMethods(source)
@@ -51,6 +53,10 @@ class ConstantsContainer(object):
                     raise TypeError(
                         "Unknown constants type: {0}".format(source)
                     )
+
+            elif isinstance(source, ConstantsContainer):
+                self._addConstants(source.iterconstants())
+                self._addMethods(source)
 
             elif isinstance(source, CONSTANT_CLASSES):
                 self._addConstants((source,))
@@ -144,5 +150,5 @@ def iterFlags(flags):
 
 
 
-CONTAINER_CLASSES = (ConstantsContainer, Names, Values, Flags)
+CONTAINER_CLASSES = (Names, Values, Flags)
 CONSTANT_CLASSES = (NamedConstant, ValueConstant, FlagConstant)
