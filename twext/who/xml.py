@@ -35,7 +35,7 @@ from xml.etree.ElementTree import (
     tostring as etreeToString, Element as XMLElement,
 )
 
-from twisted.python.constants import Values, ValueConstant
+from twisted.python.constants import NamedConstant, Values, ValueConstant
 from twisted.internet.defer import fail
 
 from .idirectory import (
@@ -71,6 +71,13 @@ class Element(Values):
     """
     XML element names.
     """
+
+    # Booleans
+
+    true = ValueConstant(u"true")
+    false = ValueConstant(u"false")
+
+    # Schema hierarchy
 
     directory = ValueConstant(u"directory")
     record    = ValueConstant(u"record")
@@ -319,16 +326,39 @@ class DirectoryService(BaseDirectoryService):
                     unknownFieldElements.add(fieldNode.tag)
                 continue
 
-            vType = self.fieldName.valueType(fieldName)
+            valueType = self.fieldName.valueType(fieldName)
 
-            if vType in (unicode, UUID):
-                value = vType(fieldNode.text)
+            if valueType in (unicode, UUID):
+                value = valueType(fieldNode.text)
+
+            elif valueType is bool:
+                boolElement = self._constantElement(fieldNode)
+
+                if boolElement is Element.true:
+                    value = True
+
+                elif boolElement is Element.false:
+                    value = False
+
+                else:
+                    raise ParseError(
+                        "Child element {0} of element {0} is not a boolean."
+                        .format(boolElement.value, fieldNode.tag)
+                    )
+
+                print(value)
+
+            elif valueType is NamedConstant:
+                raise NotImplementedError("named constant")
+
             else:
                 raise AssertionError(
                     "Unknown value type {0} for field {1}".format(
-                        vType, fieldName
+                        valueType, fieldName
                     )
                 )
+
+            assert value is not None
 
             if self.fieldName.isMultiValue(fieldName):
                 values = fields.setdefault(fieldName, [])
@@ -345,6 +375,47 @@ class DirectoryService(BaseDirectoryService):
             raise NotImplementedError("No UID node")
 
         return uidNode.text
+
+
+    def _constantElement(self, node):
+        """
+        Find the name of the single empty node in a given node.
+
+        @param node: a node
+        @type node: L{XMLElement}
+
+        @return: L{unicode}
+        """
+        child = None
+
+        for c in node:
+            if child is not None:
+                raise ParseError(
+                    "Element {0} may only have a single child element, "
+                    "not: {1}"
+                    .format(node.tag, [c.tag for c in node])
+                )
+            child = c
+
+        if child is None:
+            raise ParseError(
+                "Element {0} must contain a single empty child element."
+            )
+
+        if child.text:
+            raise ParseError(
+                "Child element {0} of element {1} may not have text: {2!r}"
+                .format(child.tag, node.tag, child.text)
+            )
+
+        try:
+            return self.element.lookupByValue(child.tag)
+        except ValueError:
+            raise ParseError(
+                "Unknown child element {0} of element {1}."
+                .format(child.tag, node.tag)
+            )
+
 
 
     def flush(self):
