@@ -52,7 +52,7 @@ from ...test.test_xml import (
     DirectoryServiceRealmTestMixIn,
     DirectoryServiceQueryTestMixIn as BaseDirectoryServiceQueryTestMixIn,
     DirectoryServiceMutableTestMixIn as BaseDirectoryServiceMutableTestMixIn,
-    UnknownRecordType,
+    UnknownConstant,
 )
 
 
@@ -124,7 +124,7 @@ class DirectoryServiceConvenienceTestMixIn(
 
         self.assertRaises(
             QueryNotSupportedError,
-            service.recordsWithRecordType, UnknownRecordType.unknown
+            service.recordsWithRecordType, UnknownConstant.unknown
         )
 
 

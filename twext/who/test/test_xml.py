@@ -90,7 +90,7 @@ class DirectoryServiceConvenienceTestMixIn(object):
         service = self.service()
 
         records = (
-            yield service.recordsWithRecordType(UnknownRecordType.unknown)
+            yield service.recordsWithRecordType(UnknownConstant.unknown)
         )
         self.assertEquals(set(records), set())
 
@@ -902,7 +902,7 @@ class TestService(DirectoryService, QueryMixIn):
 
 
 
-class UnknownRecordType(Names):
+class UnknownConstant(Names):
     unknown = NamedConstant()
 
 
