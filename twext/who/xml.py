@@ -310,12 +310,14 @@ class DirectoryService(BaseDirectoryService):
             except ValueError:
                 if unknownFieldElements is not None:
                     unknownFieldElements.add(fieldNode.tag)
+                continue
 
             try:
                 fieldName = fieldElement.fieldName
             except AttributeError:
                 if unknownFieldElements is not None:
                     unknownFieldElements.add(fieldNode.tag)
+                continue
 
             vType = self.fieldName.valueType(fieldName)
 
