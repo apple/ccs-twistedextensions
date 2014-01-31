@@ -77,6 +77,9 @@ class ConstantsContainer(object):
             else:
                 self._constantsClass = constant.__class__
 
+                if issubclass(self._constantsClass, ValueConstant):
+                    self.lookupByValue = self._lookupByValue
+
             if constant.name in self._constants:
                 raise ValueError("Name conflict: {0}".format(constant.name))
 
@@ -113,6 +116,13 @@ class ConstantsContainer(object):
             return self._constants[name]
         except KeyError:
             raise ValueError(name)
+
+
+    def _lookupByValue(self, value):
+        for constant in self.iterconstants():
+            if constant.value == value:
+                return constant
+        raise ValueError(value)
 
 
 
