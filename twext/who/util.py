@@ -26,7 +26,7 @@ __all__ = [
     "iterFlags",
 ]
 
-from inspect import isclass
+from inspect import getmembers, isclass, isfunction
 
 from twisted.python.constants import (
     Names, Values, Flags, NamedConstant, ValueConstant, FlagConstant,
@@ -48,7 +48,7 @@ class ConstantsContainer(object):
             if isclass(source):
                 if issubclass(source, CONTAINER_CLASSES):
                     self._addConstants(source.iterconstants())
-                    self._addMethods(source)
+                    self._addMethods(getmembers(source, isfunction))
                 else:
                     raise TypeError(
                         "Unknown constants type: {0}".format(source)
@@ -56,7 +56,7 @@ class ConstantsContainer(object):
 
             elif isinstance(source, ConstantsContainer):
                 self._addConstants(source.iterconstants())
-                self._addMethods(source)
+                self._addMethods(source._methods.iteritems())
 
             elif isinstance(source, CONSTANT_CLASSES):
                 self._addConstants((source,))
@@ -86,13 +86,15 @@ class ConstantsContainer(object):
             self._constants[constant.name] = constant
 
 
-    def _addMethods(self, container):
-        for name, value in container.__dict__.iteritems():
-            if type(value) is staticmethod:
-                if name in self._constants or name in self._methods:
-                    raise ValueError("Name conflict: {0}".format(name))
+    def _addMethods(self, methods):
+        for name, value in methods:
+            if name[0] == "_":
+                continue
 
-                self._methods[name] = getattr(container, name)
+            if name in self._constants or name in self._methods:
+                raise ValueError("Name conflict: {0}".format(name))
+
+            self._methods[name] = value
 
 
     def __getattr__(self, name):
