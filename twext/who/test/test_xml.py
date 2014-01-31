@@ -23,6 +23,7 @@ from uuid import UUID
 from textwrap import dedent
 
 from twisted.trial import unittest
+from twisted.python.constants import Names, NamedConstant
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 
@@ -88,7 +89,9 @@ class DirectoryServiceConvenienceTestMixIn(object):
     def test_recordsWithRecordType_unknown(self):
         service = self.service()
 
-        records = (yield service.recordsWithRecordType(object()))
+        records = (
+            yield service.recordsWithRecordType(UnknownRecordType.unknown)
+        )
         self.assertEquals(set(records), set())
 
 
@@ -896,6 +899,11 @@ class QueryMixIn(object):
 
 class TestService(DirectoryService, QueryMixIn):
     pass
+
+
+
+class UnknownRecordType(Names):
+    unknown = NamedConstant()
 
 
 
