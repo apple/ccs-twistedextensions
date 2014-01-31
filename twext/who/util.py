@@ -146,8 +146,14 @@ def describe(constant):
         return "|".join(
             getattr(flag, "description", flag.name) for flag in constant
         )
-    else:
-        return getattr(constant, "description", constant.name)
+
+    if isinstance(constant, (NamedConstant, ValueConstant)):
+        for attr in ("description", "name"):
+            description = getattr(constant, attr, None)
+            if description is not None:
+                return description
+
+    return unicode(constant)
 
 
 
