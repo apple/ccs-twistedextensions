@@ -24,8 +24,39 @@ Python version 2.7 is supported.
 
 This library is can be built using the standard distutils mechanisms.
 
-It is also registered with the Python Package Index (PyPI) as ``twextpy`` for
-use with ``pip`` and ``easy_install``.
+It is also registered with the Python Package Index (PyPI) as ``twextpy`` 
+(the name ``twext`` is used by another module in PyPI) for use with ``pip`` and
+``easy_install``::
+
+  pip install twextpy
+
+This will build and install the ``twext`` module along with its base
+dependencies.  This library has a number of optional features which must be
+specified in order to download build and install their dependencies, for
+example::
+
+  pip install twextpy[DAL,Postgres]
+
+These features are:
+
+DAL
+  Enables use of the Database Abstraction Layer implemented in
+  ``twext.enterprise.dal``.
+
+LDAP
+  Enables support for the Lightweight Directory Access Protocol in
+  ``twext.who.ldap``.
+
+OpenDirectory
+  Enables support for the (Mac OS) OpenDirectory framework in
+  ``twext.who.opendirectory``.
+
+Oracle
+  Enables support for Oracle database connectivity in ``twext.enterprise`` and
+  Oracle syntax in ``twext.enterprise.dal``.
+
+Postgres
+  Enables support for Postgres database connectivity in ``twext.enterprise``.
 
 
 Development
