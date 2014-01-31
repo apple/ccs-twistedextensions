@@ -18,6 +18,8 @@
 OpenDirectory service tests.
 """
 
+from uuid import UUID
+
 from twisted.trial import unittest
 
 from ...expression import (
@@ -141,7 +143,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                     matchType=MatchType.contains
                 ),
                 MatchExpression(
-                    service.fieldName.guid, u"b",
+                    service.fieldName.guid, UUID(int=0),
                     matchType=MatchType.contains
                 ),
                 MatchExpression(
@@ -164,7 +166,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             queryString,
             (
                 u"(&(dsAttrTypeStandard:GeneratedUID=*a*)"
-                u"(dsAttrTypeStandard:GeneratedUID=*b*)"
+                u"(dsAttrTypeStandard:GeneratedUID="
+                u"*00000000-0000-0000-0000-000000000000*)"
                 u"(dsAttrTypeStandard:RecordName=*c*)"
                 u"(dsAttrTypeStandard:EMailAddress=d*)"
                 u"(dsAttrTypeStandard:RealName=e))"
