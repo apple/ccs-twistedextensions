@@ -32,6 +32,7 @@ from twisted.python.constants import (
     Names, NamedConstant, Flags, FlagConstant,
 )
 
+from .idirectory import FieldName
 from .util import iterFlags, describe
 
 
@@ -211,9 +212,6 @@ class MatchExpression(object):
 
 
     def __repr__(self):
-        def describe(constant):
-            return getattr(constant, "description", unicode(constant))
-
         if self.flags.value == 0:
             flags = ""
         else:
