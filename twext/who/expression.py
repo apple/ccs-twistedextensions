@@ -205,6 +205,12 @@ class MatchExpression(object):
         fieldName, fieldValue,
         matchType=MatchType.equals, flags=MatchFlags.none
     ):
+        if not isinstance(fieldName, NamedConstant):
+            raise TypeError(
+                "Field name {name} in match expression is not a NamedConstant."
+                .format(name=fieldName)
+            )
+
         valueType = FieldName.valueType(fieldName)
         if not isinstance(fieldValue, valueType):
             raise TypeError(

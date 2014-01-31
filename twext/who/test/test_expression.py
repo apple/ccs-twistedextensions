@@ -75,6 +75,17 @@ class MatchExpressionTest(unittest.TestCase):
     Tests for L{MatchExpression}.
     """
 
+    def test_initBadType_name(self):
+        """
+        L{MatchExpression.__init__} raises if the field name is not a
+        L{NamedConstant}.
+        """
+        self.assertRaises(
+            TypeError,
+            MatchExpression, u"uid", u"some value"
+        )
+
+
     def test_initBadType_value(self):
         """
         L{MatchExpression.__init__} raises if the field value doesn't match the
