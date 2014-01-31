@@ -24,6 +24,7 @@ from ...idirectory import QueryNotSupportedError
 from ...expression import (
     CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
 )
+from ...test.test_xml import UnknownConstant
 from .._constants import LDAPOperand
 from .._service import DirectoryService, RecordTypeSchema
 from .._util import (
@@ -220,7 +221,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         service = self.service()
 
         expression = MatchExpression(
-            object(), u"xyzzy",
+            UnknownConstant.unknown, u"xyzzy",
         )
 
         self.assertRaises(
