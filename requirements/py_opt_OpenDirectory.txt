@@ -1,0 +1,1 @@
+pyobjc-framework-OpenDirectory>=2.5.1
