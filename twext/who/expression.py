@@ -205,6 +205,14 @@ class MatchExpression(object):
         fieldName, fieldValue,
         matchType=MatchType.equals, flags=MatchFlags.none
     ):
+        valueType = FieldName.valueType(fieldName)
+        if not isinstance(fieldValue, valueType):
+            raise TypeError(
+                "Field value {value!r} for field {field} in match expression "
+                "is not of expected type {type}."
+                .format(value=fieldValue, field=fieldName, type=valueType)
+            )
+
         self.fieldName = fieldName
         self.fieldValue = fieldValue
         self.matchType = matchType

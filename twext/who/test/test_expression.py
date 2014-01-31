@@ -75,6 +75,19 @@ class MatchExpressionTest(unittest.TestCase):
     Tests for L{MatchExpression}.
     """
 
+    def test_initBadType_value(self):
+        """
+        L{MatchExpression.__init__} raises if the field value doesn't match the
+        expected type for the field.
+        """
+        # guid field expects a UUID, not a string.
+        self.assertRaises(
+            TypeError,
+            MatchExpression,
+            FieldName.guid, u"00000000-0000-0000-0000-000000000000"
+        )
+
+
     def test_repr_name(self):
         """
         L{MatchExpression.__repr__} emits field name and value.
