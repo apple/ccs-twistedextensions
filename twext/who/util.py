@@ -143,22 +143,16 @@ def uniqueResult(values):
 
 def describe(constant):
     if isinstance(constant, FlagConstant):
-        parts = []
-        for flag in iterFlags(constant):
-            parts.append(getattr(flag, "description", flag.name))
-        return "|".join(parts)
+        return "|".join(
+            getattr(flag, "description", flag.name) for flag in constant
+        )
     else:
         return getattr(constant, "description", constant.name)
 
 
 
 def iterFlags(flags):
-    if hasattr(flags, "__iter__"):
-        return flags
-    else:
-        # Work around http://twistedmatrix.com/trac/ticket/6302
-        # FIXME: This depends on a private attribute (flags._container)
-        return (flags._container.lookupByName(name) for name in flags.names)
+    return iter(flags)
 
 
 
