@@ -487,7 +487,7 @@ class DirectoryServiceConvenienceTest(
         service = self.service()
 
         self.assertFailure(
-            service.recordsWithEmailAddress("a@b"),
+            service.recordsWithEmailAddress(u"a@b"),
             QueryNotSupportedError
         )
 
