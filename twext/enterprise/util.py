@@ -62,7 +62,7 @@ def mapOracleOutputType(column):
         # cx_Oracle properly maps the type of timestamps to datetime
         # objects.  However, our code is mostly written against
         # PyGreSQL, which just emits strings as results and expects
-        # to have to convert them itself..  Since it's easier to
+        # to have to convert them itself.  Since it's easier to
         # just detect the datetimes and stringify them, for now
         # we'll do that.
         return column.strftime(SQL_TIMESTAMP_FORMAT)
