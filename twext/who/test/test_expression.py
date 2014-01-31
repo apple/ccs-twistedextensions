@@ -76,6 +76,9 @@ class MatchExpressionTest(unittest.TestCase):
     """
 
     def test_repr_name(self):
+        """
+        L{MatchExpression.__repr__} emits field name and value.
+        """
         self.assertEquals(
             "<MatchExpression: u'full names' equals u'Wilfredo Sanchez'>",
             repr(MatchExpression(
@@ -85,6 +88,9 @@ class MatchExpressionTest(unittest.TestCase):
         )
 
     def test_repr_type(self):
+        """
+        L{MatchExpression.__repr__} emits match type.
+        """
         self.assertEquals(
             "<MatchExpression: u'full names' contains u'Sanchez'>",
             repr(MatchExpression(
@@ -95,6 +101,9 @@ class MatchExpressionTest(unittest.TestCase):
         )
 
     def test_repr_flags(self):
+        """
+        L{MatchExpression.__repr__} emits flags.
+        """
         self.assertEquals(
             "<MatchExpression: u'full names' starts with u'Wilfredo' (not)>",
             repr(MatchExpression(
@@ -102,5 +111,15 @@ class MatchExpressionTest(unittest.TestCase):
                 u"Wilfredo",
                 matchType=MatchType.startsWith,
                 flags=MatchFlags.NOT,
+            )),
+        )
+        self.assertEquals(
+            "<MatchExpression: u'full names' starts with u'Wilfredo' "
+            "(not|case insensitive)>",
+            repr(MatchExpression(
+                FieldName.fullNames,
+                u"Wilfredo",
+                matchType=MatchType.startsWith,
+                flags=(MatchFlags.NOT | MatchFlags.caseInsensitive),
             )),
         )
