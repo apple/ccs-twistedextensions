@@ -25,7 +25,56 @@ from ..expression import MatchExpression, MatchType, MatchFlags
 
 
 
+class MatchFlagsTest(unittest.TestCase):
+    """
+    Tests for L{MatchFlags}.
+    """
+
+    def test_predicator_none(self):
+        """
+        Predicator for flags without L{MatchFlags.NOT} does not invert.
+        """
+        predicator = MatchFlags.predicator(MatchFlags.none)
+
+        for boolean in (True, False):
+            self.assertEquals(bool(predicator(boolean)), boolean)
+
+
+    def test_predicator_NOT(self):
+        """
+        Predicator for flags with L{MatchFlags.NOT} does not invert.
+        """
+        predicator = MatchFlags.predicator(MatchFlags.NOT)
+
+        for boolean in (True, False):
+            self.assertNotEquals(bool(predicator(boolean)), boolean)
+
+
+    def test_normalizer_none(self):
+        """
+        Normalizer for flags without L{MatchFlags.caseInsensitive} does not
+        lowercase.
+        """
+        normalizer = MatchFlags.normalizer(MatchFlags.none)
+
+        self.assertEquals(normalizer(u"ThInGo"), u"ThInGo")
+
+
+    def test_normalizer_insensitive(self):
+        """
+        Normalizer for flags with L{MatchFlags.caseInsensitive} lowercases.
+        """
+        normalizer = MatchFlags.normalizer(MatchFlags.caseInsensitive)
+
+        self.assertEquals(normalizer(u"ThInGo"), u"thingo")
+
+
+
 class MatchExpressionTest(unittest.TestCase):
+    """
+    Tests for L{MatchExpression}.
+    """
+
     def test_repr_name(self):
         self.assertEquals(
             "<MatchExpression: u'full names' equals u'Wilfredo Sanchez'>",
