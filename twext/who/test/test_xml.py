@@ -780,7 +780,43 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
             </directory>
             """[1:]
         )))
+
         self.assertEquals(set(service.unknownRecordTypes), set((u"camera",)))
+
+
+    def test_unknownFieldElementClean(self):
+        service = self.service()
+        self.assertEquals(set(service.unknownFieldElements), set())
+
+
+    @inlineCallbacks
+    def test_unknownFieldElementDirty(self):
+        service = self.service(xmlData=(dedent(
+            b"""
+            <?xml version="1.0" encoding="utf-8"?>
+
+            <directory realm="Unknown Record Types">
+              <record type="user">
+                <uid>__wsanchez__</uid>
+                <short-name>wsanchez</short-name>
+                <nickname>Larry</nickname>
+              </record>
+            </directory>
+            """[1:]
+        )))
+
+        self.assertEquals(
+            set(service.unknownFieldElements),
+            set((u"nickname",))
+        )
+
+        # Make sure that the 'short-name', which was parsed prior to nickname
+        # is correct.  That is, make sure that we continue as soon as we
+        # notice the unknown field name and don't populate the previous field.
+
+        record = yield service.recordWithUID(u"__wsanchez__")
+
+        self.assertEquals(set(record.shortNames), set((u"wsanchez",)))
 
 
 
