@@ -346,8 +346,6 @@ class DirectoryService(BaseDirectoryService):
                         .format(boolElement.value, fieldNode.tag)
                     )
 
-                print(value)
-
             elif valueType is NamedConstant:
                 raise NotImplementedError("named constant")
 
