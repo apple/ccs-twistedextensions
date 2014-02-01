@@ -347,7 +347,9 @@ class DirectoryService(BaseDirectoryService):
                     )
 
             elif valueType is NamedConstant:
-                raise NotImplementedError("named constant")
+                constantElement = self._constantElement(fieldNode)
+
+                value = constantElement.constantValue
 
             else:
                 raise AssertionError(
@@ -377,12 +379,14 @@ class DirectoryService(BaseDirectoryService):
 
     def _constantElement(self, node):
         """
-        Find the name of the single empty node in a given node.
+        Find the element name of the single empty node (eg. C{<foo />}) in a
+        given node.
 
         @param node: a node
         @type node: L{XMLElement}
 
-        @return: L{unicode}
+        @return: The element name for the found node.
+        @rtype: L{Element}
         """
         child = None
 
