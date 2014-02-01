@@ -482,9 +482,9 @@ class DirectoryRecord(object):
 
     def verifyPlaintextPassword(self, password):
         if self.password == password:
-            return True
+            return succeed(True)
         else:
-            return False
+            return succeed(False)
 
 
     def verifyHTTPDigest(
@@ -505,4 +505,4 @@ class DirectoryRecord(object):
             )
         )
 
-        return helperCreds.checkPassword(self.password)
+        return succeed(helperCreds.checkPassword(self.password))

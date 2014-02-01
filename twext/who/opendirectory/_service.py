@@ -610,9 +610,9 @@ class DirectoryRecord(BaseDirectoryRecord):
         result, error = self._odRecord.verifyPassword_error_(password, None)
 
         if error:
-            return False
+            return succeed(False)
 
-        return result
+        return succeed(result)
 
 
     def verifyHTTPDigest(
@@ -647,9 +647,9 @@ class DirectoryRecord(BaseDirectoryRecord):
         print(result, m1, m2, error)
 
         if error:
-            return False
+            return succeed(False)
 
-        return result
+        return succeed(result)
 
 
 

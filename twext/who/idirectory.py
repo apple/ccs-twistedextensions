@@ -465,7 +465,7 @@ class IPlaintextPasswordVerifier(Interface):
         @type password: L{unicode}
 
         @return: L{True} if the password matches, L{False} otherwise.
-        @rtype: L{BOOL}
+        @rtype: deferred L{BOOL}
         """
 
 
@@ -483,5 +483,5 @@ class IHTTPDigestVerifier(Interface):
         @type password: L{unicode}
 
         @return: L{True} if the password matches, L{False} otherwise.
-        @rtype: L{BOOL}
+        @rtype: deferred L{BOOL}
         """

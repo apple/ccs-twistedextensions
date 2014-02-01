@@ -76,7 +76,8 @@ class UsernamePasswordCredentialChecker(BaseCredentialChecker):
                 "Not an IPlaintextPasswordVerifier: {0!r}".format(record)
             )
 
-        if record.verifyPlaintextPassword(credentials.password):
+        auth = yield record.verifyPlaintextPassword(credentials.password)
+        if auth:
             returnValue(record)
 
         raise UnauthorizedLogin("Incorrect password")
