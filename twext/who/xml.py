@@ -148,13 +148,21 @@ class DirectoryService(BaseDirectoryService):
     attribute       = Attribute
     recordTypeValue = RecordTypeValue
 
-    refreshInterval = 4
 
+    def __init__(self, filePath, refreshInterval=4):
+        """
+        @param filePath: A file path for the XML data to load into the
+            directory.
+        @type filePath: L{FilePath}
 
-    def __init__(self, filePath):
+        @param refreshInterval: An interval (in seconds) during which time
+            C{filePath} will not be checked for new data, reducing I/O.
+        @type refreshInterval: L{int}
+        """
         BaseDirectoryService.__init__(self, realmName=noRealmName)
 
         self.filePath = filePath
+        self.refreshInterval = refreshInterval
 
 
     def __repr__(self):
