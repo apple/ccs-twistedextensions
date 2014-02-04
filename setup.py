@@ -105,6 +105,8 @@ description = "Extensions to Twisted"
 
 long_description = file(joinpath(dirname(__file__), "README.rst")).read()
 
+url = "http://trac.calendarserver.org/wiki/twext"
+
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Framework :: Twisted",
@@ -195,7 +197,7 @@ def doSetup():
         version=version_string,
         description=description,
         long_description=long_description,
-        url="http://trac.calendarserver.org/wiki/twext",
+        url=url,
         classifiers=classifiers,
         author="Apple Inc.",
         author_email="calendarserver-dev@lists.macosforge.org",
