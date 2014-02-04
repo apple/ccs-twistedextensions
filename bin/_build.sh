@@ -111,16 +111,6 @@ init_build () {
     rm -rf "${py_root}";
   fi;
 
-  # Set up virtual environment
-
-  "${bootstrap_python}" -m virtualenv "${py_root}";
-
-  python="${py_bindir}/python";
-
-  # Make sure setup got called enough to write the version file.
-
-  "${python}" "${wd}/setup.py" check > /dev/null;
-
   # These variables are defaults for things which might be configured by
   # environment; only set them if they're un-set.
 
@@ -171,9 +161,9 @@ init_build () {
 
 
 setup_print () {
-    what="$1"; shift;
+  what="$1"; shift;
 
-    PYTHONPATH="${wd}" "${python}" - << EOF
+  PYTHONPATH="${wd}" "${python}" - << EOF
 from __future__ import print_function
 import setup
 print(setup.${what})
@@ -567,6 +557,16 @@ py_dependencies () {
   export PATH="${py_root}/bin:${PATH}";
 
   if ! "${do_setup}"; then return 0; fi;
+
+  # Set up virtual environment
+
+  "${bootstrap_python}" -m virtualenv "${py_root}";
+
+  python="${py_bindir}/python";
+
+  # Make sure setup got called enough to write the version file.
+
+  "${python}" "${wd}/setup.py" check > /dev/null;
 
   for requirements in "${wd}/requirements/py_"*".txt"; do
 
