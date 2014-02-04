@@ -293,7 +293,7 @@ class IDirectoryService(Interface):
         @type fieldName: L{NamedConstant}
 
         @param value: a value to match
-        @type value: L{bytes}
+        @type value: L{object}
 
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
@@ -305,7 +305,7 @@ class IDirectoryService(Interface):
         Find the record that has the given UID.
 
         @param uid: a UID
-        @type uid: L{bytes}
+        @type uid: L{unicode}
 
         @return: The matching record or C{None} if there is no match.
         @rtype: deferred L{IDirectoryRecord}s or C{None}
@@ -344,7 +344,7 @@ class IDirectoryService(Interface):
         @type recordType: L{NamedConstant}
 
         @param shortName: a short name
-        @type shortName: L{bytes}
+        @type shortName: L{unicode}
 
         @return: The matching record or C{None} if there is no match.
         @rtype: deferred L{IDirectoryRecord}s or C{None}
@@ -356,7 +356,7 @@ class IDirectoryService(Interface):
         Find the records that have the given email address.
 
         @param emailAddress: an email address
-        @type emailAddress: L{bytes}
+        @type emailAddress: L{unicode}
 
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
@@ -386,7 +386,7 @@ class IDirectoryService(Interface):
         Removes the records with the given UIDs.
 
         @param uids: the UIDs of the records to remove
-        @type uids: iterable of L{bytes}
+        @type uids: iterable of L{unicode}
 
         @return: unspecifiied
         @rtype: deferred object
