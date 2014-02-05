@@ -115,7 +115,7 @@ class _IWorkPerformer(Interface):
     (in the worst case) pass from worker->controller->controller->worker.
     """
 
-    def performWork(table, workID):
+    def performWork(table, workID): #@NoSelf
         """
         @param table: The table where work is waiting.
         @type table: L{TableSyntax}
@@ -288,7 +288,7 @@ class WorkItem(Record):
     the exact timing and location of the work execution may differ.
 
     L{WorkItem}s may be constrained in the ordering and timing of their
-    execution, to control concurrency and for performance reasons repsectively.
+    execution, to control concurrency and for performance reasons respectively.
 
     Although all the usual database mutual-exclusion rules apply to work
     executed in L{WorkItem.doWork}, implicit database row locking is not always
@@ -309,7 +309,7 @@ class WorkItem(Record):
           cheap operations all have to wait for the expensive ones to complete,
           but continue to consume whatever database resources they were using.
 
-    In order to ameliorate these problems with potentiallly concurrent work
+    In order to ameliorate these problems with potentially concurrent work
     that uses the same resources, L{WorkItem} provides a database-wide mutex
     that is automatically acquired at the beginning of the transaction and
     released at the end.  To use it, simply L{align
@@ -374,7 +374,6 @@ class WorkItem(Record):
         This method does I{not} need to delete the row referencing it; that
         will be taken care of by the job queueing machinery.
         """
-
 
     @classmethod
     def forTable(cls, table):
@@ -952,6 +951,7 @@ class WorkProposal(object):
         self._whenProposed = Deferred()
         self._whenExecuted = Deferred()
         self._whenCommitted = Deferred()
+        self.workItem = None
 
 
     def _start(self):
@@ -963,6 +963,7 @@ class WorkProposal(object):
         created = self.workItemType.create(self.txn, **self.kw)
 
         def whenCreated(item):
+            self.workItem = item
             self._whenProposed.callback(self)
 
             @self.txn.postCommit
