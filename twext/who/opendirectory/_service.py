@@ -21,6 +21,7 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
+from uuid import UUID
 from zope.interface import implementer
 
 from twisted.internet.defer import succeed, fail
@@ -395,7 +396,12 @@ class DirectoryService(BaseDirectoryService):
             queryAttribute = ODAttribute.fromFieldName(
                 expression.fieldName
             ).value
-            queryValue = expression.fieldValue
+            # TODO: support other valuetypes:
+            valueType = self.fieldName.valueType(expression.fieldName)
+            if valueType == UUID:
+                queryValue = unicode(expression.fieldValue).upper()
+            else:
+                queryValue = unicode(expression.fieldValue)
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
