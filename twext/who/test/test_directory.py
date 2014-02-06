@@ -25,7 +25,9 @@ from textwrap import dedent
 
 from zope.interface.verify import verifyObject, BrokenMethodImplementation
 
-from twisted.python.constants import Names, NamedConstant
+from twisted.python.constants import (
+    Names, NamedConstant, Values, ValueConstant, Flags, FlagConstant
+)
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.defer import succeed
@@ -730,6 +732,71 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         )
 
 
+    def test_initWithContainerClassFieldType_valid(self):
+        """
+        If C{valueType} is L{Names}, L{Values} or L{Flags}, the expected type
+        is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
+        Check that these can be used as fields.
+        """
+
+        class ConstantHavingDirectoryService(self.serviceClass):
+            fieldName = ConstantsContainer((
+                self.serviceClass.fieldName, ConstantHavingFieldName
+            ))
+
+        service = self.service(subClass=ConstantHavingDirectoryService)
+
+        baseFields = {
+            FieldName.uid: u"UID:sam",
+            FieldName.recordType: RecordType.user,
+            FieldName.shortNames: (u"sam",),
+        }
+
+        for fieldName, validValue in (
+            (service.fieldName.eyeColor, Color.blue),
+            (service.fieldName.language, Language.English),
+            (service.fieldName.access, Access.read),
+        ):
+            fields = baseFields.copy()
+            fields.update({fieldName: validValue})
+            record = self.makeRecord(fields=fields, service=service)
+            self.assertEquals(record.fields[fieldName], validValue)
+
+
+    def test_initWithContainerClassFieldType_invalid(self):
+        """
+        If C{valueType} is L{Names}, L{Values} or L{Flags}, the expected type
+        is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
+        Check that other types raise.
+        """
+
+        class ConstantHavingDirectoryService(self.serviceClass):
+            fieldName = ConstantsContainer((
+                self.serviceClass.fieldName, ConstantHavingFieldName
+            ))
+
+        service = self.service(subClass=ConstantHavingDirectoryService)
+
+        baseFields = {
+            FieldName.uid: u"UID:sam",
+            FieldName.recordType: RecordType.user,
+            FieldName.shortNames: (u"sam",),
+        }
+
+        for fieldName, validValue in (
+            (service.fieldName.eyeColor, Color.blue),
+            (service.fieldName.language, Language.English),
+            (service.fieldName.access, Access.read),
+        ):
+            for invalidValue in (u"string", None, object()):
+                fields = baseFields.copy()
+                fields.update({fieldName: invalidValue})
+                self.assertRaises(
+                    InvalidDirectoryRecordError,
+                    self.makeRecord, fields=fields, service=service
+                )
+
+
     def test_repr(self):
         """
         L{DirectoryRecord.repr} returns the expected string.
@@ -1001,3 +1068,47 @@ class WackyOperand(Names):
     Wacky operands.
     """
     WHUH = NamedConstant()
+
+
+
+class Color(Names):
+    """
+    Some colors.
+    """
+    red = NamedConstant()
+    green = NamedConstant()
+    blue = NamedConstant()
+    black = NamedConstant()
+
+
+
+class Language(Values):
+    """
+    Some languages.
+    """
+    English = ValueConstant(u"en")
+    Spanish = ValueConstant(u"sp")
+
+
+
+class Access(Flags):
+    """
+    Some access types.
+    """
+    read = FlagConstant()
+    write = FlagConstant()
+
+
+
+class ConstantHavingFieldName(Names):
+    """
+    Field names with constants values.
+    """
+    eyeColor = NamedConstant()
+    eyeColor.valueType = Color
+
+    language = NamedConstant()
+    language.valueType = Language
+
+    access = NamedConstant()
+    access.valueType = Access
