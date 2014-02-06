@@ -22,7 +22,7 @@ from itertools import chain
 
 from twisted.trial import unittest
 from twisted.python.constants import (
-    Names, NamedConstant, Flags, FlagConstant,
+    Names, NamedConstant, Values, ValueConstant, Flags, FlagConstant
 )
 
 from ..idirectory import DirectoryServiceError
@@ -56,6 +56,27 @@ class MoreTools(Names):
 class Instruments(Names):
     hammer = NamedConstant()
     chisel = NamedConstant()
+
+
+
+class Statuses(Values):
+    OK = ValueConstant(200)
+    NOT_OK = ValueConstant(500)
+
+
+    @staticmethod
+    def isError(status):
+        return status.value < 500
+
+
+
+class MoreStatuses(Values):
+    MOOLAH = ValueConstant(402)
+
+
+    @staticmethod
+    def isError(status):
+        return status.value < 400
 
 
 
@@ -98,6 +119,21 @@ class ConstantsContainerTest(unittest.TestCase):
         )
 
 
+    def test_constants_from_constantsContainers(self):
+        """
+        Initialize a container from other L{ConstantsContainer}s.
+        """
+        self.assertEquals(
+            set(
+                ConstantsContainer((
+                    ConstantsContainer((Tools,)),
+                    ConstantsContainer((MoreTools,)),
+                )).iterconstants()
+            ),
+            set(chain(Tools.iterconstants(), MoreTools.iterconstants())),
+        )
+
+
     def test_constants_from_iterables(self):
         """
         Initialize a container from iterables of constants.
@@ -114,7 +150,7 @@ class ConstantsContainerTest(unittest.TestCase):
 
     def test_conflictingClasses(self):
         """
-        A container can't contain two constants with the same name.
+        A container can't contain two constants with different types.
         """
         self.assertRaises(TypeError, ConstantsContainer, (Tools, Switches))
 
@@ -124,6 +160,13 @@ class ConstantsContainerTest(unittest.TestCase):
         A container can't contain two constants with the same name.
         """
         self.assertRaises(ValueError, ConstantsContainer, (Tools, Instruments))
+
+
+    def test_notConstantClass(self):
+        """
+        A container can't contain random classes.
+        """
+        self.assertRaises(TypeError, ConstantsContainer, (self.__class__,))
 
 
     def test_attrs(self):
@@ -159,10 +202,21 @@ class ConstantsContainerTest(unittest.TestCase):
         Static methods from source containers are accessible via attributes.
         """
         container = ConstantsContainer((Tools, MoreTools))
+
         self.assertTrue(container.isPounder(container.hammer))
         self.assertTrue(container.isPounder(container.mallet))
         self.assertFalse(container.isPounder(container.screwdriver))
         self.assertFalse(container.isPounder(container.saw))
+
+
+    def test_conflictingMethods(self):
+        """
+        A container can't contain two static methods with the same name.
+        """
+        self.assertRaises(
+            ValueError, ConstantsContainer, (Statuses, MoreStatuses)
+        )
+
 
 
     def test_lookupByName(self):
@@ -193,6 +247,19 @@ class ConstantsContainerTest(unittest.TestCase):
             ValueError,
             container.lookupByName, "plugh",
         )
+
+
+    def test_lookupByValue(self):
+        """
+        Containers with L{ValueConstant}s are assessible via
+        L{ConstantsContainer.lookupByValue}.
+        """
+        container = ConstantsContainer((Statuses,))
+
+        self.assertEquals(container.lookupByValue(200), Statuses.OK)
+        self.assertEquals(container.lookupByValue(500), Statuses.NOT_OK)
+
+        self.assertRaises(ValueError, container.lookupByValue, 999)
 
 
 
