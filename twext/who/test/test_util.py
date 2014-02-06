@@ -269,16 +269,37 @@ class UtilTest(unittest.TestCase):
     """
 
     def test_uniqueResult(self):
+        """
+        L{uniqueResult} returns the single value it is given, raises
+        L{DirectoryServiceError} is given more than one, or returns L{None}
+        if given on values.
+        """
+        self.assertEquals(None, uniqueResult(()))
         self.assertEquals(1, uniqueResult((1,)))
         self.assertRaises(DirectoryServiceError, uniqueResult, (1, 2, 3))
 
 
-    def test_describe(self):
+    def test_describeConstant(self):
+        """
+        L{describe} will look up the C{description} attribute on constants and
+        fall back to the C{name} attribute.
+        """
         self.assertEquals(u"nail pounder", describe(Tools.hammer))
         self.assertEquals(u"hammer", describe(Instruments.hammer))
 
 
     def test_describeFlags(self):
+        """
+        L{describe} on flags will describe the contained flags by joining their
+        descriptions with C{"|"}.
+        """
         self.assertEquals(u"blue", describe(Switches.b))
         self.assertEquals(u"red|green", describe(Switches.r | Switches.g))
         self.assertEquals(u"blue|black", describe(Switches.b | Switches.black))
+
+    def test_describeObject(self):
+        """
+        L{describe} will cast non-cosntant objects to L{unicode}.
+        """
+        for obj in (object(), u"string", b"data"):
+            self.assertEquals(describe(obj), unicode(obj))
