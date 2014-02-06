@@ -26,6 +26,11 @@ __all__ = [
 
 from zope.interface import implementer, directlyProvides
 
+from twisted.python.constants import (
+    Names, NamedConstant,
+    Values, ValueConstant,
+    Flags, FlagConstant,
+)
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.defer import succeed, fail
 from twisted.cred.credentials import DigestedCredentials
@@ -352,6 +357,14 @@ class DirectoryRecord(object):
 
         def checkType(name, value):
             expectedType = service.fieldName.valueType(name)
+
+            if issubclass(expectedType, Names):
+                expectedType = NamedConstant
+            elif issubclass(expectedType, Values):
+                expectedType = ValueConstant
+            elif issubclass(expectedType, Flags):
+                expectedType = FlagConstant
+
             if not isinstance(value, expectedType):
                 raise InvalidDirectoryRecordError(
                     "Value {0!r} for field {1} is not of type {2}".format(

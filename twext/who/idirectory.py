@@ -146,7 +146,16 @@ class FieldName(Names):
     """
     Constants for common directory record field names.
 
-    Fields as associated with either a single value or an iterable of values.
+    Fields as associated with either a single value (the default) or an
+    iterable of values (if it has a true C{multiValue} attribute).
+
+    Field values must be an instance of an expected type.  The default expected
+    type for a field is L{unicode}, and may be overriden by a C{valueType}
+    attribute on the field name.
+
+    In the case where the expected type is a constant (eg. L{NamedConstant}),
+    C{valueType} should be the container that contains the constant (eg. a
+    subclass of L{Names}).
 
     @cvar uid: The primary unique identifier for a directory record.
         The associated value must be a L{unicode}.

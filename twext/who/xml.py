@@ -35,7 +35,7 @@ from xml.etree.ElementTree import (
     tostring as etreeToString, Element as XMLElement,
 )
 
-from twisted.python.constants import NamedConstant, Values, ValueConstant
+from twisted.python.constants import Names, Values, ValueConstant, Flags
 from twisted.internet.defer import fail
 
 from .idirectory import (
@@ -354,7 +354,7 @@ class DirectoryService(BaseDirectoryService):
                         .format(boolElement.value, fieldNode.tag)
                     )
 
-            elif valueType is NamedConstant:
+            elif issubclass(valueType, (Names, Values, Flags)):
                 constantElement = self._constantElement(fieldNode)
 
                 value = constantElement.constantValue
