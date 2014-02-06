@@ -743,6 +743,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             ))
 
         service = self.service(subClass=ConstantHavingDirectoryService)
+        fieldName = service.fieldName
 
         baseFields = {
             FieldName.uid: u"UID:sam",
@@ -750,13 +751,13 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             FieldName.shortNames: (u"sam",),
         }
 
-        for fieldName, validValue in (
-            (service.fieldName.eyeColor, Color.blue),
-            (service.fieldName.language, Language.English),
-            (service.fieldName.access, Access.read),
+        for fieldName, validValue, almostValidValue in (
+            (fieldName.eyeColor, Color.blue, OtherColor.mauve),
+            (fieldName.language, Language.English, OtherLanguage.French),
+            (fieldName.access, Access.read, OtherAccess.delete),
         ):
             fields = baseFields.copy()
-            callback(service, fields, fieldName, validValue)
+            callback(service, fields, fieldName, validValue, almostValidValue)
 
 
     def test_initWithContainerClassFieldType_valid(self):
@@ -765,7 +766,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
         Check that these can be used as fields.
         """
-        def callback(service, fields, fieldName, validValue):
+        def callback(service, fields, fieldName, validValue, almostValidValue):
             fields.update({fieldName: validValue})
             record = self.makeRecord(fields=fields, service=service)
             self.assertEquals(record.fields[fieldName], validValue)
@@ -779,7 +780,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
         Check that other types raise.
         """
-        def callback(service, fields, fieldName, validValue):
+        def callback(service, fields, fieldName, validValue, almostValidValue):
             for invalidValue in (u"string", None, object()):
                 fields.update({fieldName: invalidValue})
                 self.assertRaises(
@@ -788,6 +789,26 @@ class BaseDirectoryRecordTest(ServiceMixIn):
                 )
 
         self._test_containerClassFieldType(callback)
+
+
+    def test_initWithContainerClassFieldType_almostValid(self):
+        """
+        If C{valueType} is L{Names}, L{Values} or L{Flags}, the expected type
+        is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
+        Check that other container types raise.
+        """
+        def callback(service, fields, fieldName, validValue, almostValidValue):
+            fields.update({fieldName: almostValidValue})
+            self.assertRaises(
+                InvalidDirectoryRecordError,
+                self.makeRecord, fields=fields, service=service
+            )
+
+        self._test_containerClassFieldType(callback)
+
+    test_initWithContainerClassFieldType_almostValid.todo = (
+        "It would be nice if this raised... presently does not"
+    )
 
 
     def test_repr(self):
@@ -1075,6 +1096,14 @@ class Color(Names):
 
 
 
+class OtherColor(Names):
+    """
+    More colors.
+    """
+    mauve = NamedConstant()
+
+
+
 class Language(Values):
     """
     Some languages.
@@ -1084,12 +1113,28 @@ class Language(Values):
 
 
 
+class OtherLanguage(Values):
+    """
+    More languages.
+    """
+    French = ValueConstant(u"fr")
+
+
+
 class Access(Flags):
     """
     Some access types.
     """
     read = FlagConstant()
     write = FlagConstant()
+
+
+
+class OtherAccess(Flags):
+    """
+    More access types.
+    """
+    delete = FlagConstant()
 
 
 
