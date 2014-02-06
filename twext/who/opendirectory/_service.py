@@ -44,7 +44,7 @@ from ..expression import (
     MatchExpression, MatchFlags,
 )
 from ..ldap._util import LDAP_QUOTING_TABLE
-from ..util import iterFlags, ConstantsContainer
+from ..util import ConstantsContainer
 
 from ._odframework import ODSession, ODNode, ODQuery
 from ._constants import (
@@ -226,7 +226,7 @@ class DirectoryService(BaseDirectoryService):
                 "Unknown match type: {0}".format(matchType)
             )
 
-        flags = tuple(iterFlags(expression.flags))
+        flags = tuple(expression.flags)
 
         if MatchFlags.NOT in flags:
             notOp = u"!"
@@ -370,7 +370,7 @@ class DirectoryService(BaseDirectoryService):
             )
         matchType = matchType.value
 
-        flags = tuple(iterFlags(expression.flags))
+        flags = tuple(expression.flags)
 
         if MatchFlags.NOT in flags:
             raise NotImplementedError()

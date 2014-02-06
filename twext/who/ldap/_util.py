@@ -20,7 +20,6 @@ from ..expression import (
     CompoundExpression, Operand,
     MatchExpression, MatchFlags,
 )
-from ..util import iterFlags
 from ._constants import LDAPOperand, LDAPMatchType, LDAPMatchFlags
 
 
@@ -82,7 +81,7 @@ def ldapQueryStringFromMatchExpression(
             "Unknown match type: {0}".format(matchType)
         )
 
-    flags = tuple(iterFlags(expression.flags))
+    flags = tuple(expression.flags)
 
     if MatchFlags.NOT in flags:
         notOp = LDAPMatchFlags.NOT.value

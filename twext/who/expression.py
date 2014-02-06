@@ -33,7 +33,7 @@ from twisted.python.constants import (
 )
 
 from .idirectory import FieldName
-from .util import iterFlags, describe
+from .util import describe
 
 
 #
@@ -129,7 +129,7 @@ class MatchFlags(Flags):
         if flags is None:
             flags = FlagConstant()
         else:
-            for flag in iterFlags(flags):
+            for flag in flags:
                 if flag == MatchFlags.NOT:
                     predicate = lambda x: not x
                 elif flag == MatchFlags.caseInsensitive:

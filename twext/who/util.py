@@ -23,7 +23,6 @@ __all__ = [
     "ConstantsContainer",
     "uniqueResult",
     "describe",
-    "iterFlags",
 ]
 
 from inspect import getmembers, isclass, isfunction
@@ -154,11 +153,6 @@ def describe(constant):
                 return description
 
     return unicode(constant)
-
-
-
-def iterFlags(flags):
-    return iter(flags)
 
 
 
