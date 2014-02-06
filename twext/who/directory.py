@@ -358,12 +358,12 @@ class DirectoryRecord(object):
         def checkType(name, value):
             expectedType = service.fieldName.valueType(name)
 
-            if issubclass(expectedType, Names):
-                expectedType = NamedConstant
+            if issubclass(expectedType, Flags):
+                expectedType = FlagConstant
             elif issubclass(expectedType, Values):
                 expectedType = ValueConstant
-            elif issubclass(expectedType, Flags):
-                expectedType = FlagConstant
+            elif issubclass(expectedType, Names):
+                expectedType = NamedConstant
 
             if not isinstance(value, expectedType):
                 raise InvalidDirectoryRecordError(
