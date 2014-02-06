@@ -86,10 +86,6 @@ find_header () {
 init_build () {
   init_py;
 
-       do_get="true";
-     do_setup="true";
-  force_setup="false";
-
       dev_home="${wd}/.develop";
      dev_roots="${dev_home}/roots";
   dep_packages="${dev_home}/pkg";
@@ -99,22 +95,23 @@ init_build () {
   py_libdir="${py_root}/lib/python";
   py_bindir="${py_root}/bin";
 
+  python="${py_bindir}/python";
+
   if [ -z "${TWEXT_PKG_CACHE-}" ]; then
     dep_packages="${dev_home}/pkg";
   else
     dep_packages="${TWEXT_PKG_CACHE}";
   fi;
 
-  mkdir -p "${dep_sources}";
-
-  if "${force_setup}"; then
-    rm -rf "${py_root}";
-  fi;
+  export PYTHONPATH="${wd}:${PYTHONPATH:-}";
 
   # These variables are defaults for things which might be configured by
   # environment; only set them if they're un-set.
 
   conditional_set wd "$(pwd)";
+  conditional_set do_get "true";
+  conditional_set do_setup "true";
+  conditional_set force_setup "false";
 
   # Find some hashing commands
   # sha1() = sha1 hash, if available
@@ -432,6 +429,8 @@ c_dependency () {
 
   # Extra arguments are processed below, as arguments to './configure'.
 
+  mkdir -p "${dep_sources}";
+
   srcdir="${dep_sources}/${path}";
   # local dstroot="${srcdir}/_root";
   local dstroot="${dev_roots}/${name}";
@@ -560,9 +559,12 @@ py_dependencies () {
 
   # Set up virtual environment
 
-  "${bootstrap_python}" -m virtualenv "${py_root}";
+  if "${force_setup}"; then
+    # Nuke the virtual environment first
+    rm -rf "${py_root}";
+  fi;
 
-  python="${py_bindir}/python";
+  "${bootstrap_python}" -m virtualenv "${py_root}";
 
   # Make sure setup got called enough to write the version file.
 

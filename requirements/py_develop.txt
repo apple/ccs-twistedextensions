@@ -1,2 +1,3 @@
+pyflakes
 docutils>=0.11
 mockldap>=0.1.4

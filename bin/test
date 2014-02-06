@@ -94,15 +94,6 @@ fi;
 
 
 #
-# Dependencies
-#
-
-c_dependencies >> "${dev_home}/setup.log";
-py_dependencies >> "${dev_home}/setup.log";
-
-
-
-#
 # Clean up
 #
 
