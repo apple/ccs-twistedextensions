@@ -452,25 +452,36 @@ class DirectoryRecord(object):
         @return: A description.
         @rtype: L{unicode}
         """
-        description = [self.__class__.__name__, u":"]
-
-        for name in sorted(self.service.fieldName.iterconstants()):
-            if name not in self.fields:
-                continue
-
-            value = self.fields[name]
-
-            if hasattr(name, "description"):
-                name = name.description
-            else:
-                name = unicode(name)
-
+        def describeValue(value):
             if hasattr(value, "description"):
                 value = value.description
             else:
                 value = unicode(value)
 
-            description.append(u"\n  {0} = {1!r}".format(name, value))
+            return value
+
+        values = {}
+
+        for fieldName in self.service.fieldName.iterconstants():
+            if fieldName not in self.fields:
+                continue
+
+            value = self.fields[fieldName]
+
+            if hasattr(fieldName, "description"):
+                name = fieldName.description
+            else:
+                name = unicode(fieldName.name)
+
+            if self.service.fieldName.isMultiValue(fieldName):
+                values[name] = ", ".join(describeValue(v) for v in value)
+            else:
+                values[name] = describeValue(value)
+
+        description = [self.__class__.__name__, u":"]
+
+        for name in sorted(values.iterkeys()):
+            description.append(u"\n  {0} = {1}".format(name, values[name]))
 
         description.append(u"\n")
 

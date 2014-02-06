@@ -878,23 +878,21 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         L{DirectoryRecord.description} returns the expected string.
         """
-        sagen = self.makeRecord(self.fields_sagen)
+        sagen = self.makeRecord(self.fields_wsanchez)
 
         self.assertEquals(
             dedent(
                 u"""
                 DirectoryRecord:
-                  UID = UID:sagen
+                  UID = UID:wsanchez
+                  email addresses = wsanchez@calendarserver.org, wsanchez@example.com
+                  full names = Wilfredo Sanchez, Wilfredo Sanchez Vega
                   record type = user
-                  short names = (u'sagen',)
-                  full names = (u'Morgen Sagen',)
-                  email addresses = ('sagen@calendarserver.org',)
+                  short names = wsanchez, wilfredo_sanchez
                 """[1:]
             ),
             sagen.description()
         )
-
-    test_description.todo = "Intermittent order issues"
 
 
     def test_members_group(self):
