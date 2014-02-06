@@ -732,11 +732,9 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         )
 
 
-    def test_initWithContainerClassFieldType_valid(self):
+    def _test_containerClassFieldType(self, callback):
         """
-        If C{valueType} is L{Names}, L{Values} or L{Flags}, the expected type
-        is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
-        Check that these can be used as fields.
+        Scaffold for test_initWithContainerClassFieldType_*.
         """
 
         class ConstantHavingDirectoryService(self.serviceClass):
@@ -758,9 +756,21 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             (service.fieldName.access, Access.read),
         ):
             fields = baseFields.copy()
+            callback(service, fields, fieldName, validValue)
+
+
+    def test_initWithContainerClassFieldType_valid(self):
+        """
+        If C{valueType} is L{Names}, L{Values} or L{Flags}, the expected type
+        is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
+        Check that these can be used as fields.
+        """
+        def callback(service, fields, fieldName, validValue):
             fields.update({fieldName: validValue})
             record = self.makeRecord(fields=fields, service=service)
             self.assertEquals(record.fields[fieldName], validValue)
+
+        self._test_containerClassFieldType(callback)
 
 
     def test_initWithContainerClassFieldType_invalid(self):
@@ -769,32 +779,15 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         is L{NamedConstant}, L{ValueConstant} or L{FlagConstant}, respectively.
         Check that other types raise.
         """
-
-        class ConstantHavingDirectoryService(self.serviceClass):
-            fieldName = ConstantsContainer((
-                self.serviceClass.fieldName, ConstantHavingFieldName
-            ))
-
-        service = self.service(subClass=ConstantHavingDirectoryService)
-
-        baseFields = {
-            FieldName.uid: u"UID:sam",
-            FieldName.recordType: RecordType.user,
-            FieldName.shortNames: (u"sam",),
-        }
-
-        for fieldName, validValue in (
-            (service.fieldName.eyeColor, Color.blue),
-            (service.fieldName.language, Language.English),
-            (service.fieldName.access, Access.read),
-        ):
+        def callback(service, fields, fieldName, validValue):
             for invalidValue in (u"string", None, object()):
-                fields = baseFields.copy()
                 fields.update({fieldName: invalidValue})
                 self.assertRaises(
                     InvalidDirectoryRecordError,
                     self.makeRecord, fields=fields, service=service
                 )
+
+        self._test_containerClassFieldType(callback)
 
 
     def test_repr(self):
