@@ -97,9 +97,12 @@ def version():
     return full_version
 
 
+
 #
 # Options
 #
+
+name = "twextpy"
 
 description = "Extensions to Twisted"
 
@@ -117,6 +120,15 @@ classifiers = [
     "Programming Language :: Python :: 2 :: Only",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+
+author = "Apple Inc."
+
+author_email = "calendarserver-dev@lists.macosforge.org"
+
+license = "Apache License, Version 2.0"
+
+platforms = ["all"]
+
 
 
 #
@@ -146,15 +158,9 @@ extras_requirements = dict(
 # Requirements for development and testing
 develop_requirements = read_requirements("py_develop.txt")
 
-if environment.get("_DEVELOP", "false") == "true":
+if environment.get("_DEVELOP_PROJECT_", None) == name:
     install_requirements.extend(develop_requirements)
     install_requirements.extend(chain(*extras_requirements.values()))
-
-    # Remove cx_Oracle here because we don't automate it's installation.
-    install_requirements = [
-        r for r in install_requirements
-        if not r.startswith("cx-Oracle")
-    ]
 
 
 
@@ -193,16 +199,16 @@ def doSetup():
         version_file.close()
 
     setup(
-        name="twextpy",
+        name=name,
         version=version_string,
         description=description,
         long_description=long_description,
         url=url,
         classifiers=classifiers,
-        author="Apple Inc.",
-        author_email="calendarserver-dev@lists.macosforge.org",
-        license="Apache License, Version 2.0",
-        platforms=["all"],
+        author=author,
+        author_email=author_email,
+        license=license,
+        platforms=platforms,
         packages=find_packages(),
         package_data={},
         scripts=[],

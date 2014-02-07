@@ -97,6 +97,8 @@ init_build () {
 
   python="${py_bindir}/python";
 
+  project="$(setup_print name)";
+
   if [ -z "${TWEXT_PKG_CACHE-}" ]; then
     dep_packages="${dev_home}/pkg";
   else
@@ -104,6 +106,7 @@ init_build () {
   fi;
 
   export PYTHONPATH="${wd}:${PYTHONPATH:-}";
+  export _DEVELOP_PROJECT_="${project}";
 
   # These variables are defaults for things which might be configured by
   # environment; only set them if they're un-set.
@@ -524,6 +527,20 @@ c_dependencies () {
       "Cyrus SASL" "${p}" \
       "ftp://ftp.cyrusimap.org/cyrus-sasl/${p}.tar.gz" \
       --disable-macos-framework;
+  fi;
+
+  ruler;
+  if type -P memcached > /dev/null; then
+    using_system "memcached";
+  else
+    local le="libevent-2.0.21-stable";
+    local mc="memcached-1.4.16";
+    c_dependency -m "b2405cc9ebf264aa47ff615d9de527a2" \
+      "libevent" "${le}" \
+      "http://github.com/downloads/libevent/libevent/${le}.tar.gz";
+    c_dependency -m "1c5781fecb52d70b615c6d0c9c140c9c" \
+      "memcached" "${mc}" \
+      "http://www.memcached.org/files/${mc}.tar.gz";
   fi;
 
   ruler;

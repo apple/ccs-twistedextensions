@@ -833,7 +833,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         plugh = self.serviceClass(u"plugh")
 
         wsanchez    = self.makeRecord(self.fields_wsanchez)
-        wsanchezmod = self.makeRecord(self.fields_wsanchez, plugh)
+        wsanchezmod = self.makeRecord(self.fields_wsanchez, service=plugh)
         glyph       = self.makeRecord(self.fields_glyph)
         glyphmod    = self.makeRecord(fields_glyphmod)
 
@@ -842,6 +842,16 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         self.assertNotEqual(glyph, glyphmod)  # UID matches, other fields don't
         self.assertNotEqual(glyphmod, wsanchez)
         self.assertNotEqual(wsanchez, wsanchezmod)  # Different service
+
+
+    def test_compareOtherType(self):
+        """
+        Comparison of records with other object types.
+        """
+        wsanchez = self.makeRecord(self.fields_wsanchez)
+
+        self.assertIdentical(wsanchez.__eq__(object()), NotImplemented)
+        self.assertIdentical(wsanchez.__ne__(object()), NotImplemented)
 
 
     def test_attributeAccess(self):
@@ -920,6 +930,51 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         Group memberships.
         """
         raise NotImplementedError("Subclasses should implement this test.")
+
+
+    @inlineCallbacks
+    def test_verifyPlaintextPassword(self):
+        """
+        Plain text authentication.
+        """
+        password = u"secret"
+
+        fields = self.fields_wsanchez.copy()
+        fields[FieldName.password] = password
+
+        wsanchez = self.makeRecord(fields)
+
+        self.assertTrue((yield wsanchez.verifyPlaintextPassword(password)))
+        self.assertFalse((yield wsanchez.verifyPlaintextPassword(u"bleargh")))
+
+
+    @inlineCallbacks
+    def test_verifyHTTPDigest(self):
+        """
+        HTTP digest authentication.
+        """
+        password = u"secret"
+
+        fields = self.fields_wsanchez.copy()
+        fields[FieldName.password] = password
+
+        wsanchez = self.makeRecord(fields)
+
+        result = yield wsanchez.verifyHTTPDigest(
+            username=u"wsanchez",
+            realm=None,
+            nonce=None,
+            cnonce=None,
+            algorithm=None,
+            nc=None,
+            qop=None,
+            response=None,
+        )
+
+        self.assertTrue(result)
+        raise NotImplementedError()
+
+    test_verifyHTTPDigest.todo = "unimplemented"
 
 
 

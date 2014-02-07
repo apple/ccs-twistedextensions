@@ -25,8 +25,6 @@ set -u;
 
 wd="$(cd "$(dirname "$0")/.." && pwd -L)";
 
-export _DEVELOP="true";
-
 . "${wd}/bin/_build.sh";
 
 init_build > /dev/null;
@@ -86,10 +84,19 @@ shift $((${OPTIND} - 1));
 
 if [ $# -eq 0 ]; then
   lint="true";
-  set - twext;
+  set - calendarserver twistedcaldav txdav txweb2 contrib;
 else
   lint="false";
 fi;
+
+
+
+#
+# Dependencies
+#
+
+#c_dependencies >> "${dev_home}/setup.log";
+#py_dependencies >> "${dev_home}/setup.log";
 
 
 
