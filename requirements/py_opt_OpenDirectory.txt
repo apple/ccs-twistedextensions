@@ -1,1 +1,5 @@
+#
+# Requirements for OpenDirectory support
+#
+
 pyobjc-framework-OpenDirectory>=2.5.1

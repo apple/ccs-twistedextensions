@@ -1,1 +1,5 @@
+#
+# Requirements for Oracle database support
+#
+
 cx_Oracle==5.1.2
