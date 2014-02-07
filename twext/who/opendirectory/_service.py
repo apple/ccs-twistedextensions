@@ -383,6 +383,10 @@ class DirectoryService(BaseDirectoryService):
         fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
         maxResults = 0
 
+        # For OpenDirectory, use guid for uid:
+        if expression.fieldName is self.fieldName.uid:
+            expression.fieldName = self.fieldName.guid
+
         if expression.fieldName is self.fieldName.recordType:
             recordTypes = ODRecordType.fromRecordType(
                 expression.fieldValue
