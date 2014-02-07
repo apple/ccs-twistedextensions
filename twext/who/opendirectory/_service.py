@@ -239,6 +239,12 @@ class DirectoryService(BaseDirectoryService):
         if expression.fieldName is self.fieldName.uid:
             odAttr = ODAttribute.guid
             value = expression.fieldValue
+
+        elif expression.fieldName is self.fieldName.recordType:
+            raise QueryNotSupportedError(
+                "Can't build a query string for record types."
+            )
+
         else:
             odAttr = ODAttribute.fromFieldName(expression.fieldName)
             if odAttr is None:
@@ -350,12 +356,15 @@ class DirectoryService(BaseDirectoryService):
         return query
 
 
-    def _queryFromMatchExpression(self, expression):
+    def _queryFromMatchExpression(self, expression, recordType=None):
         """
         Form an OpenDirectory query from a match expression.
 
         @param expression: A match expression.
         @type expression: L{MatchExpression}
+
+        @param recordType: A record type to insert into the query.
+        @type recordType: L{NamedConstant}
 
         @return: A native OpenDirectory query.
         @rtype: L{ODQuery}
@@ -388,6 +397,14 @@ class DirectoryService(BaseDirectoryService):
             expression.fieldName = self.fieldName.guid
 
         if expression.fieldName is self.fieldName.recordType:
+            if (
+                recordType is not None and
+                expression.fieldValue is not recordType
+            ):
+                raise ValueError(
+                    "recordType argument does not match expression"
+                )
+
             recordTypes = ODRecordType.fromRecordType(
                 expression.fieldValue
             ).value
@@ -396,11 +413,16 @@ class DirectoryService(BaseDirectoryService):
             queryValue = None
 
         else:
-            recordTypes = [t.value for t in ODRecordType.iterconstants()]
+            if recordType is None:
+                recordTypes = [t.value for t in ODRecordType.iterconstants()]
+            else:
+                recordTypes = recordType
+
             queryAttribute = ODAttribute.fromFieldName(
                 expression.fieldName
             ).value
-            # TODO: support other valuetypes:
+
+            # TODO: Add support other valuetypes:
             valueType = self.fieldName.valueType(expression.fieldName)
             if valueType == UUID:
                 queryValue = unicode(expression.fieldValue).upper()
@@ -480,7 +502,7 @@ class DirectoryService(BaseDirectoryService):
                 return self._recordsFromQuery(query)
 
             except QueryNotSupportedError:
-                pass
+                pass  # Let the superclass try
 
         return BaseDirectoryService.recordsFromNonCompoundExpression(
             self, expression
@@ -515,6 +537,21 @@ class DirectoryService(BaseDirectoryService):
             raise OpenDirectoryQueryError("Unable to look up user", error)
 
         return record
+
+
+    def recordWithShortName(self, recordType, shortName):
+        try:
+            query = self._queryFromMatchExpression(
+                MatchExpression(self.fieldName.shortNames, shortName),
+                recordType=recordType
+            )
+            return self._recordsFromQuery(query)
+
+        except QueryNotSupportedError:
+            # Let the superclass try
+            return BaseDirectoryService.recordWithShortName(
+                self, recordType, shortName
+            )
 
 
 
