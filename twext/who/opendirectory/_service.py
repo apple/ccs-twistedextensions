@@ -24,7 +24,7 @@ OpenDirectory directory service implementation.
 from uuid import UUID
 from zope.interface import implementer
 
-from twisted.internet.defer import succeed, fail
+from twisted.internet.defer import succeed, fail, inlineCallbacks, returnValue
 from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
@@ -44,7 +44,7 @@ from ..expression import (
     MatchExpression, MatchFlags,
 )
 from ..ldap._util import LDAP_QUOTING_TABLE
-from ..util import ConstantsContainer
+from ..util import ConstantsContainer, uniqueResult
 
 from ._odframework import ODSession, ODNode, ODQuery
 from ._constants import (
@@ -539,19 +539,23 @@ class DirectoryService(BaseDirectoryService):
         return record
 
 
+    @inlineCallbacks
     def recordWithShortName(self, recordType, shortName):
         try:
             query = self._queryFromMatchExpression(
                 MatchExpression(self.fieldName.shortNames, shortName),
                 recordType=recordType
             )
-            return self._recordsFromQuery(query)
+            returnValue(
+                uniqueResult(
+                    (yield self._recordsFromQuery(query))
+                )
+            )
 
         except QueryNotSupportedError:
             # Let the superclass try
-            return BaseDirectoryService.recordWithShortName(
-                self, recordType, shortName
-            )
+            returnValue((yield BaseDirectoryService.recordWithShortName(
+                self, recordType, shortName)))
 
 
 
