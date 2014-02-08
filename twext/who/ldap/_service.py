@@ -506,8 +506,16 @@ def recordTypeForRecordData(recordTypeSchemas, recordData):
 
     for recordType, schema in recordTypeSchemas.iteritems():
         for attribute, value in schema.attributes:
-            if recordData.get(attribute) != value:
-                break
+            dataValue = recordData.get(attribute)
+            # If the data value (e.g. objectClass) is a list, see if the
+            # expected value is contained in that list, otherwise directly
+            # compare.
+            if isinstance(dataValue, list):
+                if value not in dataValue:
+                    break
+            else:
+                if value != dataValue:
+                    break
         else:
             return recordType
 
