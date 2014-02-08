@@ -673,25 +673,41 @@ class DirectoryRecord(BaseDirectoryRecord):
             )
         )
 
-        print("username = {0!r}".format(username))
-        print("realm = {0!r}".format(realm))
-        print("uri = {0!r}".format(uri))
-        print("nonce = {0!r}".format(nonce))
-        print("cnonce = {0!r}".format(cnonce))
-        print("algorithm = {0!r}".format(algorithm))
-        print("nc = {0!r}".format(nc))
-        print("qop = {0!r}".format(qop))
-        print("response = {0!r}".format(response))
-        print("method = {0!r}".format(method))
-        print("challenge = {0!r}".format(challenge))
+        if qop:
+            responseArg = (
+                'username="%s",realm="%s",algorithm=%s,'
+                'nonce="%s",cnonce="%s",nc=%s,qop=%s,'
+                'digest-uri="%s",response=%s'
+                % (
+                    username, realm, algorithm, nonce, cnonce, nc, qop,
+                    uri, response
+                )
+            )
+        else:
+            responseArg = (
+                'Digest username="%s", uri="%s", response=%s'
+                % (username, uri, response)
+            )
+
+        # print("username = {0!r}".format(username))
+        # print("realm = {0!r}".format(realm))
+        # print("uri = {0!r}".format(uri))
+        # print("nonce = {0!r}".format(nonce))
+        # print("cnonce = {0!r}".format(cnonce))
+        # print("algorithm = {0!r}".format(algorithm))
+        # print("nc = {0!r}".format(nc))
+        # print("qop = {0!r}".format(qop))
+        # print("response = {0!r}".format(response))
+        # print("method = {0!r}".format(method))
+        # print("challenge = {0!r}".format(challenge))
 
         result, m1, m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
             ODAuthMethod.digestMD5.value,
-            [username, challenge, response, method],
+            [username, challenge, responseArg, method],
             None, None, None
         )
 
-        print(result, m1, m2, error)
+        # print(result, m1, m2, error)
 
         if error:
             return succeed(False)
