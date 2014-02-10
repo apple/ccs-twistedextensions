@@ -1219,7 +1219,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             return self.workerPool
 
         if self.peers and not onlyLocally:
-            return sorted(self.peers, lambda p: p.currentLoadEstimate())[0]
+            return sorted(self.peers, key=lambda p: p.currentLoadEstimate())[0]
         else:
             return LocalPerformer(self.transactionFactory)
 

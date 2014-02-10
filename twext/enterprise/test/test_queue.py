@@ -56,6 +56,7 @@ except ImportError:
         )
 
 
+
 class Clock(_Clock):
     """
     More careful L{IReactorTime} fake which mimics the exception behavior of
@@ -445,6 +446,36 @@ class PeerConnectionPoolUnitTests(TestCase):
         d.callback(128374)
         connection.flush()
         self.assertEquals(performResult, [None])
+
+
+    def test_choosePerformerSorted(self):
+        """
+        If L{PeerConnectionPool.choosePerformer} is invoked make it
+        return the peer with the least load.
+        """
+        peer = PeerConnectionPool(None, None, 4322, schema)
+
+        class DummyPeer(object):
+            def __init__(self, name, load):
+                self.name = name
+                self.load = load
+
+            def currentLoadEstimate(self):
+                return self.load
+
+        apeer = DummyPeer("A", 1)
+        bpeer = DummyPeer("B", 0)
+        cpeer = DummyPeer("C", 2)
+        peer.addPeerConnection(apeer)
+        peer.addPeerConnection(bpeer)
+        peer.addPeerConnection(cpeer)
+
+        performer = peer.choosePerformer(onlyLocally=False)
+        self.assertEqual(performer, bpeer)
+
+        bpeer.load = 2
+        performer = peer.choosePerformer(onlyLocally=False)
+        self.assertEqual(performer, apeer)
 
 
     @inlineCallbacks
