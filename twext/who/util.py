@@ -79,21 +79,27 @@ class ConstantsContainer(object):
                 if issubclass(self._constantsClass, ValueConstant):
                     self.lookupByValue = self._lookupByValue
 
-            if constant.name in self._constants:
+            if (
+                constant.name in self._constants and
+                self._constants[constant.name] is not constant
+            ):
                 raise ValueError("Name conflict: {0}".format(constant.name))
 
             self._constants[constant.name] = constant
 
 
     def _addMethods(self, methods):
-        for name, value in methods:
+        for name, method in methods:
             if name[0] == "_":
                 continue
 
-            if name in self._constants or name in self._methods:
+            if (
+                name in self._constants or
+                (name in self._methods and self._methods[name] is not method)
+            ):
                 raise ValueError("Name conflict: {0}".format(name))
 
-            self._methods[name] = value
+            self._methods[name] = method
 
 
     def __getattr__(self, name):
