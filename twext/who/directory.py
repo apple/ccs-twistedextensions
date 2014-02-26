@@ -365,7 +365,7 @@ class DirectoryRecord(object):
             elif issubclass(expectedType, Names):
                 expectedType = NamedConstant
 
-            if not isinstance(value, expectedType):
+            if value is not None and not isinstance(value, expectedType):
                 raise InvalidDirectoryRecordError(
                     "Value {0!r} for field {1} is not of type {2}".format(
                         value, name, expectedType

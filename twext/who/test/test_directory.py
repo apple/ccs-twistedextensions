@@ -588,6 +588,13 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         FieldName.shortNames: (u"nobody",),
     }
 
+    fields_none_password = {
+        FieldName.uid: u"UID:nobody",
+        FieldName.recordType: RecordType.user,
+        FieldName.shortNames: (u"nobody",),
+        FieldName.password: None,
+    }
+
     fields_staff = {
         FieldName.uid: u"UID:staff",
         FieldName.recordType: RecordType.group,
@@ -730,6 +737,16 @@ class BaseDirectoryRecordTest(ServiceMixIn):
                 FieldName.shortNames: ("wsanchez",),  # Not unicode.
             }
         )
+
+
+    def test_noneIsAllowed(self):
+        """
+        Verify a value of None is allowed
+        """
+        service  = self.service()
+        record = self.makeRecord(self.fields_none_password, service=service)
+
+        self.assertEquals(record.password, None)
 
 
     def _test_containerClassFieldType(self, callback):
