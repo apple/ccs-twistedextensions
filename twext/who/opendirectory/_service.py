@@ -634,7 +634,7 @@ class DirectoryRecord(BaseDirectoryRecord):
                 "GUID field is required.", fields
             )
 
-        fields[service.fieldName.uid] = unicode(guid)
+        fields[service.fieldName.uid] = unicode(guid).upper()
 
         super(DirectoryRecord, self).__init__(service, fields)
         self._odRecord = odRecord
@@ -717,6 +717,17 @@ class DirectoryRecord(BaseDirectoryRecord):
             return succeed(False)
 
         return succeed(result)
+
+
+
+    @inlineCallbacks
+    def members(self):
+        members = set()
+        for uid in getattr(self, "memberUIDs", ()):
+            members.add((yield self.service.recordWithUID(uid)))
+        for uid in getattr(self, "nestedGroupsUIDs", ()):
+            members.add((yield self.service.recordWithUID(uid)))
+        returnValue(members)
 
 
 
