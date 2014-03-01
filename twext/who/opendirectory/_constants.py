@@ -45,6 +45,13 @@ class FieldName(Names):
     metaRecordName.description = u"meta record name"
     metaRecordName.multiValue = False
 
+    memberUIDs = NamedConstant()
+    memberUIDs.description = u"member UIDs (excluding groups)"
+    memberUIDs.multiValue = True
+
+    nestedGroupsUIDs = NamedConstant()
+    nestedGroupsUIDs.description = u"nested group member UIDs"
+    nestedGroupsUIDs.multiValue = True
 
 
 #
@@ -158,6 +165,12 @@ class ODAttribute(Values):
 
     metaRecordName = ValueConstant(u"dsAttrTypeStandard:AppleMetaRecordName")
     metaRecordName.fieldName = FieldName.metaRecordName
+
+    groupMembers = ValueConstant(u"dsAttrTypeStandard:GroupMembers")
+    groupMembers.fieldName = FieldName.memberUIDs
+
+    nestedGroups = ValueConstant(u"dsAttrTypeStandard:NestedGroups")
+    nestedGroups.fieldName = FieldName.nestedGroupsUIDs
 
     # # Single value fields
     # AdminLimits = ValueConstant(u"dsAttrTypeStandard:AdminLimits")

@@ -155,11 +155,18 @@ class ConstantsContainerTest(unittest.TestCase):
         self.assertRaises(TypeError, ConstantsContainer, (Tools, Switches))
 
 
-    def test_conflictingNames(self):
+    def test_conflictingNames_different(self):
         """
-        A container can't contain two constants with the same name.
+        A container can't contain two different constants with the same name.
         """
         self.assertRaises(ValueError, ConstantsContainer, (Tools, Instruments))
+
+
+    def test_conflictingNames_same(self):
+        """
+        A container can combine containers which contain the same constants.
+        """
+        ConstantsContainer((Tools, Tools))
 
 
     def test_notConstantClass(self):

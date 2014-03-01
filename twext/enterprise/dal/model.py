@@ -321,9 +321,13 @@ class Table(FancyEqMixin, object):
         otherColumns = dict([
             (item.name.lower(), item) for item in other.columns
         ])
-        for item in set(myColumns.keys()) ^ set(otherColumns.keys()):
+        for item in set(myColumns.keys()) - set(otherColumns.keys()):
             results.append(
-                "Table: %s, missing column: %s" % (self.name, item,)
+                "Table: %s, extra column: %s" % (self.name, myColumns[item].name,)
+            )
+        for item in set(otherColumns.keys()) - set(myColumns.keys()):
+            results.append(
+                "Table: %s, missing column: %s" % (self.name, otherColumns[item].name,)
             )
 
         for name in set(myColumns.keys()) & set(otherColumns.keys()):
@@ -593,13 +597,13 @@ class Schema(object):
             ])
             for item in set(myItems.keys()) - set(otherItems.keys()):
                 results.append(
-                    "Schema: %s, missing %s: %s"
-                    % (other.filename, descriptor, item)
+                    "Schema: %s, extra %s: %s"
+                    % (other.filename, descriptor, myItems[item].name)
                 )
             for item in set(otherItems.keys()) - set(myItems.keys()):
                 results.append(
                     "Schema: %s, missing %s: %s"
-                    % (self.filename, descriptor, item)
+                    % (self.filename, descriptor, otherItems[item].name)
                 )
 
             for name in set(myItems.keys()) & set(otherItems.keys()):
