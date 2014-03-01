@@ -30,6 +30,7 @@ __all__ = [
     "Index",
     "PseudoIndex",
     "Sequence",
+    "Function",
     "Schema",
 ]
 
@@ -516,6 +517,36 @@ class Sequence(FancyEqMixin, object):
 
 
 
+class Function(FancyEqMixin, object):
+    """
+    A function object.
+    """
+
+    compareAttributes = "name".split()
+
+    def __init__(self, schema, name):
+        _checkstr(name)
+        self.name = name
+        schema.functions.append(self)
+
+
+    def __repr__(self):
+        return "<Function %r>" % (self.name,)
+
+
+    def compare(self, other):
+        """
+        Return the differences between two functions.
+
+        @param other: the function to compare with
+        @type other: L{Function}
+        """
+
+        # TODO: ought to compare function body but we don't track that
+        return []
+
+
+
 def _namedFrom(name, sequence):
     """
     Retrieve an item with a given name attribute from a given sequence, or
@@ -538,6 +569,7 @@ class Schema(object):
         self.tables = []
         self.indexes = []
         self.sequences = []
+        self.functions = []
 
 
     def __repr__(self):
@@ -576,6 +608,7 @@ class Schema(object):
         _compareLists(self.tables, other.tables, "table")
         _compareLists(self.pseudoIndexes(), other.pseudoIndexes(), "index")
         _compareLists(self.sequences, other.sequences, "sequence")
+        _compareLists(self.functions, other.functions, "functions")
 
         return results
 
@@ -617,3 +650,7 @@ class Schema(object):
 
     def indexNamed(self, name):
         return _namedFrom(name, self.indexes)
+
+
+    def functionNamed(self, name):
+        return _namedFrom(name, self.functions)

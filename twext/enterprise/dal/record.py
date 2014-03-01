@@ -171,6 +171,23 @@ class Record(object):
         return r
 
 
+    @classmethod
+    def fromTable(cls, table):
+        """
+        Initialize from a L{Table} at run time.
+
+        @param table: table containing the record data
+        @type table: L{Table}
+        """
+        cls.__attrmap__ = {}
+        cls.__colmap__ = {}
+        allColumns = list(table)
+        for column in allColumns:
+            attrname = cls.namingConvention(column.model.name)
+            cls.__attrmap__[attrname] = column
+            cls.__colmap__[column] = attrname
+
+
     @staticmethod
     def namingConvention(columnName):
         """
@@ -274,7 +291,7 @@ class Record(object):
         """
         for setAttribute, setValue in attributeList:
             setColumn = self.__attrmap__[setAttribute]
-            if setColumn.model.type.name == "timestamp":
+            if setColumn.model.type.name == "timestamp" and setValue is not None:
                 setValue = parseSQLTimestamp(setValue)
             setattr(self, setAttribute, setValue)
 
@@ -335,7 +352,7 @@ class Record(object):
 
 
     @classmethod
-    def query(cls, transaction, expr, order=None, ascending=True, group=None):
+    def query(cls, transaction, expr, order=None, ascending=True, group=None, forUpdate=False, noWait=False):
         """
         Query the table that corresponds to C{cls}, and return instances of
         C{cls} corresponding to the rows that are returned from that table.
@@ -353,15 +370,29 @@ class Record(object):
 
         @param group: a L{ColumnSyntax} to group the resulting record objects
             by.
+
+        @param forUpdate: do a SELECT ... FOR UPDATE
+        @type forUpdate: L{bool}
+        @param noWait: include NOWAIT with the FOR UPDATE
+        @type noWait: L{bool}
         """
         kw = {}
         if order is not None:
             kw.update(OrderBy=order, Ascending=ascending)
         if group is not None:
             kw.update(GroupBy=group)
+        if forUpdate:
+            kw.update(ForUpdate=True)
+            if noWait:
+                kw.update(NoWait=True)
         return cls._rowsFromQuery(
             transaction,
-            Select(list(cls.table), From=cls.table, Where=expr, **kw),
+            Select(
+                list(cls.table),
+                From=cls.table,
+                Where=expr,
+                **kw
+            ),
             None
         )
 
