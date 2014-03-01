@@ -115,7 +115,6 @@ class IAsyncTransaction(ISQLExecutor):
             transaction has already been committed or rolled back.
         """
 
-
     def preCommit(operation):
         """
         Perform the given operation when this L{IAsyncTransaction}'s C{commit}
@@ -128,7 +127,6 @@ class IAsyncTransaction(ISQLExecutor):
             will not fire until that L{Deferred} fires.
         """
 
-
     def postCommit(operation):
         """
         Perform the given operation only after this L{IAsyncTransaction}
@@ -140,7 +138,6 @@ class IAsyncTransaction(ISQLExecutor):
             will not fire until that L{Deferred} fires.
         """
 
-
     def abort():
         """
         Roll back changes caused by this transaction.
@@ -148,7 +145,6 @@ class IAsyncTransaction(ISQLExecutor):
         @return: L{Deferred} which fires with C{None} upon successful
             rollback of this transaction.
         """
-
 
     def postAbort(operation):
         """
@@ -159,7 +155,6 @@ class IAsyncTransaction(ISQLExecutor):
         @param operation: 0-argument callable, potentially returning a
             L{Deferred}.
         """
-
 
     def commandBlock():
         """
@@ -257,7 +252,6 @@ class IDerivedParameter(Interface):
         @return: the concrete value which should be passed to the DB-API layer.
         """
 
-
     def postQuery(cursor):
         """
         After running a query, invoke this method in the DB-API thread.
@@ -288,16 +282,15 @@ class IQueuer(Interface):
 
         @param workItemType: the type of work item to create.
         @type workItemType: L{type}, specifically, a subtype of L{WorkItem
-            <twext.enterprise.queue.WorkItem>}
+            <twext.enterprise.jobqueue.WorkItem>}
 
         @param kw: The keyword parameters are relayed to C{workItemType.create}
             to create an appropriately initialized item.
 
         @return: a work proposal that allows tracking of the various phases of
             completion of the work item.
-        @rtype: L{twext.enterprise.queue.WorkItem}
+        @rtype: L{twext.enterprise.jobqueue.WorkItem}
         """
-
 
     def callWithNewProposals(self, callback):
         """
@@ -307,7 +300,6 @@ class IQueuer(Interface):
         @param callback: a callable which accepts a single parameter, a
             L{WorkProposal}
         """
-
 
     def transferProposalCallbacks(self, newQueuer):
         """

@@ -192,13 +192,13 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         a = self.createTransaction()
 
         alphaResult = self.resultOf(a.execSQL("alpha"))
-        [[counter, echo]] = alphaResult[0]
+        [[_ignore_counter, _ignore_echo]] = alphaResult[0]
 
         b = self.createTransaction()
         # "b" should have opened a connection.
         self.assertEquals(len(self.factory.connections), 2)
         betaResult = self.resultOf(b.execSQL("beta"))
-        [[bcounter, becho]] = betaResult[0]
+        [[bcounter, _ignore_becho]] = betaResult[0]
 
         # both "a" and "b" are holding open a connection now; let's try to open
         # a third one.  (The ordering will be deterministic even if this fails,
@@ -214,13 +214,13 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         commitResult = self.resultOf(b.commit())
 
         # Now that "b" has committed, "c" should be able to complete.
-        [[ccounter, cecho]] = gammaResult[0]
+        [[ccounter, _ignore_cecho]] = gammaResult[0]
 
         # The connection for "a" ought to still be busy, so let's make sure
         # we're using the one for "c".
         self.assertEquals(ccounter, bcounter)
 
-        # Sanity check: the commit should have succeded!
+        # Sanity check: the commit should have succeeded!
         self.assertEquals(commitResult, [None])
 
 
@@ -231,7 +231,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         """
         a = self.createTransaction()
         alphaResult = self.resultOf(a.execSQL("alpha"))
-        [[[counter, echo]]] = alphaResult
+        [[[_ignore_counter, _ignore_echo]]] = alphaResult
         self.assertEquals(len(self.factory.connections), 1)
         self.assertEquals(len(self.holders), 1)
         [holder] = self.holders
@@ -452,7 +452,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         for txn in txns:
             # Make sure rollback will actually be executed.
             results = self.resultOf(txn.execSQL("maybe change something!"))
-            [[[counter, echo]]] = results
+            [[[_ignore_counter, echo]]] = results
             self.assertEquals("maybe change something!", echo)
         # Fail one (and only one) call to rollback().
         self.factory.rollbackFail = True
@@ -483,7 +483,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         """
         active = []
         # Use up the available connections ...
-        for i in xrange(self.pool.maxConnections):
+        for _ignore in xrange(self.pool.maxConnections):
             active.append(self.createTransaction())
 
         # ... so that this one has to be spooled.
@@ -506,7 +506,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         abortResult = self.resultOf(it.abort())
 
         # steal it from the queue so we can do it out of order
-        d, work = self.holders[0]._q.get()
+        d, _ignore_work = self.holders[0]._q.get()
 
         # that should be the only work unit so don't continue if something else
         # got in there
@@ -716,7 +716,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
 
         self.factory.connections[0].executeWillFail(CustomExecuteFailed)
         results = self.resultOf(txn.execSQL("hello, world!"))
-        [[[counter, echo]]] = results
+        [[[_ignore_counter, echo]]] = results
         self.assertEquals("hello, world!", echo)
 
         # Two execution attempts should have been made, one on each connection.
@@ -752,7 +752,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         )
         results = self.resultOf(txn.execSQL("hello, world!"))
         txn.commit()
-        [[[counter, echo]]] = results
+        [[[_ignore_counter, echo]]] = results
         self.assertEquals("hello, world!", echo)
         txn2 = self.createTransaction()
         self.assertEquals(
@@ -767,7 +767,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.factory.connections[0].executeWillFail(CustomExecFail)
         results = self.resultOf(txn2.execSQL("second try!"))
         txn2.commit()
-        [[[counter, echo]]] = results
+        [[[_ignore_counter, echo]]] = results
         self.assertEquals("second try!", echo)
         self.assertEquals(len(self.flushLoggedErrors(CustomExecFail)), 1)
 
@@ -936,7 +936,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         re-connection on the next try.
         """
         txn = self.createTransaction()
-        [[[counter, echo]]] = self.resultOf(txn.execSQL("hello, world!", []))
+        [[[_ignore_counter, _ignore_echo]]] = self.resultOf(txn.execSQL("hello, world!", []))
         self.factory.connections[0].executeWillFail(ZeroDivisionError)
         [f] = self.resultOf(txn.execSQL("divide by zero", []))
         f.trap(self.translateError(ZeroDivisionError))
@@ -966,7 +966,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         """
         txn = self.createTransaction()
         results = self.resultOf(txn.execSQL("maybe change something!"))
-        [[[counter, echo]]] = results
+        [[[_ignore_counter, echo]]] = results
         self.assertEquals("maybe change something!", echo)
         self.factory.rollbackFail = True
         [x] = self.resultOf(txn.abort())
@@ -992,7 +992,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         txn = self.createTransaction()
         self.factory.commitFail = True
         results = self.resultOf(txn.execSQL("maybe change something!"))
-        [[[counter, echo]]] = results
+        [[[_ignore_counter, echo]]] = results
         self.assertEquals("maybe change something!", echo)
         [x] = self.resultOf(txn.commit())
         x.trap(self.translateError(CommitFail))
@@ -1210,7 +1210,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         r = self.resultOf(
             txn.execSQL("some-rows", raiseOnZeroRowCount=RuntimeError)
         )
-        [[[counter, echo]]] = r
+        [[[_ignore_counter, echo]]] = r
         self.assertEquals(echo, "some-rows")
 
 
@@ -1338,7 +1338,6 @@ class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
     interacting with each other.
     """
 
-
     def setParamstyle(self, paramstyle):
         """
         Change the paramstyle on both the pool and the client.
@@ -1364,6 +1363,7 @@ class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
         verifyObject(IAsyncTransaction, txn)
         self.pump.flush()
         self.assertEquals(len(self.factory.connections), 1)
+
 
 
 class HookableOperationTests(TestCase):

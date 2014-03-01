@@ -403,3 +403,27 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
                 "z-unique:(c)",
             ))
         )
+
+
+    def test_functions(self):
+        """
+        A 'create (or replace) function' statement will add an L{Function} object to a L{Schema}'s
+        C{functions} list.
+        """
+        s = self.schemaFromString(
+            """
+CREATE FUNCTION increment(i integer) RETURNS integer AS $$
+BEGIN
+    RETURN i + 1;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION decrement(i integer) RETURNS integer AS $$
+BEGIN
+    RETURN i - 1;
+END;
+$$ LANGUAGE plpgsql;
+            """
+        )
+        self.assertTrue(s.functionNamed("increment") is not None)
+        self.assertTrue(s.functionNamed("decrement") is not None)
+        self.assertRaises(KeyError, s.functionNamed, "merge")

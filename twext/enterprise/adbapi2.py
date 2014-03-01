@@ -155,12 +155,12 @@ class _ConnectedTxn(object):
     noisy = False
 
     def __init__(self, pool, threadHolder, connection, cursor):
-        self._pool       = pool
-        self._completed  = "idle"
-        self._cursor     = cursor
+        self._pool = pool
+        self._completed = "idle"
+        self._cursor = cursor
         self._connection = connection
-        self._holder     = threadHolder
-        self._first      = True
+        self._holder = threadHolder
+        self._first = True
 
 
     @_forward
@@ -169,13 +169,11 @@ class _ConnectedTxn(object):
         The paramstyle attribute is mirrored from the connection pool.
         """
 
-
     @_forward
     def dialect(self):
         """
         The dialect attribute is mirrored from the connection pool.
         """
-
 
     def _reallyExecSQL(self, sql, args=None, raiseOnZeroRowCount=None):
         """
@@ -280,7 +278,7 @@ class _ConnectedTxn(object):
                 # that we cannot workaround or address automatically, so no
                 # try:except: for them.
                 self._connection = self._pool.connectionFactory()
-                self._cursor     = self._connection.cursor()
+                self._cursor = self._connection.cursor()
 
                 # Note that although this method is being invoked recursively,
                 # the "_first" flag is re-set at the very top, so we will _not_
@@ -382,9 +380,9 @@ class _ConnectedTxn(object):
         transaction.
         """
         self._completed = "released"
-        self._stopped   = True
-        holder          = self._holder
-        self._holder    = None
+        self._stopped = True
+        holder = self._holder
+        self._holder = None
 
         def _reallyClose():
             if self._cursor is None:
@@ -417,8 +415,8 @@ class _NoTxn(object):
         return fail(ConnectionError(self.reason))
 
     execSQL = _everything
-    commit  = _everything
-    abort   = _everything
+    commit = _everything
+    abort = _everything
 
 
 
@@ -593,12 +591,12 @@ class _SingleTxn(_CommitAndAbortHooks,
 
     def __init__(self, pool, baseTxn):
         super(_SingleTxn, self).__init__()
-        self._pool           = pool
-        self._baseTxn        = baseTxn
-        self._completed      = False
-        self._currentBlock   = None
-        self._blockedQueue   = None
-        self._pendingBlocks  = []
+        self._pool = pool
+        self._baseTxn = baseTxn
+        self._completed = False
+        self._currentBlock = None
+        self._blockedQueue = None
+        self._pendingBlocks = []
         self._stillExecuting = []
 
 
@@ -615,7 +613,7 @@ class _SingleTxn(_CommitAndAbortHooks,
         implementation of L{IAsyncTransaction} that will actually do the work;
         either a L{_ConnectedTxn} or a L{_NoTxn}.
         """
-        spooledBase   = self._baseTxn
+        spooledBase = self._baseTxn
         self._baseTxn = baseTxn
         spooledBase._unspool(baseTxn)
 
@@ -892,8 +890,8 @@ class _ConnectingPseudoTxn(object):
             and subsequent SQL executions for this connection.
         @type holder: L{ThreadHolder}
         """
-        self._pool    = pool
-        self._holder  = holder
+        self._pool = pool
+        self._holder = holder
         self._aborted = False
 
 
@@ -992,11 +990,11 @@ class ConnectionPool(Service, object):
         if name is not None:
             self.name = name
 
-        self._free       = []
-        self._busy       = []
-        self._waiting    = []
-        self._finishing  = []
-        self._stopping   = False
+        self._free = []
+        self._busy = []
+        self._waiting = []
+        self._finishing = []
+        self._stopping = False
 
 
     def startService(self):
@@ -1107,7 +1105,7 @@ class ConnectionPool(Service, object):
             # support threadlevel=1; we can't necessarily cursor() in a
             # different thread than we do transactions in.
             connection = self.connectionFactory()
-            cursor     = connection.cursor()
+            cursor = connection.cursor()
             return (connection, cursor)
 
         def finishInit((connection, cursor)):
@@ -1364,8 +1362,8 @@ class ConnectionPoolConnection(AMP):
         Initialize a mapping of transaction IDs to transaction objects.
         """
         super(ConnectionPoolConnection, self).__init__()
-        self.pool    = pool
-        self._txns   = {}
+        self.pool = pool
+        self._txns = {}
         self._blocks = {}
 
 
@@ -1479,10 +1477,10 @@ class ConnectionPoolClient(AMP):
     ):
         # See DEFAULT_PARAM_STYLE FIXME above.
         super(ConnectionPoolClient, self).__init__()
-        self._nextID    = count().next
-        self._txns      = weakref.WeakValueDictionary()
-        self._queries   = {}
-        self.dialect    = dialect
+        self._nextID = count().next
+        self._txns = weakref.WeakValueDictionary()
+        self._queries = {}
+        self.dialect = dialect
         self.paramstyle = paramstyle
 
 
@@ -1507,8 +1505,8 @@ class ConnectionPoolClient(AMP):
 
         @rtype: L{IAsyncTransaction}
         """
-        txnid             = str(self._nextID())
-        txn               = _NetTransaction(client=self, transactionID=txnid)
+        txnid = str(self._nextID())
+        txn = _NetTransaction(client=self, transactionID=txnid)
         self._txns[txnid] = txn
         self.callRemote(StartTxn, transactionID=txnid)
         return txn
@@ -1529,10 +1527,10 @@ class ConnectionPoolClient(AMP):
 
 class _Query(object):
     def __init__(self, sql, raiseOnZeroRowCount, args):
-        self.sql                 = sql
-        self.args                = args
-        self.results             = []
-        self.deferred            = Deferred()
+        self.sql = sql
+        self.args = args
+        self.results = []
+        self.deferred = Deferred()
         self.raiseOnZeroRowCount = raiseOnZeroRowCount
 
 
@@ -1606,11 +1604,11 @@ class _NetTransaction(_CommitAndAbortHooks):
         transaction identifier.
         """
         super(_NetTransaction, self).__init__()
-        self._client        = client
+        self._client = client
         self._transactionID = transactionID
-        self._completed     = False
-        self._committing    = False
-        self._committed     = False
+        self._completed = False
+        self._committing = False
+        self._committed = False
 
 
     @property

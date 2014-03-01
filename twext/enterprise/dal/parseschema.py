@@ -43,7 +43,7 @@ from sqlparse.sql import (Comment, Identifier, Parenthesis, IdentifierList,
                           Function, Comparison)
 
 from twext.enterprise.dal.model import (
-    Schema, Table, SQLType, ProcedureCall, Constraint, Sequence, Index)
+    Schema, Table, SQLType, ProcedureCall, Constraint, Sequence, Index, Function as FunctionModel)
 
 from twext.enterprise.dal.syntax import (
     ColumnSyntax, CompoundComparison, Constant, Function as FunctionSyntax
@@ -208,6 +208,12 @@ def addSQLToSchema(schema, schemaData):
                     columnName = nameOrIdentifier(token)
                     idx.addColumn(idx.table.columnNamed(columnName))
 
+            elif createType == u"FUNCTION":
+                FunctionModel(
+                    schema,
+                    stmt.token_next(2, True).value.encode("utf-8")
+                )
+
         elif stmt.get_type() == "INSERT":
             insertTokens = iterSignificant(stmt)
             expect(insertTokens, ttype=Keyword.DML, value="INSERT")
@@ -233,6 +239,15 @@ def addSQLToSchema(schema, schemaData):
                 )
 
             schema.tableNamed(tableName).insertSchemaRow(rowData)
+
+        elif stmt.get_type() == "CREATE OR REPLACE":
+            createType = stmt.token_next(1, True).value.upper()
+
+            if createType == u"FUNCTION":
+                FunctionModel(
+                    schema,
+                    stmt.token_next(2, True).token_first(True).token_first(True).value.encode("utf-8")
+                )
 
         else:
             print("unknown type:", stmt.get_type())
