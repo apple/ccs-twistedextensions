@@ -25,7 +25,7 @@ __all__ = [
 
 from itertools import chain
 
-from twisted.internet.defer import gatherResults, FirstError
+from twisted.internet.defer import gatherResults, FirstError, succeed
 
 from .idirectory import DirectoryConfigurationError, IDirectoryService
 from .directory import (
@@ -91,3 +91,14 @@ class DirectoryService(BaseDirectoryService):
         d.addCallback(lambda results: chain(*results))
         d.addErrback(unwrapFirstError)
         return d
+
+
+    def recordWithShortName(self, recordType, shortName):
+        """
+        Since we know the recordType, we can go directly to the appropriate
+        service.
+        """
+        for service in self.services:
+            if recordType in service.recordType.iterconstants():
+                return service.recordWithShortName(recordType, shortName)
+        return succeed(None)
