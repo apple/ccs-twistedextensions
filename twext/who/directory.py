@@ -270,17 +270,21 @@ class DirectoryService(object):
 
     @inlineCallbacks
     def recordWithShortName(self, recordType, shortName):
-        returnValue(uniqueResult((
-            yield self.recordsFromExpression(
-                CompoundExpression(
-                    (
-                        MatchExpression(FieldName.recordType, recordType),
-                        MatchExpression(FieldName.shortNames, shortName),
-                    ),
-                    operand=Operand.AND
+        returnValue(
+            uniqueResult(
+                (
+                    yield self.recordsFromExpression(
+                        CompoundExpression(
+                            (
+                                MatchExpression(FieldName.recordType, recordType),
+                                MatchExpression(FieldName.shortNames, shortName),
+                            ),
+                            operand=Operand.AND
+                        )
+                    )
                 )
             )
-        )))
+        )
 
 
     def recordsWithEmailAddress(self, emailAddress):
@@ -498,6 +502,18 @@ class DirectoryRecord(object):
 
     def groups(self):
         return fail(NotImplementedError("Subclasses must implement groups()"))
+
+
+    def addMembers(self, members):
+        return fail(NotAllowedError("Membership updates not allowed."))
+
+
+    def removeMembers(self, members):
+        return fail(NotAllowedError("Membership updates not allowed."))
+
+
+    def setMembers(self, members):
+        return fail(NotAllowedError("Membership updates not allowed."))
 
 
     #

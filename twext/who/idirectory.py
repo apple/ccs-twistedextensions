@@ -460,6 +460,32 @@ class IDirectoryRecord(Interface):
         """
 
 
+    def addMembers(members):
+        """
+        Adds the members to this group.
+
+        @param members: The records of the members to add to this group.
+        @type members: An iterable of L{IDirectoryRecord}s.
+        """
+
+
+    def removeMembers(members):
+        """
+        Removes the members from this group.
+
+        @param members: The records of the members to remove from this group.
+        @type members: An iterable of L{IDirectoryRecord}s.
+        """
+
+
+    def setMembers(members):
+        """
+        Replaces the current members with a new set of members.
+
+        @param members: The records comprising the new set of members.
+        @type members: An iterable of L{IDirectoryRecord}s.
+        """
+
 
 class IPlaintextPasswordVerifier(Interface):
     """
