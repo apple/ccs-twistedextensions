@@ -546,11 +546,17 @@ class DirectoryService(BaseDirectoryService):
                 MatchExpression(self.fieldName.shortNames, shortName),
                 recordType=recordType
             )
-            returnValue(
-                uniqueResult(
-                    (yield self._recordsFromQuery(query))
+            try:
+                results = yield self._recordsFromQuery(query)
+                record = uniqueResult(results)
+                returnValue(record)
+            except DirectoryServiceError:
+                self.log.error(
+                    "Duplicate records for name: {n} ({rt})".format(
+                        n=shortName, rt=recordType.name
+                    )
                 )
-            )
+                raise
 
         except QueryNotSupportedError:
             # Let the superclass try
@@ -728,6 +734,13 @@ class DirectoryRecord(BaseDirectoryRecord):
         for uid in getattr(self, "nestedGroupsUIDs", ()):
             members.add((yield self.service.recordWithUID(uid)))
         returnValue(members)
+
+
+    # @inlineCallbacks
+    # FIXME: need to implement
+    def groups(self):
+        groups = set()
+        return succeed(groups)
 
 
 
