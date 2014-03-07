@@ -276,7 +276,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     """
 
     @inlineCallbacks
-    def getWorkForJob(self):
+    def workItem(self):
         workItemClass = WorkItem.forTableName(self.workType)
         workItems = yield workItemClass.loadForJob(
             self.transaction, self.jobID
@@ -290,7 +290,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         Run this job item by finding the appropriate work item class and
         running that.
         """
-        workItem = yield self.getWorkForJob()
+        workItem = yield self.workItem()
         if workItem is not None:
             if workItem.group is not None:
                 yield NamedLock.acquire(self.transaction, workItem.group)
