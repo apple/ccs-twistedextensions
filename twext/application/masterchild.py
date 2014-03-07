@@ -37,7 +37,6 @@ __all__ = [
 import sys
 from os import close, unlink
 from tempfile import mkstemp
-from functools import total_ordering
 
 from zope.interface import implementer
 
@@ -54,7 +53,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.internet.protocol import ProcessProtocol
 
 from twext.python.log import Logger
-from twext.internet.sendfdport import InheritingProtocolFactory
+from twext.internet.sendfdport import InheritingProtocolFactory, IStatus
 from twext.internet.sendfdport import InheritedSocketDispatcher
 from twext.internet.sendfdport import IStatusWatcher
 from twext.internet.sendfdport import InheritedPort
@@ -205,7 +204,10 @@ class MasterService(MultiService, object):
 
     @staticmethod
     def newConnectionStatus(previousStatus):
-        return previousStatus + ChildStatus(unacknowledged=1)
+        """
+        A connection was just sent to the process, but not yet acknowledged.
+        """
+        return previousStatus.adjust(unacknowledged=1)
 
 
     @staticmethod
@@ -214,40 +216,19 @@ class MasterService(MultiService, object):
             # A connection has gone away in a subprocess; we should start
             # accepting connections again if we paused (see
             # newConnectionStatus)
-            return previousStatus - ChildStatus(acknowledged=1)
+            return previousStatus.adjust(acknowledged=-1)
 
         elif message == "0":
-            # A new process just started accepting new connections.  It might
-            # still have some unacknowledged connections, but any connections
-            # that it acknowledged working on are now completed.  (We have no
-            # way of knowing whether the acknowledged connections were acted
-            # upon or dropped, so we have to treat that number with a healthy
-            # amount of skepticism.)
-
-            # Do some sanity checks... no attempt to fix, but log critically
-            # if there are unexpected connection counts, as that means we
-            # don't know what's going on with our connection management.
-
-            def checkForWeirdness(what, expected):
-                n = getattr(previousStatus, what)
-                if n != expected:
-                    MasterService.log.critical(
-                        "New process has {count} {type} connections, "
-                        "expected {expected}."
-                        .format(count=n, type=what, expected=expected)
-                    )
-
-            checkForWeirdness("acknowledged", 0)
-            checkForWeirdness("unacknowledged", 1)
-            checkForWeirdness("unclosed", 1)
-
-            return previousStatus
+            # A new process just started accepting new connections.
+            return previousStatus.restarted()
 
         elif message == "+":
             # Acknowledges that the subprocess has taken on the work.
-            return (
-                previousStatus +
-                ChildStatus(acknowledged=1, unacknowledged=-1, unclosed=1)
+            return previousStatus.adjust(
+                acknowledged=1,
+                unacknowledged=-1,
+                total=1,
+                unclosed=1,
             )
 
         else:
@@ -257,7 +238,7 @@ class MasterService(MultiService, object):
     @staticmethod
     def closeCountFromStatus(previousStatus):
         toClose = previousStatus.unclosed
-        return (toClose, previousStatus - ChildStatus(unclosed=toClose))
+        return (toClose, previousStatus.adjust(unclosed=-toClose))
 
 
     def statusesChanged(self, statuses):
@@ -266,19 +247,18 @@ class MasterService(MultiService, object):
 
         self.log.info("Status changed: {0}".format(tuple(statuses)))
 
-        # current = sum(
-        #     status.effective()
-        #     for status in self.dispatcher.statuses
-        # )
-
-        # maximum = self.maxRequests
-        # overloaded = (current >= maximum)
-
-        # for f in self.factories:
-        #     if overloaded:
-        #         f.loadAboveMaximum()
-        #     else:
-        #         f.loadNominal()
+#        current = sum(status.effective()
+#                      for status in self.dispatcher.statuses)
+#        self._outstandingRequests = current # preserve for or= field in log
+#        maximum = self.maxRequests
+#        overloaded = (current >= maximum)
+#        available = len(filter(lambda x: x.active(), self.dispatcher.statuses))
+#        self.overloaded = (overloaded or available == 0)
+#        for f in self.factories:
+#            if self.overloaded:
+#                f.loadAboveMaximum()
+#            else:
+#                f.loadNominal()
 
 
 
@@ -402,7 +382,7 @@ class ChildSpawningService(Service, object):
         from twisted.internet import reactor
 
         inheritedSocket = self.dispatcher.addSocket()
-        inheritedFD = inheritedSocket.fileno()
+        inheritedFD = inheritedSocket.childSocket().fileno()
 
         processProtocol = ChildProcessProtocol(self, inheritedSocket)
 
@@ -491,10 +471,12 @@ class ChildProcessProtocol(ProcessProtocol, object):
     # FIXME: deserialize log events from child
     # log = Logger()
 
-
     def __init__(self, service, inheritedSocket):
         self.service = service
         self.inheritedSocket = inheritedSocket
+
+        # Always tell any metafd socket that we have started, so it can re-initialize state.
+        self.inheritedSocket.start()
 
 
     def outReceived(self, data):
@@ -509,6 +491,8 @@ class ChildProcessProtocol(ProcessProtocol, object):
 
 
     def processExited(self, reason):
+        # Always tell any metafd socket that we have started, so it can re-initialize state.
+        self.inheritedSocket.stop()
         self.service.childDidExit(self, reason)
 
 
@@ -684,7 +668,7 @@ class ReportingWrapperFactory(WrappingFactory, object):
 
 
 
-@total_ordering
+@implementer(IStatus)
 class ChildStatus(FancyStrMixin, object):
     """
     The status of a child process.
@@ -693,11 +677,26 @@ class ChildStatus(FancyStrMixin, object):
     showAttributes = (
         "acknowledged",
         "unacknowledged",
+        "total",
+        "started",
+        "abandoned",
         "unclosed",
+        "starting",
+        "stopped",
     )
 
 
-    def __init__(self, acknowledged=0, unacknowledged=0, unclosed=0):
+    def __init__(
+        self,
+        acknowledged=0,
+        unacknowledged=0,
+        total=0,
+        started=0,
+        abandoned=0,
+        unclosed=0,
+        starting=0,
+        stopped=0
+    ):
         """
         Create a L{ConnectionStatus} with a number of sent connections and a
         number of un-acknowledged connections.
@@ -710,12 +709,32 @@ class ChildStatus(FancyStrMixin, object):
             the subprocess which have never received a status response (a
             "C{+}" status message).
 
+        @param total: The total number of acknowledged connections over
+            the lifetime of this socket.
+
+        @param started: The number of times this worker has been started.
+
+        @param abandoned: The number of connections which have been sent to
+            this worker, but were not acknowledged at the moment that the
+            worker was stopped.
+
         @param unclosed: The number of sockets which have been sent to the
             subprocess but not yet closed.
+
+        @param starting: The process that owns this socket is starting. Do not
+            dispatch to it until we receive the started message.
+
+        @param stopped: The process that owns this socket has stopped. Do not
+            dispatch to it.
         """
         self.acknowledged = acknowledged
         self.unacknowledged = unacknowledged
+        self.total = total
+        self.started = started
+        self.abandoned = abandoned
         self.unclosed = unclosed
+        self.starting = starting
+        self.stopped = stopped
 
 
     def effectiveLoad(self):
@@ -725,37 +744,64 @@ class ChildStatus(FancyStrMixin, object):
         return self.acknowledged + self.unacknowledged
 
 
-    def _tuplify(self):
-        return tuple(getattr(self, attr) for attr in self.showAttributes)
+    def active(self):
+        """
+        Is the subprocess associated with this socket available to dispatch to.
+        i.e, this socket is neither stopped nor starting
+        """
+        return self.starting == 0 and self.stopped == 0
 
 
-    def __lt__(self, other):
-        if not isinstance(other, ChildStatus):
-            return NotImplemented
-
-        return self.effectiveLoad() < other.effectiveLoad()
-
-
-    def __eq__(self, other):
-        if not isinstance(other, ChildStatus):
-            return NotImplemented
-
-        return self._tuplify() == other._tuplify()
+    def start(self):
+        """
+        The child process for this L{WorkerStatus} is about to (re)start. Reset the status to indicate it
+        is starting - that should prevent any new connections being dispatched.
+        """
+        return self.reset(
+            starting=1,
+            stopped=0,
+        )
 
 
-    def __add__(self, other):
-        if not isinstance(other, ChildStatus):
-            return NotImplemented
+    def restarted(self):
+        """
+        The child process for this L{WorkerStatus} has indicated it is now available to accept
+        connections, so reset the starting status so this socket will be available for dispatch.
+        """
+        return self.reset(
+            started=self.started + 1,
+            starting=0,
+        )
 
-        a = self._tuplify()
-        b = other._tuplify()
-        sum = [a1 + b1 for (a1, b1) in zip(a, b)]
 
-        return self.__class__(*sum)
+    def stop(self):
+        """
+        The child process for this L{WorkerStatus} has stopped. Stop the socket and clear out
+        existing counters, but track abandoned connections.
+        """
+        return self.reset(
+            acknowledged=0,
+            unacknowledged=0,
+            abandoned=self.abandoned + self.unacknowledged,
+            starting=0,
+            stopped=1,
+        )
 
 
-    def __sub__(self, other):
-        if not isinstance(other, ChildStatus):
-            return NotImplemented
+    def adjust(self, **kwargs):
+        """
+        Update the L{WorkerStatus} by adding the supplied values to the specified attributes.
+        """
+        for k, v in kwargs.items():
+            newval = getattr(self, k) + v
+            setattr(self, k, max(newval, 0))
+        return self
 
-        return self + self.__class__(*[-x for x in other._tuplify()])
+
+    def reset(self, **kwargs):
+        """
+        Reset the L{WorkerStatus} by setting the supplied values in the specified attributes.
+        """
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        return self
