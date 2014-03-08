@@ -462,27 +462,27 @@ class IDirectoryRecord(Interface):
 
     def addMembers(members):
         """
-        Adds the members to this group.
+        Adds the members to this record.
 
-        @param members: The records of the members to add to this group.
+        @param members: The members to add to this record.
         @type members: An iterable of L{IDirectoryRecord}s.
         """
 
 
     def removeMembers(members):
         """
-        Removes the members from this group.
+        Removes the members from this record.
 
-        @param members: The records of the members to remove from this group.
+        @param members: The members to remove from this record.
         @type members: An iterable of L{IDirectoryRecord}s.
         """
 
 
     def setMembers(members):
         """
-        Replaces the current members with a new set of members.
+        Replaces the current members of this record.
 
-        @param members: The records comprising the new set of members.
+        @param members: The new members.
         @type members: An iterable of L{IDirectoryRecord}s.
         """
 
