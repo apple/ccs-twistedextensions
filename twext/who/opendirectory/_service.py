@@ -546,17 +546,18 @@ class DirectoryService(BaseDirectoryService):
                 MatchExpression(self.fieldName.shortNames, shortName),
                 recordType=recordType
             )
+            results = yield self._recordsFromQuery(query)
+
             try:
-                results = yield self._recordsFromQuery(query)
                 record = uniqueResult(results)
-                returnValue(record)
             except DirectoryServiceError:
                 self.log.error(
-                    "Duplicate records for name: {n} ({rt})".format(
-                        n=shortName, rt=recordType.name
-                    )
+                    "Duplicate records for name: {name} ({recordType})"
+                    .format(name=shortName, recordType=recordType.name)
                 )
                 raise
+
+            returnValue(record)
 
         except QueryNotSupportedError:
             # Let the superclass try
