@@ -99,6 +99,6 @@ class DirectoryService(BaseDirectoryService):
         service.
         """
         for service in self.services:
-            if recordType in service.recordType.iterconstants():
+            if recordType in service.recordTypes():
                 return service.recordWithShortName(recordType, shortName)
         return succeed(None)
