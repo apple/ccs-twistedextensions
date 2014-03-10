@@ -798,7 +798,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         Check that other types raise.
         """
         def callback(service, fields, fieldName, validValue, almostValidValue):
-            for invalidValue in (u"string", None, object()):
+            for invalidValue in (u"string", object()):
                 fields.update({fieldName: invalidValue})
                 self.assertRaises(
                     InvalidDirectoryRecordError,
