@@ -243,6 +243,7 @@ class DirectoryService(BaseDirectoryService):
         #
         # Open and parse the file
         #
+        fh = None
         try:
             fh = self.filePath.open()
 
@@ -251,7 +252,8 @@ class DirectoryService(BaseDirectoryService):
             except XMLParseError as e:
                 raise ParseError(e)
         finally:
-            fh.close()
+            if fh is not None:
+                fh.close()
 
         #
         # Pull data from DOM
