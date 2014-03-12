@@ -416,7 +416,7 @@ class DirectoryService(BaseDirectoryService):
             if recordType is None:
                 recordTypes = [t.value for t in ODRecordType.iterconstants()]
             else:
-                recordTypes = recordType
+                recordTypes = ODRecordType.fromRecordType(recordType).value
 
             queryAttribute = ODAttribute.fromFieldName(
                 expression.fieldName

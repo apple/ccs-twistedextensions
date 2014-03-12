@@ -35,6 +35,22 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     Tests for L{DirectoryService}.
     """
 
+    def test_queryFromMatchExpression_recordType(self):
+        """
+        Make sure queryFromMatchExpression handles recordType correctly
+        """
+        service = DirectoryService()
+        query = service._queryFromMatchExpression(
+            MatchExpression(
+                service.fieldName.shortNames, u"xyzzy"
+            ),
+            recordType=service.recordType.group
+        )
+        # FIXME:
+        # Actually, how do we inspect the query object to peek at the
+        # recordType that got set?
+
+
     def test_queryStringFromMatchExpression_matchTypes(self):
         """
         Match expressions with each match type produces the correct
