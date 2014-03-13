@@ -1385,7 +1385,10 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             )
             for overdueItem in overdueItems:
                 peer = self.choosePerformer()
-                yield peer.performJob(overdueItem.jobID)
+                try:
+                    yield peer.performJob(overdueItem.jobID)
+                except Exception as e:
+                    log.err("Failed to perform periodic lost job for jobid={}, {}".format(overdueItem.jobID, e))
 
         return inTransaction(self.transactionFactory, workCheck)
 

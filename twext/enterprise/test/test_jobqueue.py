@@ -233,6 +233,8 @@ class DummyWorkItem(WorkItem, DummyWorkItem):
     """
 
     def doWork(self):
+        if self.a == -1:
+            raise ValueError("Ooops")
         return DummyWorkDone.makeJob(
             self.transaction, jobID=self.jobID + 100, workID=self.workID + 100, aPlusB=self.a + self.b
         )
@@ -735,6 +737,53 @@ class PeerConnectionPoolUnitTests(TestCase):
             cph.rows("select * from DUMMY_WORK_DONE"),
             [(102, 201, 16)]
         )
+
+
+    @inlineCallbacks
+    def test_exceptionWhenCheckingForLostWork(self):
+        """
+        L{PeerConnectionPool._periodicLostWorkCheck} should execute any
+        outstanding work items, and keep going if some raise an exception.
+        """
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        # An arbitrary point in time.
+        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+        # *why* does datetime still not have .astimestamp()
+        sinceEpoch = astimestamp(fakeNow)
+        clock = Clock()
+        clock.advance(sinceEpoch)
+        qpool = PeerConnectionPool(clock, dbpool.connection, 0)
+
+        # Let's create a couple of work items directly, not via the enqueue
+        # method, so that they exist but nobody will try to immediately execute
+        # them.
+
+        @transactionally(dbpool.connection)
+        @inlineCallbacks
+        def setup(txn):
+            # First, one that's right now.
+            yield DummyWorkItem.makeJob(
+                txn, a=1, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+
+            # Next, create one that's actually far enough into the past to run.
+            yield DummyWorkItem.makeJob(
+                txn, a=-1, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+
+            # Finally, one that's actually scheduled for the future.
+            yield DummyWorkItem.makeJob(
+                txn, a=2, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+        yield setup
+        yield qpool._periodicLostWorkCheck()
+
+        @transactionally(dbpool.connection)
+        def check(txn):
+            return DummyWorkDone.all(txn)
+
+        every = yield check
+        self.assertEquals([x.aPlusB for x in every], [1, 2])
 
 
 
