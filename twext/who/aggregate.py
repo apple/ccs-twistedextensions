@@ -102,3 +102,14 @@ class DirectoryService(BaseDirectoryService):
             if recordType in service.recordTypes():
                 return service.recordWithShortName(recordType, shortName)
         return succeed(None)
+
+
+    def listRecords(self, recordType):
+        """
+        Since we know the recordType, we can go directly to the appropriate
+        service.
+        """
+        for service in self.services:
+            if recordType in service.recordTypes():
+                return service.listRecords(recordType)
+        return succeed([])

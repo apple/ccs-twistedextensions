@@ -363,6 +363,13 @@ class DirectoryService(BaseDirectoryService):
             )
 
 
+    def listRecords(self, recordType):
+        records = []
+        for record in self.index[self.fieldName.recordType][recordType]:
+            records.append(record)
+        return succeed(records)
+
+
 
 class DirectoryRecord(BaseDirectoryRecord):
     """
