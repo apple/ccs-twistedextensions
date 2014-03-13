@@ -243,17 +243,14 @@ class DirectoryService(BaseDirectoryService):
         #
         # Open and parse the file
         #
-        fh = None
+        fh = self.filePath.open()
         try:
-            fh = self.filePath.open()
-
             try:
                 etree = parseXML(fh)
             except XMLParseError as e:
                 raise ParseError(e)
         finally:
-            if fh is not None:
-                fh.close()
+            fh.close()
 
         #
         # Pull data from DOM
