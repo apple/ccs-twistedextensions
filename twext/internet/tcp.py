@@ -35,6 +35,7 @@ from twext.python.log import Logger
 log = Logger()
 
 
+
 class MaxAcceptPortMixin(object):
     """
     Mixin for resetting maxAccepts.
@@ -74,16 +75,22 @@ class InheritedTCPPort(MaxAcceptTCPPort):
         self.socket = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
         self._realPortNumber = self.port = self.socket.getsockname()[1]
 
+
     def createInternetSocket(self):
         return self.socket
 
+
     def startListening(self):
-        log.info("%s starting on %s" % (self.factory.__class__, self._realPortNumber))
+        log.info(
+            "{self.factory.__class__} starting on {self._realPortNumber}",
+            self=self
+        )
         self.factory.doStart()
         self.connected = 1
         self.fileno = self.socket.fileno
         self.numberAccepts = self.factory.maxRequests
         self.startReading()
+
 
 
 class InheritedSSLPort(InheritedTCPPort):
@@ -95,14 +102,17 @@ class InheritedSSLPort(InheritedTCPPort):
 
     transport = ssl.Server
 
+
     def __init__(self, fd, factory, ctxFactory, reactor):
         InheritedTCPPort.__init__(self, fd, factory, reactor)
         self.ctxFactory = ctxFactory
         self.socket = SSL.Connection(self.ctxFactory.getContext(), self.socket)
 
+
     def _preMakeConnection(self, transport):
         transport._startTLS()
         return tcp.Port._preMakeConnection(self, transport)
+
 
 
 def _allConnectionsClosed(protocolFactory):
@@ -111,15 +121,18 @@ def _allConnectionsClosed(protocolFactory):
     if so, call it.  Otherwise, return immediately.
     This allows graceful shutdown by waiting for all requests to be completed.
 
-    @param protocolFactory: (usually) an HTTPFactory implementing allConnectionsClosed
-        which returns a Deferred which fires when all connections are closed.
-    @return: A Deferred firing None when all connections are closed, or immediately
-        if the given factory does not track its connections (e.g.
+    @param protocolFactory: (usually) an HTTPFactory implementing
+        allConnectionsClosed which returns a Deferred which fires when all
+        connections are closed.
+
+    @return: A Deferred firing None when all connections are closed, or
+        immediately if the given factory does not track its connections (e.g.
         InheritingProtocolFactory)
     """
     if hasattr(protocolFactory, "allConnectionsClosed"):
         return protocolFactory.allConnectionsClosed()
     return succeed(None)
+
 
 
 class MaxAcceptTCPServer(internet.TCPServer):
@@ -139,25 +152,33 @@ class MaxAcceptTCPServer(internet.TCPServer):
         self.backlog = self.kwargs.get("backlog", None)
         self.interface = self.kwargs.get("interface", None)
 
+
     def _getPort(self):
         from twisted.internet import reactor
 
         if self.inherit:
             port = InheritedTCPPort(self.args[0], self.args[1], reactor)
         else:
-            port = MaxAcceptTCPPort(self.args[0], self.args[1], self.backlog, self.interface, reactor)
+            port = MaxAcceptTCPPort(
+                self.args[0], self.args[1],
+                self.backlog, self.interface, reactor
+            )
 
         port.startListening()
         self.myPort = port
         return port
 
+
     def stopService(self):
         """
         Wait for outstanding requests to finish
-        @return: a Deferred which fires when all outstanding requests are complete
+
+        @return: a Deferred which fires when all outstanding requests are
+            complete
         """
         internet.TCPServer.stopService(self)
         return _allConnectionsClosed(self.protocolFactory)
+
 
 
 class MaxAcceptSSLServer(internet.SSLServer):
@@ -174,25 +195,32 @@ class MaxAcceptSSLServer(internet.SSLServer):
         self.backlog = self.kwargs.get("backlog", None)
         self.interface = self.kwargs.get("interface", None)
 
+
     def _getPort(self):
         from twisted.internet import reactor
 
         if self.inherit:
-            port = InheritedSSLPort(self.args[0], self.args[1], self.args[2], reactor)
+            port = InheritedSSLPort(
+                self.args[0], self.args[1], self.args[2], reactor
+            )
         else:
-            port = MaxAcceptSSLPort(self.args[0], self.args[1], self.args[2], self.backlog, self.interface, self.reactor)
+            port = MaxAcceptSSLPort(
+                self.args[0], self.args[1], self.args[2],
+                self.backlog, self.interface, self.reactor
+            )
 
         port.startListening()
         self.myPort = port
         return port
 
+
     def stopService(self):
         """
         Wait for outstanding requests to finish
-        @return: a Deferred which fires when all outstanding requests are complete
+
+        @return: a Deferred which fires when all outstanding requests are
+            complete.
         """
         internet.SSLServer.stopService(self)
         # TODO: check for an ICompletionWaiter interface
         return _allConnectionsClosed(self.protocolFactory)
-
-
