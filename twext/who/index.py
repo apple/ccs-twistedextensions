@@ -373,7 +373,7 @@ class DirectoryService(BaseDirectoryService):
 
 class DirectoryRecord(BaseDirectoryRecord):
     """
-    XML directory record
+    Indexed directory record.
     """
 
     @inlineCallbacks

@@ -14,6 +14,10 @@
 # limitations under the License.
 ##
 
+"""
+LDAP directory service.
+"""
+
 __all__ = [
     "LDAPError",
     "LDAPConfigurationError",
