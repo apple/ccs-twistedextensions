@@ -49,6 +49,9 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         # FIXME:
         # Actually, how do we inspect the query object to peek at the
         # recordType that got set?
+        query
+
+    test_queryFromMatchExpression_recordType.todo = ""
 
 
     def test_queryStringFromMatchExpression_matchTypes(self):
