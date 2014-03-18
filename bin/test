@@ -84,19 +84,10 @@ shift $((${OPTIND} - 1));
 
 if [ $# -eq 0 ]; then
   lint="true";
-  set - calendarserver twistedcaldav txdav txweb2 contrib;
+  set - twext;
 else
   lint="false";
 fi;
-
-
-
-#
-# Dependencies
-#
-
-#c_dependencies >> "${dev_home}/setup.log";
-#py_dependencies >> "${dev_home}/setup.log";
 
 
 
