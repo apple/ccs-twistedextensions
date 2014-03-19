@@ -369,7 +369,6 @@ class DirectoryService(BaseDirectoryService):
         try:
             records = recordTypeIndexes[recordType]
         except KeyError:
-            import pdb; pdb.set_trace()
             raise DirectoryServiceError(
                 "Record type {} is not one of the indexed record types "
                 "for service {}: {}"
