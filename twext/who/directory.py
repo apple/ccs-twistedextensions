@@ -276,8 +276,12 @@ class DirectoryService(object):
                     yield self.recordsFromExpression(
                         CompoundExpression(
                             (
-                                MatchExpression(FieldName.recordType, recordType),
-                                MatchExpression(FieldName.shortNames, shortName),
+                                MatchExpression(
+                                    FieldName.recordType, recordType
+                                ),
+                                MatchExpression(
+                                    FieldName.shortNames, shortName
+                                ),
                             ),
                             operand=Operand.AND
                         )
@@ -380,6 +384,12 @@ class DirectoryRecord(object):
         # Normalize fields
         normalizedFields = {}
         for name, value in fields.items():
+            if not isinstance(name, NamedConstant):
+                raise InvalidDirectoryRecordError(
+                    "Field name {} is not a named constant".format(name),
+                    fields
+                )
+
             normalize = service.normalizedFields.get(name, None)
 
             if normalize is None:

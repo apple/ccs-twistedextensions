@@ -646,6 +646,21 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         self.assertEquals(wsanchez.fields, self.fields_wsanchez)
 
 
+    def test_initWithNonConstantFieldName(self):
+        """
+        Directory record field names must be L{NamedConstant}s.
+        """
+        service = self.service()
+
+        fields = self.fields_wsanchez.copy()
+        fields["name"] = u"value"  # Key is not a NamedConstant.
+
+        self.assertRaises(
+            InvalidDirectoryRecordError,
+            self.makeRecord, fields, service=service
+        )
+
+
     def test_initWithNoUID(self):
         """
         Directory records must have a UID.
