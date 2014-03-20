@@ -94,22 +94,18 @@ class DirectoryService(BaseDirectoryService):
 
 
     def recordWithShortName(self, recordType, shortName):
-        """
-        Since we know the recordType, we can go directly to the appropriate
-        service.
-        """
+        # Since we know the recordType, we can go directly to the appropriate
+        # service.
         for service in self.services:
             if recordType in service.recordTypes():
                 return service.recordWithShortName(recordType, shortName)
         return succeed(None)
 
 
-    def listRecords(self, recordType):
-        """
-        Since we know the recordType, we can go directly to the appropriate
-        service.
-        """
+    def recordsWithRecordType(self, recordType):
+        # Since we know the recordType, we can go directly to the appropriate
+        # service.
         for service in self.services:
             if recordType in service.recordTypes():
-                return service.listRecords(recordType)
-        return succeed([])
+                return service.recordsWithRecordType(recordType)
+        return succeed(())

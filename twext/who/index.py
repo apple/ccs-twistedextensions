@@ -28,7 +28,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
 
 from .util import ConstantsContainer, uniqueResult
-from .idirectory import FieldName as BaseFieldName, DirectoryServiceError
+from .idirectory import FieldName as BaseFieldName
 from .expression import MatchExpression, MatchType, MatchFlags
 from .directory import (
     DirectoryService as BaseDirectoryService,
@@ -361,21 +361,6 @@ class DirectoryService(BaseDirectoryService):
             return BaseDirectoryService.recordsFromNonCompoundExpression(
                 self, expression, records=records
             )
-
-
-    def listRecords(self, recordType):
-        recordTypeIndexes = self.index[self.fieldName.recordType]
-
-        try:
-            records = recordTypeIndexes[recordType]
-        except KeyError:
-            raise DirectoryServiceError(
-                "Record type {} is not one of the indexed record types "
-                "for service {}: {}"
-                .format(recordType, self, recordTypeIndexes.keys())
-            )
-
-        return succeed(records)
 
 
 
