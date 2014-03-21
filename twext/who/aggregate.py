@@ -25,7 +25,9 @@ __all__ = [
 
 from itertools import chain
 
-from twisted.internet.defer import gatherResults, FirstError, succeed
+from twisted.internet.defer import (
+    gatherResults, FirstError, succeed, inlineCallbacks
+)
 
 from .idirectory import DirectoryConfigurationError, IDirectoryService
 from .directory import (
@@ -109,3 +111,23 @@ class DirectoryService(BaseDirectoryService):
             if recordType in service.recordTypes():
                 return service.recordsWithRecordType(recordType)
         return succeed(())
+
+
+    @inlineCallbacks
+    def updateRecords(self, records, create=False):
+        for record in records:
+            for service in self.services:
+                if record.recordType in service.recordTypes():
+                    yield service.updateRecords([record], create=create)
+
+
+    @inlineCallbacks
+    def removeRecords(self, uids):
+        # FIXME: since we don't know which sub-service owns each uid, we
+        # currently try removing the uids in each sub-service, ignoring
+        # errors.
+        for service in self.services:
+            try:
+                yield service.removeRecords(uids)
+            except:
+                pass
