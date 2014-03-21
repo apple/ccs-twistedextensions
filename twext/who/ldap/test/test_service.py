@@ -23,18 +23,22 @@ LDAP directory service tests.
 from itertools import chain
 
 import ldap
-from mockldap import MockLdap
 
-from mockldap.filter import (
-    Test as MockLDAPFilterTest,
-    UnsupportedOp as MockLDAPUnsupportedOp,
-)
+try:
+    from mockldap import MockLdap
+    from mockldap.filter import (
+        Test as MockLDAPFilterTest,
+        UnsupportedOp as MockLDAPUnsupportedOp,
+    )
+except ImportError:
+    MockLdap = None
 
 from twisted.python.constants import NamedConstant, ValueConstant
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 from twisted.cred.credentials import UsernamePassword
 from twisted.trial import unittest
+from twisted.trial.unittest import SkipTest
 
 from ...idirectory import QueryNotSupportedError, FieldName as BaseFieldName
 from .._service import (
@@ -78,6 +82,9 @@ class BaseTestCase(XMLBaseTest):
 
 
     def setUp(self):
+        if MockLdap is None:
+            raise SkipTest("No MockLdap available")
+
         def matches(self, dn, attrs, upcall=MockLDAPFilterTest.matches):
             if upcall(self, dn, attrs):
                 return True
