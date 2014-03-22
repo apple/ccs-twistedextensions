@@ -539,7 +539,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _writeDirectoryNode(self, directoryNode):
-        self.filePath.setContent(etreeToString(directoryNode))
+        self.filePath.setContent(etreeToString(directoryNode, "utf-8"))
         self.flush()
 
 
