@@ -44,10 +44,10 @@ class Operand(Names):
     """
     Contants for common operands.
     """
-    OR  = NamedConstant()
+    OR = NamedConstant()
     AND = NamedConstant()
 
-    OR.description  = u"or"
+    OR.description = u"or"
     AND.description = u"and"
 
 
@@ -64,6 +64,15 @@ class CompoundExpression(object):
     def __init__(self, expressions, operand):
         self.expressions = expressions
         self.operand = operand
+
+
+    def __repr__(self):
+        return (
+            "<{self.__class__.__name__}: "
+            "{self.expressions!r} {self.operand!r}>"
+            .format(self=self)
+        )
+
 
 
 #
