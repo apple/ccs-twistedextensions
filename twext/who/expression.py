@@ -242,3 +242,56 @@ class MatchExpression(object):
                 flags=flags,
             )
         )
+
+
+    def match(self, value):
+        """
+        Test whether this expression's field value matches against a given
+        value according to this expression's match type and match flags.
+
+        @param value: The value to match against.
+        @type value: L{object}
+
+        @return: C{True} if this expression matches C{value}; L{False}
+            otherwise.
+        @rtype: L{bool}
+        """
+        predicate = MatchFlags.predicator(self.flags)
+        normalize = MatchFlags.normalizer(self.flags)
+
+        def match(a, b):
+            matchType = self.matchType
+
+            # import pdb; pdb.set_trace()
+
+            if matchType == MatchType.equals:
+                return a == b
+
+            if matchType == MatchType.startsWith:
+                return a.startswith(b)
+
+            if matchType == MatchType.endsWith:
+                return a.endswith(b)
+
+            if matchType == MatchType.contains:
+                return b in a
+
+            if matchType == MatchType.lessThan:
+                return a < b
+
+            if matchType == MatchType.greaterThan:
+                return a > b
+
+            if matchType == MatchType.lessThanOrEqualTo:
+                return a <= b
+
+            if matchType == MatchType.greaterThanOrEqualTo:
+                return a >= b
+
+            raise NotImplementedError(
+                "Unknown match type: {0!r}".format(matchType)
+            )
+
+        return predicate(match(
+            normalize(value), normalize(self.fieldValue)
+        ))

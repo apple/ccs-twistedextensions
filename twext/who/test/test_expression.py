@@ -111,6 +111,7 @@ class MatchExpressionTest(unittest.TestCase):
             )),
         )
 
+
     def test_repr_type(self):
         """
         L{MatchExpression.__repr__} emits match type.
@@ -123,6 +124,7 @@ class MatchExpressionTest(unittest.TestCase):
                 matchType=MatchType.contains,
             )),
         )
+
 
     def test_repr_flags(self):
         """
@@ -147,3 +149,101 @@ class MatchExpressionTest(unittest.TestCase):
                 flags=(MatchFlags.NOT | MatchFlags.caseInsensitive),
             )),
         )
+
+
+    def test_match_equals(self):
+        """
+        L{MatchExpression.match} with L{MatchType.equals}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.equals
+        )
+        self.assertTrue(expression.match(u"Morgen"))
+        self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_startsWith(self):
+        """
+        L{MatchExpression.match} with L{MatchType.startsWith}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Mor",
+            matchType=MatchType.startsWith
+        )
+        self.assertTrue(expression.match(u"Morgen"))
+        self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_endsWith(self):
+        """
+        L{MatchExpression.match} with L{MatchType.endsWith}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"gen",
+            matchType=MatchType.endsWith
+        )
+        self.assertTrue(expression.match(u"Morgen"))
+        self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_contains(self):
+        """
+        L{MatchExpression.match} with L{MatchType.contains}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"org",
+            matchType=MatchType.contains
+        )
+        self.assertTrue(expression.match(u"Morgen"))
+        self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_lessThan(self):
+        """
+        L{MatchExpression.match} with L{MatchType.lessThan}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.lessThan
+        )
+        self.assertTrue(expression.match(u"Glyph"))  # Sorry, Glyph
+        self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_greaterThan(self):
+        """
+        L{MatchExpression.match} with L{MatchType.greaterThan}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.greaterThan
+        )
+        self.assertTrue(expression.match(u"Wilfredo"))  # Woot!
+        self.assertFalse(expression.match(u"Glyph"))
+
+
+    def test_match_lessThanOrEqualTo(self):
+        """
+        L{MatchExpression.match} with L{MatchType.lessThanOrEqualTo}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.lessThanOrEqualTo
+        )
+        self.assertTrue(expression.match(u"Glyph"))
+        self.assertTrue(expression.match(u"Morgen"))
+        self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_greaterThanOrEqualTo(self):
+        """
+        L{MatchExpression.match} with L{MatchType.greaterThanOrEqualTo}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.greaterThanOrEqualTo
+        )
+        self.assertTrue(expression.match(u"Wilfredo"))
+        self.assertTrue(expression.match(u"Morgen"))
+        self.assertFalse(expression.match(u"Glyph"))
