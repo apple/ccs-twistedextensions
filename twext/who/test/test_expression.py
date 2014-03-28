@@ -157,10 +157,24 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"Morgen",
-            matchType=MatchType.equals
+            matchType=MatchType.equals,
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_equals_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.equals} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.equals,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Morgen"))
+        self.assertTrue(expression.match(u"Wilfredo"))
 
 
     def test_match_startsWith(self):
@@ -169,10 +183,24 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"Mor",
-            matchType=MatchType.startsWith
+            matchType=MatchType.startsWith,
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_startsWith_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.startsWith} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Mor",
+            matchType=MatchType.startsWith,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Morgen"))
+        self.assertTrue(expression.match(u"Wilfredo"))
 
 
     def test_match_endsWith(self):
@@ -181,10 +209,24 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"gen",
-            matchType=MatchType.endsWith
+            matchType=MatchType.endsWith,
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_endsWith_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.endsWith} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"gen",
+            matchType=MatchType.endsWith,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Morgen"))
+        self.assertTrue(expression.match(u"Wilfredo"))
 
 
     def test_match_contains(self):
@@ -193,10 +235,24 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"org",
-            matchType=MatchType.contains
+            matchType=MatchType.contains,
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_contains_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.contains} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"org",
+            matchType=MatchType.contains,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Morgen"))
+        self.assertTrue(expression.match(u"Wilfredo"))
 
 
     def test_match_lessThan(self):
@@ -205,10 +261,24 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"Morgen",
-            matchType=MatchType.lessThan
+            matchType=MatchType.lessThan,
         )
         self.assertTrue(expression.match(u"Glyph"))  # Sorry, Glyph
         self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_lessThan_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.lessThan} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.lessThan,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Glyph"))
+        self.assertTrue(expression.match(u"Wilfredo"))
 
 
     def test_match_greaterThan(self):
@@ -217,10 +287,24 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"Morgen",
-            matchType=MatchType.greaterThan
+            matchType=MatchType.greaterThan,
         )
         self.assertTrue(expression.match(u"Wilfredo"))  # Woot!
         self.assertFalse(expression.match(u"Glyph"))
+
+
+    def test_match_greaterThan_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.greaterThan} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.greaterThan,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Wilfredo"))
+        self.assertTrue(expression.match(u"Glyph"))
 
 
     def test_match_lessThanOrEqualTo(self):
@@ -229,11 +313,26 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"Morgen",
-            matchType=MatchType.lessThanOrEqualTo
+            matchType=MatchType.lessThanOrEqualTo,
         )
         self.assertTrue(expression.match(u"Glyph"))
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
+
+
+    def test_match_lessThanOrEqualTo_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.lessThanOrEqualTo} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.lessThanOrEqualTo,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Glyph"))
+        self.assertFalse(expression.match(u"Morgen"))
+        self.assertTrue(expression.match(u"Wilfredo"))
 
 
     def test_match_greaterThanOrEqualTo(self):
@@ -242,8 +341,23 @@ class MatchExpressionTest(unittest.TestCase):
         """
         expression = MatchExpression(
             FieldName.fullNames, u"Morgen",
-            matchType=MatchType.greaterThanOrEqualTo
+            matchType=MatchType.greaterThanOrEqualTo,
         )
         self.assertTrue(expression.match(u"Wilfredo"))
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Glyph"))
+
+
+    def test_match_greaterThanOrEqualTo_not(self):
+        """
+        L{MatchExpression.match} with L{MatchType.greaterThanOrEqualTo} and
+        L{MatchFlags.NOT}.
+        """
+        expression = MatchExpression(
+            FieldName.fullNames, u"Morgen",
+            matchType=MatchType.greaterThanOrEqualTo,
+            flags=MatchFlags.NOT,
+        )
+        self.assertFalse(expression.match(u"Wilfredo"))
+        self.assertFalse(expression.match(u"Morgen"))
+        self.assertTrue(expression.match(u"Glyph"))
