@@ -303,25 +303,6 @@ class DirectoryService(BaseDirectoryService):
         @return: The matching records.
         @rtype: deferred iterable of L{DirectoryRecord}s
         """
-        predicate = MatchFlags.predicator(expression.flags)
-        normalize = MatchFlags.normalizer(expression.flags)
-
-        matchValue = normalize(expression.fieldValue)
-        matchType  = expression.matchType
-
-        if matchType == MatchType.startsWith:
-            match = lambda fieldValue: predicate(
-                fieldValue.startswith(matchValue)
-            )
-        elif matchType == MatchType.contains:
-            match = lambda fieldValue: predicate(matchValue in fieldValue)
-        elif matchType == MatchType.equals:
-            match = lambda fieldValue: predicate(fieldValue == matchValue)
-        else:
-            raise NotImplementedError(
-                "Unknown match type: {0!r}".format(matchType)
-            )
-
         result = set()
 
         if records is None:
@@ -337,7 +318,7 @@ class DirectoryService(BaseDirectoryService):
                 continue
 
             for fieldValue in fieldValues:
-                if match(normalize(fieldValue)):
+                if expression.match(fieldValue):
                     result.add(record)
 
         return succeed(result)
