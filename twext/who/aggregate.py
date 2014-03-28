@@ -79,10 +79,23 @@ class DirectoryService(BaseDirectoryService):
         return self._recordType
 
 
-    def recordsFromExpression(self, expression, records=None):
+    @inlineCallbacks
+    def _oneFromSubServices(self, methodName, *args, **kwargs):
+        for service in self.services:
+            m = getattr(service, methodName)
+            record = yield m(*args, **kwargs)
+
+            if record is not None:
+                returnValue(record)
+
+        returnValue(None)
+
+
+    def _gatherFromSubServices(self, methodName, *args, **kwargs):
         ds = []
         for service in self.services:
-            d = service.recordsFromExpression(expression, records=records)
+            m = getattr(service, methodName)
+            d = m(*args, **kwargs)
             ds.append(d)
 
         def unwrapFirstError(f):
@@ -95,13 +108,40 @@ class DirectoryService(BaseDirectoryService):
         return d
 
 
-    @inlineCallbacks
+    def recordsFromExpression(self, expression, records=None):
+        return self._gatherFromSubServices(
+            "recordsFromExpression", expression, records=None
+        )
+
+
+    # Implementation of recordWith*() methods may seem unnecessary here, since
+    # they eventually end up at recordsFromExpression() anyway (in our
+    # superclass).
+    # However, the wrapped services may have optimzed versions of these, so we
+    # want to call their implementations, not bypass them.
+
+
+    def recordsWithFieldValue(self, fieldName, value):
+        return self._gatherFromSubServices(
+            "recordsWithFieldValue", fieldName, value
+        )
+
+
     def recordWithUID(self, uid):
+        return self._oneFromSubServices("recordWithUID", uid)
+
+
+    def recordWithGUID(self, guid):
+        return self._oneFromSubServices("recordWithGUID", guid)
+
+
+    def recordsWithRecordType(self, recordType):
+        # Since we know the recordType, we can go directly to the appropriate
+        # service.
         for service in self.services:
-            record = yield service.recordWithUID(uid)
-            if record is not None:
-                returnValue(record)
-        returnValue(None)
+            if recordType in service.recordTypes():
+                return service.recordsWithRecordType(recordType)
+        return succeed(())
 
 
     def recordWithShortName(self, recordType, shortName):
@@ -113,13 +153,10 @@ class DirectoryService(BaseDirectoryService):
         return succeed(None)
 
 
-    def recordsWithRecordType(self, recordType):
-        # Since we know the recordType, we can go directly to the appropriate
-        # service.
-        for service in self.services:
-            if recordType in service.recordTypes():
-                return service.recordsWithRecordType(recordType)
-        return succeed(())
+    def recordsWithEmailAddress(self, emailAddress):
+        return self._gatherFromSubServices(
+            "recordsWithEmailAddress", emailAddress
+        )
 
 
     @inlineCallbacks
