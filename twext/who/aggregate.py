@@ -26,7 +26,7 @@ __all__ = [
 from itertools import chain
 
 from twisted.internet.defer import (
-    gatherResults, FirstError, succeed, inlineCallbacks
+    gatherResults, FirstError, succeed, inlineCallbacks, returnValue
 )
 
 from .idirectory import DirectoryConfigurationError, IDirectoryService
@@ -93,6 +93,15 @@ class DirectoryService(BaseDirectoryService):
         d.addCallback(lambda results: chain(*results))
         d.addErrback(unwrapFirstError)
         return d
+
+
+    @inlineCallbacks
+    def recordWithUID(self, uid):
+        for service in self.services:
+            record = yield service.recordWithUID(uid)
+            if record is not None:
+                returnValue(record)
+        returnValue(None)
 
 
     def recordWithShortName(self, recordType, shortName):
