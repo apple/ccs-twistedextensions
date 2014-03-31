@@ -336,7 +336,10 @@ class DirectoryService(BaseDirectoryService):
             valueType = self.fieldName.valueType(fieldName)
 
             if valueType in (unicode, UUID):
-                value = valueType(fieldNode.text)
+                if fieldNode.text is None and valueType is unicode:
+                    value = u""
+                else:
+                    value = valueType(fieldNode.text)
 
             elif valueType is bool:
                 boolElement = self._constantElement(fieldNode)
