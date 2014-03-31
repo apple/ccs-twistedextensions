@@ -44,7 +44,7 @@ from ..expression import (
     MatchExpression, MatchFlags,
 )
 from ..ldap._util import LDAP_QUOTING_TABLE
-from ..util import ConstantsContainer, uniqueResult
+from ..util import ConstantsContainer, firstResult
 
 from ._odframework import ODSession, ODNode, ODQuery
 from ._constants import (
@@ -549,7 +549,7 @@ class DirectoryService(BaseDirectoryService):
             results = yield self._recordsFromQuery(query)
 
             try:
-                record = uniqueResult(results)
+                record = firstResult(results)
             except DirectoryServiceError:
                 self.log.error(
                     "Duplicate records for name: {name} ({recordType})"

@@ -146,6 +146,13 @@ def uniqueResult(values):
 
 
 
+def firstResult(values):
+    for value in values:
+        return value
+    return None
+
+
+
 def describe(constant):
     if isinstance(constant, FlagConstant):
         return "|".join(
