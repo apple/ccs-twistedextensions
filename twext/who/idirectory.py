@@ -268,6 +268,7 @@ class IDirectoryService(Interface):
         "The name of the authentication realm this service represents."
     )
 
+
     def recordTypes():
         """
         Get the record types supported by this directory service.
@@ -275,6 +276,7 @@ class IDirectoryService(Interface):
         @return: The record types that are supported by this directory service.
         @rtype: iterable of L{NamedConstant}s
         """
+
 
     def recordsFromExpression(expression):
         """
@@ -289,6 +291,7 @@ class IDirectoryService(Interface):
         @raises: L{QueryNotSupportedError} if the expression is not
             supported by this directory service.
         """
+
 
     def recordsWithFieldValue(fieldName, value):
         """
@@ -305,6 +308,7 @@ class IDirectoryService(Interface):
         @rtype: deferred iterable of L{IDirectoryRecord}s
         """
 
+
     def recordWithUID(uid):
         """
         Find the record that has the given UID.
@@ -315,6 +319,7 @@ class IDirectoryService(Interface):
         @return: The matching record or C{None} if there is no match.
         @rtype: deferred L{IDirectoryRecord}s or C{None}
         """
+
 
     def recordWithGUID(guid):
         """
@@ -327,6 +332,7 @@ class IDirectoryService(Interface):
         @rtype: deferred L{IDirectoryRecord}s or C{None}
         """
 
+
     def recordsWithRecordType(recordType):
         """
         Find the records that have the given record type.
@@ -337,6 +343,7 @@ class IDirectoryService(Interface):
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
         """
+
 
     def recordWithShortName(recordType, shortName):
         """
@@ -352,6 +359,7 @@ class IDirectoryService(Interface):
         @rtype: deferred L{IDirectoryRecord}s or C{None}
         """
 
+
     def recordsWithEmailAddress(emailAddress):
         """
         Find the records that have the given email address.
@@ -362,6 +370,7 @@ class IDirectoryService(Interface):
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
         """
+
 
     def updateRecords(records, create=False):
         """
@@ -379,6 +388,7 @@ class IDirectoryService(Interface):
         @raises L{NotAllowedError}: if the update is not allowed by the
             directory service.
         """
+
 
     def removeRecords(uids):
         """
@@ -438,6 +448,7 @@ class IDirectoryRecord(Interface):
             direct members of this group.
         """
 
+
     def groups():
         """
         Find the group records that this record is a member of.  Only
@@ -448,6 +459,7 @@ class IDirectoryRecord(Interface):
             groups that this record is a member of.
         """
 
+
     def addMembers(members):
         """
         Adds the members to this record.
@@ -455,6 +467,7 @@ class IDirectoryRecord(Interface):
         @param members: The members to add to this record.
         @type members: An iterable of L{IDirectoryRecord}s.
         """
+
 
     def removeMembers(members):
         """
@@ -464,6 +477,7 @@ class IDirectoryRecord(Interface):
         @type members: An iterable of L{IDirectoryRecord}s.
         """
 
+
     def setMembers(members):
         """
         Replaces the current members of this record.
@@ -471,7 +485,6 @@ class IDirectoryRecord(Interface):
         @param members: The new members.
         @type members: An iterable of L{IDirectoryRecord}s.
         """
-
 
 
 class IPlaintextPasswordVerifier(Interface):
