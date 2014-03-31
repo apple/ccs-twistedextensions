@@ -597,6 +597,7 @@ class DirectoryServiceMutableTestMixIn(object):
                 service.fieldName.uid: u"__plugh__",
                 service.fieldName.recordType: service.recordType.user,
                 service.fieldName.shortNames: (u"plugh",),
+                service.fieldName.password: u"",
             }
         )
 
@@ -605,6 +606,7 @@ class DirectoryServiceMutableTestMixIn(object):
         # Verify change is present immediately
         record = (yield service.recordWithUID(u"__plugh__"))
         self.assertEquals(set(record.shortNames), set((u"plugh",)))
+        self.assertEquals(record.password, u"")
 
         # Verify change is persisted
         service.flush()
