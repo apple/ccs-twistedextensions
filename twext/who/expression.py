@@ -135,7 +135,7 @@ class MatchFlags(Flags):
         predicate = lambda x: x
         normalize = lambda x: x
 
-        def lower(x):
+        def caseInsensitivify(x):
             # Case insensitive only makes sense conceptually for text
             # Note we are intentionally not treating bytes as text
             if isinstance(x, unicode):
@@ -150,7 +150,7 @@ class MatchFlags(Flags):
                 if flag == MatchFlags.NOT:
                     predicate = lambda x: not x
                 elif flag == MatchFlags.caseInsensitive:
-                    normalize = lower
+                    normalize = caseInsensitivify
                 else:
                     raise NotImplementedError(
                         "Unknown query flag: {0}".format(describe(flag))
