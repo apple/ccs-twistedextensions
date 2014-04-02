@@ -57,7 +57,7 @@ find_header () {
   # Check for presence of a header of specified version
   local found_version="$(printf "#include <${sys_header}>\n${version_macro}\n" | cc -x c -E - | tail -1)";
 
-  if [ "${found_version}" == "${version_macro}" ]; then
+  if [ "${found_version}" = "${version_macro}" ]; then
     # Macro was not replaced
     return 1;
   fi;
@@ -135,9 +135,9 @@ init_build () {
     sha1 () { "$(type -p shasum)" "$@"; }
   fi;
 
-  if [ "${hash}" == "sha1" ]; then
+  if [ "${hash}" = "sha1" ]; then
     hash () { sha1 "$@"; }
-  elif [ "${hash}" == "md5" ]; then
+  elif [ "${hash}" = "md5" ]; then
     hash () { md5 "$@"; }
   elif type -t cksum > /dev/null; then
     hash="hash";
@@ -497,9 +497,13 @@ c_dependencies () {
       using_system "libffi";
     fi;
   else
+    local v="3.0.13";
+    local n="libffi";
+    local p="${n}-${v}";
+
     c_dependency -m "45f3b6dbc9ee7c7dfbbbc5feba571529" \
-      "libffi" "libffi-3.0.13" \
-      "ftp://sourceware.org/pub/libffi/libffi-3.0.13.tar.gz"
+      "libffi" "${p}" \
+      "ftp://sourceware.org/pub/libffi/${p}.tar.gz"
   fi;
 
   ruler;
@@ -509,6 +513,7 @@ c_dependencies () {
     local v="2.4.38";
     local n="openldap";
     local p="${n}-${v}";
+
     c_dependency -m "39831848c731bcaef235a04e0d14412f" \
       "OpenLDAP" "${p}" \
       "http://www.openldap.org/software/download/OpenLDAP/${n}-release/${p}.tgz" \
@@ -528,6 +533,7 @@ c_dependencies () {
     local v="2.1.26";
     local n="cyrus-sasl";
     local p="${n}-${v}";
+
     c_dependency -m "a7f4e5e559a0e37b3ffc438c9456e425" \
       "Cyrus SASL" "${p}" \
       "ftp://ftp.cyrusimap.org/cyrus-sasl/${p}.tar.gz" \
@@ -538,14 +544,21 @@ c_dependencies () {
   if type -P memcached > /dev/null; then
     using_system "memcached";
   else
-    local le="libevent-2.0.21-stable";
-    local mc="memcached-1.4.16";
+    local v="2.0.21-stable";
+    local n="libevent";
+    local p="${n}-${v}";
+
     c_dependency -m "b2405cc9ebf264aa47ff615d9de527a2" \
-      "libevent" "${le}" \
-      "http://github.com/downloads/libevent/libevent/${le}.tar.gz";
+      "libevent" "${p}" \
+      "http://github.com/downloads/libevent/libevent/${p}.tar.gz";
+
+    local v="1.4.16";
+    local n="memcached";
+    local p="${n}-${v}";
+
     c_dependency -m "1c5781fecb52d70b615c6d0c9c140c9c" \
-      "memcached" "${mc}" \
-      "http://www.memcached.org/files/${mc}.tar.gz";
+      "memcached" "${p}" \
+      "http://www.memcached.org/files/${p}.tar.gz";
   fi;
 
   ruler;
@@ -579,6 +592,16 @@ py_dependencies () {
   export PYTHON="${python}";
   export PYTHONPATH="${wd}:${PYTHONPATH:-}";
 
+  # Work around a change in Xcode tools that breaks Python modules in OS X
+  # 10.9.2 and prior due to a hard error if the -mno-fused-madd is used, as
+  # it was in the system Python, and is therefore passed along by disutils.
+  if [ "$(uname -s)" = "Darwin" ]; then
+    if "${python}" -c 'import distutils.sysconfig; print distutils.sysconfig.get_config_var("CFLAGS")' \
+       | grep -e -mno-fused-madd > /dev/null; then
+      export ARCHFLAGS="-Wno-error=unused-command-line-argument-hard-error-in-future";
+    fi;
+  fi;
+
   if ! "${do_setup}"; then return 0; fi;
 
   # Set up virtual environment
@@ -594,14 +617,10 @@ py_dependencies () {
 
   "${python}" "${wd}/setup.py" check > /dev/null;
 
-  # Work around a change in Xcode tools that breaks Python modules in OS X
-  # 10.9.2 and prior due to a hard error if the -mno-fused-madd is used, as
-  # it was in the system Python, and is therefore passed along by disutils.
-  if [ "$(uname -s)" == "Darwin" ]; then
-    if "${python}" -c 'import distutils.sysconfig; print distutils.sysconfig.get_config_var("CFLAGS")' \
-       | grep -e -mno-fused-madd > /dev/null; then
-      export ARCHFLAGS="-Wno-error=unused-command-line-argument-hard-error-in-future";
-    fi;
+  if [ -d "${wd}/requirements/cache" ]; then
+    pip_install="pip_install_from_cache";
+  else
+    pip_install="pip_install";
   fi;
 
   for requirements in "${wd}/requirements/py_"*".txt"; do
@@ -609,11 +628,7 @@ py_dependencies () {
     ruler "Preparing Python requirements: ${requirements}";
     echo "";
 
-    if ! "${python}" -m pip install               \
-        --requirement "${requirements}"           \
-        --download-cache "${dev_home}/pip_cache"  \
-        --log "${dev_home}/pip.log"               \
-    ; then
+    if ! "${pip_install}" "${requirements}"; then
       err=$?;
       echo "Unable to set up Python requirements: ${requirements}";
       if [ "${requirements#${wd}/requirements/py_opt_}" != "${requirements}" ]; then
@@ -630,6 +645,26 @@ py_dependencies () {
   echo "";
 }
 
+
+pip_install_from_cache () {
+  local requirements="$1"; shift;
+
+  "${python}" -m pip install                 \
+    --requirement="${requirements}"          \
+    --find-links "${wd}/requirements/cache"  \
+    --no-index                               \
+    --log="${dev_home}/pip.log";
+}
+
+
+pip_install () {
+  local requirements="$1"; shift;
+
+  "${python}" -m pip install                  \
+    --requirement="${requirements}"           \
+    --download-cache="${dev_home}/pip_cache"  \
+    --log="${dev_home}/pip.log";
+}
 
 
 #
