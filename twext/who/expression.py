@@ -135,6 +135,16 @@ class MatchFlags(Flags):
         predicate = lambda x: x
         normalize = lambda x: x
 
+        def maybeLower(x):
+            """
+            Not all values have lower(), so handle that case by returning the
+            original
+            """
+            try:
+                return x.lower()
+            except AttributeError:
+                return x
+
         if flags is None:
             flags = FlagConstant()
         else:
@@ -142,7 +152,7 @@ class MatchFlags(Flags):
                 if flag == MatchFlags.NOT:
                     predicate = lambda x: not x
                 elif flag == MatchFlags.caseInsensitive:
-                    normalize = lambda x: x.lower()
+                    normalize = maybeLower
                 else:
                     raise NotImplementedError(
                         "Unknown query flag: {0}".format(describe(flag))
@@ -270,8 +280,6 @@ class MatchExpression(object):
 
         def match(a, b):
             matchType = self.matchType
-
-            # import pdb; pdb.set_trace()
 
             if matchType == MatchType.equals:
                 return a == b

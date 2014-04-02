@@ -19,6 +19,7 @@ Directory service expression tests.
 """
 
 from twisted.trial import unittest
+from uuid import UUID
 
 from ..idirectory import FieldName
 from ..expression import MatchExpression, MatchType, MatchFlags
@@ -361,3 +362,20 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Wilfredo"))
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Glyph"))
+
+
+    def test_non_unicode_value(self):
+        """
+        L{MatchExpression.match} with L{MatchType.equals},
+        L{MatchFlags.caseInsensitive} and a UUID value (which cannot be
+        lower()'d)
+        """
+        uuidValue = UUID("95F868E5-EFBD-4BFE-8DFB-25C3BC5CCDDA")
+        expression = MatchExpression(
+            FieldName.guid, uuidValue,
+            matchType=MatchType.equals,
+            flags=MatchFlags.caseInsensitive,
+
+        )
+        self.assertFalse(expression.match(u"Bogus"))
+        self.assertTrue(expression.match(uuidValue))
