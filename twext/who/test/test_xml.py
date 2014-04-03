@@ -402,7 +402,7 @@ class DirectoryServiceQueryTestMixIn(object):
         service = self.service()
         records = yield service.recordsFromExpression(
             service.query(
-                u"fullNames", u"Wilfredo",
+                u"fullNames", u"Andre",
                 matchType=MatchType.startsWith,
                 flags=MatchFlags.NOT,
             )
@@ -414,13 +414,13 @@ class DirectoryServiceQueryTestMixIn(object):
                 u"__calendar-dev__",
                 u"__cdaboo__",
                 u"__developers__",
-                u"__dre__",
                 u"__dreid__",
                 u"__exarkun__",
                 u"__glyph__",
                 u"__joe__",
                 u"__sagen__",
                 u"__twisted__",
+                u"__wsanchez__",
             ),
         )
 
@@ -508,7 +508,7 @@ class DirectoryServiceQueryTestMixIn(object):
         service = self.service()
         records = yield service.recordsFromExpression(
             service.query(
-                u"fullNames", u"fred",
+                u"fullNames", u"ranch",
                 matchType=MatchType.contains,
                 flags=MatchFlags.NOT,
             )
@@ -520,13 +520,13 @@ class DirectoryServiceQueryTestMixIn(object):
                 u"__calendar-dev__",
                 u"__cdaboo__",
                 u"__developers__",
-                u"__dre__",
                 u"__dreid__",
                 u"__exarkun__",
                 u"__glyph__",
                 u"__joe__",
                 u"__sagen__",
                 u"__twisted__",
+                u"__wsanchez__",
             ),
         )
 
@@ -847,24 +847,28 @@ class DirectoryRecordTest(
         members = (yield record.members())
         self.assertEquals(
             set((member.uid for member in members)),
-            set((
-                u"__wsanchez__",
-                u"__glyph__",
-                u"__exarkun__",
-                u"__dreid__",
-                u"__dre__",
-            ))
+            set(
+                (
+                    u"__wsanchez__",
+                    u"__glyph__",
+                    u"__exarkun__",
+                    u"__dreid__",
+                    u"__dre__",
+                )
+            )
         )
 
         record = (yield service.recordWithUID(u"__developers__"))
         members = (yield record.members())
         self.assertEquals(
             set((member.uid for member in members)),
-            set((
-                u"__calendar-dev__",
-                u"__twisted__",
-                u"__alyssa__",
-            ))
+            set(
+                (
+                    u"__calendar-dev__",
+                    u"__twisted__",
+                    u"__alyssa__",
+                )
+            )
         )
 
     @inlineCallbacks
@@ -875,10 +879,12 @@ class DirectoryRecordTest(
         groups = (yield record.groups())
         self.assertEquals(
             set(group.uid for group in groups),
-            set((
-                u"__calendar-dev__",
-                u"__twisted__",
-            ))
+            set(
+                (
+                    u"__calendar-dev__",
+                    u"__twisted__",
+                )
+            )
         )
 
 
@@ -938,6 +944,8 @@ testXMLConfig = b"""<?xml version="1.0" encoding="utf-8"?>
     <short-name>wsanchez</short-name>
     <short-name>wilfredo_sanchez</short-name>
     <full-name>Wilfredo Sanchez</full-name>
+    <full-name>Wilfredo S\xc3\xa1nchez Vega</full-name>
+    <full-name>\xe3\x82\xb5\xe3\x83\xb3\xe3\x83\x81\xe3\x82\xa7\xe3\x82\xba\xe3\x80\x80\xe3\x83\xb4\xe3\x82\xa7\xe3\x82\xac\xe3\x80\x80\xe3\x82\xa6\xe3\x82\xa3\xe3\x83\xab\xe3\x83\x95\xe3\x83\xac\xe3\x83\xbc\xe3\x83\x89</full-name>
     <password>zehcnasw</password>
     <email>wsanchez@bitbucket.calendarserver.org</email>
     <email>wsanchez@devnull.twistedmatrix.com</email>
