@@ -540,6 +540,20 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
+    def recordWithUID(self, uid):
+        returnValue(firstResult(
+            (yield self.recordsWithFieldValue(BaseFieldName.uid, uid))
+        ))
+
+
+    @inlineCallbacks
+    def recordWithGUID(self, guid):
+        returnValue(firstResult(
+            (yield self.recordsWithFieldValue(BaseFieldName.guid, guid))
+        ))
+
+
+    @inlineCallbacks
     def recordWithShortName(self, recordType, shortName):
         try:
             query = self._queryFromMatchExpression(
