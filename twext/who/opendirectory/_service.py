@@ -210,15 +210,15 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
-    def _queryStringFromMatchExpression(self, expression):
+    def _queryStringAndRecordTypesFromMatchExpression(self, expression):
         """
         Generates an LDAP query string from a match expression.
 
         @param expression: A match expression.
         @type expression: L{MatchExpression}
 
-        @return: An LDAP query string.
-        @rtype: C{unicode}
+        @return: tuple(LDAP query string, recordTypes)
+        @rtype: (C{unicode}, set())
         """
         matchType = ODMatchType.fromMatchType(expression.matchType)
         if matchType is None:
@@ -236,14 +236,12 @@ class DirectoryService(BaseDirectoryService):
         # if MatchFlags.caseInsensitive not in flags:
         #     raise NotImplementedError("Need to handle case sensitive")
 
+        if expression.fieldName is self.fieldName.recordType:
+            return (notOp, set([ODRecordType.fromRecordType(expression.fieldValue).value]),)
+
         if expression.fieldName is self.fieldName.uid:
             odAttr = ODAttribute.guid
             value = expression.fieldValue
-
-        elif expression.fieldName is self.fieldName.recordType:
-            raise QueryNotSupportedError(
-                "Can't build a query string for record types."
-            )
 
         else:
             odAttr = ODAttribute.fromFieldName(expression.fieldName)
@@ -257,43 +255,54 @@ class DirectoryService(BaseDirectoryService):
         value = unicode(value)  # We want unicode
         value = value.translate(LDAP_QUOTING_TABLE)  # Escape special chars
 
-        return matchType.queryString.format(
-            notOp=notOp, attribute=odAttr.value, value=value
+        return (
+            matchType.queryString.format(
+                notOp=notOp, attribute=odAttr.value, value=value
+            ),
+            None,
         )
 
 
-    def _queryStringFromCompoundExpression(self, expression):
+    def _queryStringAndRecordTypesFromCompoundExpression(self, expression):
         """
         Generates an LDAP query string from a compound expression.
 
         @param expression: A compound expression.
         @type expression: L{MatchExpression}
 
-        @return: An LDAP query string.
-        @rtype: C{unicode}
+        @return: tuple(LDAP query string, recordTypes)
+        @rtype: (C{unicode}, set())
         """
         queryTokens = []
-
-        if len(expression.expressions) > 1:
-            queryTokens.append(u"(")
-
-            if expression.operand is Operand.AND:
-                queryTokens.append(u"&")
-            else:
-                queryTokens.append(u"|")
+        recordTypes = set()
 
         for subExpression in expression.expressions:
-            queryTokens.append(
-                self._queryStringFromExpression(subExpression)
-            )
+            queryToken, subExpRecordTypes = self._queryStringAndRecordTypesFromExpression(subExpression)
+            if subExpRecordTypes:
+                if expression.operand is Operand.AND or queryToken == u"!": # AND or NOR
+                    recordTypes |= subExpRecordTypes
+                else:
+                    raise QueryNotSupportedError(
+                        "Record type matches must AND or NOR"
+                    )
+            else:
+                queryTokens.append(queryToken)
 
-        if len(expression.expressions) > 1:
-            queryTokens.append(u")")
+        if queryTokens:
+            if len(queryTokens) > 1:
+                if expression.operand is Operand.AND:
+                    queryTokens[:0] = (u"&")
+                else:
+                    queryTokens[:0] = (u"|")
 
-        return u"".join(queryTokens)
+            if len(queryTokens) > 2:
+                queryTokens[:0] = (u"(")
+                queryTokens.append(u")")
+
+        return (u"".join(queryTokens), recordTypes if recordTypes else None,)
 
 
-    def _queryStringFromExpression(self, expression):
+    def _queryStringAndRecordTypesFromExpression(self, expression):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
         query string.
@@ -301,15 +310,15 @@ class DirectoryService(BaseDirectoryService):
         @param expression: An expression.
         @type expression: L{MatchExpression} or L{CompoundExpression}
 
-        @return: A native OpenDirectory query string
-        @rtype: C{unicode}
+        @return: tuple(LDAP query string, recordTypes)
+        @rtype: (C{unicode}, set())
         """
 
         if isinstance(expression, MatchExpression):
-            return self._queryStringFromMatchExpression(expression)
+            return self._queryStringAndRecordTypesFromMatchExpression(expression)
 
         if isinstance(expression, CompoundExpression):
-            return self._queryStringFromCompoundExpression(expression)
+            return self._queryStringAndRecordTypesFromCompoundExpression(expression)
 
         raise QueryNotSupportedError(
             "Unknown expression type: {0!r}".format(expression)
@@ -327,9 +336,17 @@ class DirectoryService(BaseDirectoryService):
         @rtype: L{ODQuery}
         """
 
-        queryString = self._queryStringFromExpression(expression)
+        queryString, recordTypes = self._queryStringAndRecordTypesFromExpression(expression)
+        supportedRecordTypes = set([t.value for t in ODRecordType.iterconstants()])
+        if recordTypes:
+            recordTypes = supportedRecordTypes & recordTypes
+            if not recordTypes:
+                raise QueryNotSupportedError(
+                    "Query for unsupported record types: {0!r}".format(recordTypes - supportedRecordTypes)
+                )
+        else:
+            recordTypes = supportedRecordTypes
 
-        recordTypes = [t.value for t in ODRecordType.iterconstants()]
         attributes = [a.value for a in ODAttribute.iterconstants()]
         maxResults = 0
 
@@ -337,8 +354,8 @@ class DirectoryService(BaseDirectoryService):
             self.node,
             recordTypes,
             None,
-            ODMatchType.compound.value,
-            queryString,
+            ODMatchType.compound.value if queryString else ODMatchType.any.value,
+            queryString if queryString else None,
             attributes,
             maxResults,
             None
@@ -422,7 +439,7 @@ class DirectoryService(BaseDirectoryService):
                 expression.fieldName
             ).value
 
-            # TODO: Add support other valuetypes:
+            # TODO: Add support other value types:
             valueType = self.fieldName.valueType(expression.fieldName)
             if valueType == UUID:
                 queryValue = unicode(expression.fieldValue).upper()
