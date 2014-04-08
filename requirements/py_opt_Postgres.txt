@@ -1,5 +1,0 @@
-#
-# Requirements for Postgres database support
-#
-
-PyGreSQL==4.1.1

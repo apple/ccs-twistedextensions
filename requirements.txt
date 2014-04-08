@@ -1,0 +1,7 @@
+# Get our own dependencies
+-e .
+
+# Additional dependencies for development
+pyflakes
+docutils>=0.11
+mockldap>=0.1.4

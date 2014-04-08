@@ -1,6 +1,0 @@
-#
-# Requirements for basic functionality
-#
-
-cffi==0.6
-twisted>=13.2.0

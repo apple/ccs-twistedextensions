@@ -20,12 +20,9 @@ from __future__ import print_function
 
 import sys
 import errno
-from os import listdir, environ as environment
 from os.path import dirname, abspath, join as joinpath
-from itertools import chain
 import subprocess
 from setuptools import setup, find_packages as setuptools_find_packages
-from pip.req import parse_requirements
 
 
 
@@ -136,42 +133,29 @@ platforms = ["all"]
 # Dependencies
 #
 
-reqs_extension = ".txt"
-reqs_opt_prefix = "py_opt_"
-
-
-requirements_dir = joinpath(dirname(__file__), "requirements")
-
-
-def read_requirements(reqs_filename):
-    return [
-        str(r.req) for r in
-        parse_requirements(joinpath(requirements_dir, reqs_filename))
-    ]
-
-
 setup_requirements = []
 
-install_requirements = read_requirements("py_base.txt")
+install_requirements = [
+    "cffi==0.6",
+    "twisted>=13.2.0",
+]
 
-extras_requirements = dict(
-    (
-        reqs_filename[len(reqs_opt_prefix):-len(reqs_extension)],
-        read_requirements(reqs_filename)
-    )
-    for reqs_filename in listdir(requirements_dir)
-    if (
-        reqs_filename.startswith(reqs_opt_prefix) and
-        reqs_filename.endswith(reqs_extension)
-    )
-)
+extras_requirements = {
+    # Database Abstraction Layer
+    "DAL": ["sqlparse==0.1.2"],
 
-# Requirements for development and testing
-develop_requirements = read_requirements("py_develop.txt")
+    # LDAP
+    "LDAP": ["python-ldap>=2.4.13"],
 
-if environment.get("_DEVELOP_PROJECT_", None) == name:
-    install_requirements.extend(develop_requirements)
-    install_requirements.extend(chain(*extras_requirements.values()))
+    # OpenDirectory
+    "OpenDirectory": ["pyobjc-framework-OpenDirectory>=2.5.1"],
+
+    # Oracle
+    "Oracle": ["cx_Oracle==5.1.2"],
+
+    # Postgres
+    "Postgres": ["PyGreSQL==4.1.1"],
+}
 
 
 

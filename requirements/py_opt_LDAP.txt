@@ -1,5 +1,0 @@
-#
-# Requirements for LDAP support
-#
-
-python-ldap>=2.4.13
