@@ -75,7 +75,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 service.fieldName.shortNames, u"xyzzy",
                 matchType=matchType
             )
-            queryString = service._queryStringFromExpression(expression)
+            queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+            self.assertEquals(recordTypes, None)
             self.assertEquals(
                 queryString,
                 u"({attribute}{expected})".format(
@@ -94,7 +95,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             service.fieldName.shortNames, u"xyzzy",
             flags=MatchFlags.NOT
         )
-        queryString = service._queryStringFromExpression(expression)
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(recordTypes, None)
         self.assertEquals(
             queryString,
             u"(!{attribute}=xyzzy)".format(
@@ -114,7 +116,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             service.fieldName.shortNames, u"xyzzy",
             flags=MatchFlags.caseInsensitive
         )
-        queryString = service._queryStringFromExpression(expression)
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(recordTypes, None)
         self.assertEquals(
             queryString,
             u"???????({attribute}=xyzzy)".format(
@@ -137,7 +140,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             service.fieldName.fullNames,
             u"\\xyzzy: a/b/(c)* ~~ >=< ~~ &| \0!!"
         )
-        queryString = service._queryStringFromExpression(expression)
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(recordTypes, None)
         self.assertEquals(
             queryString,
             u"({attribute}={expected})".format(
@@ -180,7 +184,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             ],
             Operand.AND
         )
-        queryString = service._queryStringFromExpression(expression)
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(recordTypes, None)
         self.assertEquals(
             queryString,
             (
@@ -210,7 +215,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             ],
             Operand.OR
         )
-        queryString = service._queryStringFromExpression(expression)
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(recordTypes, None)
         self.assertEquals(
             queryString,
             (
