@@ -199,7 +199,7 @@ JobInfoSchema = SchemaSyntax(makeJobSchema(Schema(__file__)))
 
 
 @inlineCallbacks
-def inTransaction(transactionCreator, operation):
+def inTransaction(transactionCreator, operation, label="jobqueue.inTransaction"):
     """
     Perform the given operation in a transaction, committing or aborting as
     required.
@@ -210,11 +210,13 @@ def inTransaction(transactionCreator, operation):
     @param operation: a 1-arg callable that takes an L{IAsyncTransaction} and
         returns a value.
 
+    @param label: label to be used with the transaction.
+
     @return: a L{Deferred} that fires with C{operation}'s result or fails with
         its error, unless there is an error creating, aborting or committing
         the transaction.
     """
-    txn = transactionCreator()
+    txn = transactionCreator(label=label)
     try:
         result = yield operation(txn)
     except:
@@ -943,12 +945,13 @@ def ultimatelyPerform(txnFactory, jobID):
     def runJob(txn):
         try:
             job = yield JobItem.load(txn, jobID)
+            txn._label = "{} <{}>".format(txn._label, job.workType)
             yield job.run()
         except NoSuchRecord:
             # The record has already been removed
             pass
 
-    return inTransaction(txnFactory, runJob)
+    return inTransaction(txnFactory, runJob, label="ultimatelyPerform: {}".format(jobID))
 
 
 
@@ -1390,7 +1393,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                 except Exception as e:
                     log.err("Failed to perform periodic lost job for jobid={}, {}".format(overdueItem.jobID, e))
 
-        return inTransaction(self.transactionFactory, workCheck)
+        return inTransaction(self.transactionFactory, workCheck, label="periodicLostWorkCheck")
 
     _currentWorkDeferred = None
     _lostWorkCheckCall = None
@@ -1455,7 +1458,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             for node in nodes:
                 self._startConnectingTo(node)
 
-        self._startingUp = inTransaction(self.transactionFactory, startup)
+        self._startingUp = inTransaction(self.transactionFactory, startup, label="PeerConnectionPool.startService")
 
         @self._startingUp.addBoth
         def done(result):
