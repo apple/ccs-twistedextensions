@@ -136,7 +136,7 @@ platforms = ["all"]
 setup_requirements = []
 
 install_requirements = [
-    "cffi==0.6",
+    "cffi>=0.6",
     "twisted>=13.2.0",
 ]
 
@@ -145,16 +145,16 @@ extras_requirements = {
     "DAL": ["sqlparse==0.1.2"],
 
     # LDAP
-    "LDAP": ["python-ldap>=2.4.13"],
+    "LDAP": ["python-ldap"],
 
     # OpenDirectory
-    "OpenDirectory": ["pyobjc-framework-OpenDirectory>=2.5.1"],
+    "OpenDirectory": ["pyobjc-framework-OpenDirectory"],
 
     # Oracle
-    "Oracle": ["cx_Oracle==5.1.2"],
+    "Oracle": ["cx_Oracle"],
 
     # Postgres
-    "Postgres": ["PyGreSQL==4.1.1"],
+    "Postgres": ["PyGreSQL"],
 }
 
 
