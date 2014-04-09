@@ -449,8 +449,8 @@ class DirectoryService(BaseDirectoryService):
 
                     if valueType in (unicode, UUID):
                         if not isinstance(value, list):
-                            value = list(value)
-                        newValue = list()
+                            value = [value]
+                        newValue = []
                         for singleValue in value:
                             singleValue = valueType(singleValue)
                             newValue.append(singleValue)
