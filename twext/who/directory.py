@@ -418,10 +418,10 @@ class DirectoryRecord(object):
 
     def __repr__(self):
         return (
-            "<{self.__class__.__name__} ({recordType}){shortName}>".format(
+            "<{self.__class__.__name__} ({recordType}){uid}>".format(
                 self=self,
                 recordType=describe(self.recordType),
-                shortName=self.shortNames[0],
+                uid=self.uid,
             )
         )
 

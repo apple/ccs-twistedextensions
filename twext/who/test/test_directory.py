@@ -829,7 +829,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         wsanchez = self.makeRecord(self.fields_wsanchez)
 
         self.assertEquals(
-            "<DirectoryRecord (user)wsanchez>",
+            "<DirectoryRecord (user)UID:wsanchez>",
             repr(wsanchez)
         )
 

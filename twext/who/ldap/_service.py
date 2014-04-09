@@ -304,6 +304,10 @@ class DirectoryService(BaseDirectoryService):
 
         @raises: L{LDAPConnectionError} if unable to connect.
         """
+
+        # FIXME: ldap connection objects are not thread safe, so let's set up
+        # a connection pool
+
         if not hasattr(self, "_connection"):
             self.log.info("Connecting to LDAP at {log_source.url}")
             connection = ldap.initialize(self.url)
@@ -372,8 +376,7 @@ class DirectoryService(BaseDirectoryService):
         self.log.debug("Authenticating {dn}", dn=dn)
         connection = ldap.initialize(self.url)
 
-        # FIXME: Use trace_file option to wire up debug logging when
-        # Twisted adopts the new logging stuff.
+        # FIXME:  Use a separate connection pool perhaps
 
         for option, value in (
             (ldap.OPT_TIMEOUT, self._timeout),
@@ -411,9 +414,13 @@ class DirectoryService(BaseDirectoryService):
         self.log.info("Performing LDAP query: {query}", query=queryString)
 
         try:
-            reply = connection.search_s(
-                self._baseDN, ldap.SCOPE_SUBTREE, queryString  # FIXME: attrs
+            reply = yield deferToThread(
+                connection.search_s,
+                self._baseDN,
+                ldap.SCOPE_SUBTREE,
+                queryString  # FIXME: attrs
             )
+
         except ldap.FILTER_ERROR as e:
             self.log.error(
                 "Unable to perform query {0!r}: {1}"
@@ -421,6 +428,34 @@ class DirectoryService(BaseDirectoryService):
             )
             raise LDAPQueryError("Unable to perform query", e)
 
+        records = yield self._recordsFromReply(reply)
+        returnValue(records)
+
+
+    @inlineCallbacks
+    def _recordWithDN(self, dn):
+        """
+        @param dn: The DN of the record to search for
+        @type dn: C{str}
+        """
+        connection = yield self._connect()
+
+        self.log.info("Performing LDAP DN query: {dn}", dn=dn)
+
+        reply = yield deferToThread(
+            connection.search_s,
+            dn,
+            ldap.SCOPE_SUBTREE,
+            "(objectClass=*)"  # FIXME: attrs
+        )
+        records = self._recordsFromReply(reply)
+        if len(records):
+            returnValue(records[0])
+        else:
+            returnValue(None)
+
+
+    def _recordsFromReply(self, reply):
         records = []
 
         for dn, recordData in reply:
@@ -447,11 +482,11 @@ class DirectoryService(BaseDirectoryService):
                 fieldNames = self._attributeToFieldNameMap.get(attribute)
 
                 if fieldNames is None:
-                    self.log.debug(
-                        "Unmapped LDAP attribute {attribute!r} in record "
-                        "data: {recordData!r}",
-                        attribute=attribute, recordData=recordData,
-                    )
+                    # self.log.debug(
+                    #     "Unmapped LDAP attribute {attribute!r} in record "
+                    #     "data: {recordData!r}",
+                    #     attribute=attribute, recordData=recordData,
+                    # )
                     continue
 
                 for fieldName in fieldNames:
@@ -475,11 +510,8 @@ class DirectoryService(BaseDirectoryService):
                             )
                         )
 
-            # Skip any results missing the required fields
-            if (
-                (self.fieldName.uid not in fields) or
-                (self.fieldName.shortNames not in fields)
-            ):
+            # Skip any results missing the uid
+            if self.fieldName.uid not in fields:
                 continue
 
             # Set record type and dn fields
@@ -494,7 +526,7 @@ class DirectoryService(BaseDirectoryService):
 
         self.log.debug("LDAP results: {records}", records=records)
 
-        returnValue(records)
+        return records
 
 
     def recordsFromNonCompoundExpression(self, expression, records=None):
@@ -542,13 +574,19 @@ class DirectoryRecord(BaseDirectoryRecord):
 
     @inlineCallbacks
     def members(self):
+
         if self.recordType != self.service.recordType.group:
             returnValue(())
 
-        raise NotImplementedError()
+        members = set()
+        for dn in getattr(self, "memberDNs", []):
+            record = yield self.service._recordWithDN(dn)
+            members.add(record)
+
+        returnValue(members)
 
 
-    @inlineCallbacks
+    # @inlineCallbacks
     def groups(self):
         raise NotImplementedError()
 
