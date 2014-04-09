@@ -27,6 +27,7 @@ __all__ = [
     "DirectoryService",
     "LDAPAttribute",
     "LDAPObjectClass",
+    "FieldName",
 ]
 
 
@@ -37,6 +38,7 @@ from ._service import (
     LDAPBindAuthError,
     RecordTypeSchema,
     DirectoryService,
+    FieldName
 )
 from ._constants import (
     LDAPAttribute,

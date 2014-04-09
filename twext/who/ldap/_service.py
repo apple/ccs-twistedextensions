@@ -108,6 +108,10 @@ class FieldName(Names):
     dn = NamedConstant()
     dn.description = u"distinguished name"
 
+    memberDNs = NamedConstant()
+    memberDNs.description = u"member DNs"
+    memberDNs.multiValue = True
+
 
 
 #
@@ -472,10 +476,9 @@ class DirectoryService(BaseDirectoryService):
             ):
                 continue
 
-            # Set record type and uid fields
+            # Set record type and dn fields
 
             fields[self.fieldName.recordType] = recordType
-            # fields[self.fieldName.uid] = uid
             fields[self.fieldName.dn] = dn.decode("utf-8")
 
             # Make a record object from fields.
