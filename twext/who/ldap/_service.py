@@ -144,6 +144,9 @@ class RecordTypeSchema(object):
 # the constants.
 
 # Maps field name -> LDAP attribute names
+
+# NOTE: you must provide a mapping for uid
+
 DEFAULT_FIELDNAME_ATTRIBUTE_MAP = MappingProxyType({
     # FieldName.dn: (LDAPAttribute.dn.value,),
     # BaseFieldName.uid: (LDAPAttribute.dn.value,),
