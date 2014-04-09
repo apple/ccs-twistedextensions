@@ -36,6 +36,7 @@ from twext.python.types import MappingProxyType
 from ..idirectory import (
     DirectoryServiceError, DirectoryAvailabilityError,
     FieldName as BaseFieldName, RecordType as BaseRecordType,
+    IPlaintextPasswordVerifier
 )
 from ..directory import (
     DirectoryService as BaseDirectoryService,
@@ -48,6 +49,7 @@ from ._util import (
     ldapQueryStringFromMatchExpression,
     ldapQueryStringFromCompoundExpression,
 )
+from zope.interface import implementer
 
 
 
@@ -347,6 +349,52 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
+    def _authenticateUsernamePassword(self, dn, password):
+        """
+        Open a secondary connection to the LDAP server and try binding to it
+        with the given credentials
+
+        @returns: True if the password is correct, False otherwise
+        @rtype: deferred C{bool}
+
+        @raises: L{LDAPConnectionError} if unable to connect.
+        """
+        self.log.debug("Authenticating {dn}", dn=dn)
+        connection = ldap.initialize(self.url)
+
+        # FIXME: Use trace_file option to wire up debug logging when
+        # Twisted adopts the new logging stuff.
+
+        for option, value in (
+            (ldap.OPT_TIMEOUT, self._timeout),
+            (ldap.OPT_X_TLS_CACERTFILE, self._tlsCACertificateFile),
+            (ldap.OPT_X_TLS_CACERTDIR, self._tlsCACertificateDirectory),
+            (ldap.OPT_DEBUG_LEVEL, self._debug),
+        ):
+            if value is not None:
+                connection.set_option(option, value)
+
+        if self._useTLS:
+            self.log.debug("Starting TLS for {log_source.url}")
+            yield deferToThread(connection.start_tls_s)
+
+        try:
+            yield deferToThread(
+                connection.simple_bind_s,
+                dn,
+                password,
+            )
+            self.log.debug("Authenticated {dn}", dn=dn)
+            returnValue(True)
+        except (
+            ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
+        ):
+            self.log.debug("Unable to authenticate {dn}", dn=dn)
+            returnValue(False)
+
+
+
+    @inlineCallbacks
     def _recordsFromQueryString(self, queryString):
         connection = yield self._connect()
 
@@ -400,7 +448,15 @@ class DirectoryService(BaseDirectoryService):
                     valueType = self.fieldName.valueType(fieldName)
 
                     if valueType in (unicode, UUID):
-                        fields[fieldName] = valueType(value)
+                        if not isinstance(value, list):
+                            value = list(value)
+                        newValue = list()
+                        for singleValue in value:
+                            singleValue = valueType(singleValue)
+                            newValue.append(singleValue)
+                        if not self.fieldName.isMultiValue(fieldName):
+                            newValue = newValue[0]
+                        fields[fieldName] = newValue
 
                     else:
                         raise LDAPConfigurationError(
@@ -409,11 +465,18 @@ class DirectoryService(BaseDirectoryService):
                             )
                         )
 
+            # Skip any results missing the required fields
+            if (
+                (self.fieldName.uid not in fields) or
+                (self.fieldName.shortNames not in fields)
+            ):
+                continue
+
             # Set record type and uid fields
 
             fields[self.fieldName.recordType] = recordType
             # fields[self.fieldName.uid] = uid
-            fields[self.fieldName.dn] = dn
+            fields[self.fieldName.dn] = dn.decode("utf-8")
 
             # Make a record object from fields.
 
@@ -462,6 +525,7 @@ class DirectoryService(BaseDirectoryService):
 
 
 
+@implementer(IPlaintextPasswordVerifier)
 class DirectoryRecord(BaseDirectoryRecord):
     """
     LDAP directory record.
@@ -478,6 +542,15 @@ class DirectoryRecord(BaseDirectoryRecord):
     @inlineCallbacks
     def groups(self):
         raise NotImplementedError()
+
+
+    #
+    # Verifiers for twext.who.checker stuff.
+    #
+
+
+    def verifyPlaintextPassword(self, password):
+        return self.service._authenticateUsernamePassword(self.dn, password)
 
 
 
