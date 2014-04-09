@@ -330,7 +330,6 @@ class DirectoryRecord(object):
     requiredFields = (
         FieldName.uid,
         FieldName.recordType,
-        FieldName.shortNames,
     )
 
 

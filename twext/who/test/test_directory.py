@@ -696,27 +696,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
 
-    def test_initWithNoShortNames(self):
-        """
-        Directory records must have a short name.
-        """
-        fields = self.fields_wsanchez.copy()
-        del fields[FieldName.shortNames]
-        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
-
-        fields = self.fields_wsanchez.copy()
-        fields[FieldName.shortNames] = ()
-        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
-
-        fields = self.fields_wsanchez.copy()
-        fields[FieldName.shortNames] = (u"",)
-        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
-
-        fields = self.fields_wsanchez.copy()
-        fields[FieldName.shortNames] = (u"wsanchez", u"")
-        self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
-
-
     def test_initNormalizeEmailLowercase(self):
         """
         Email addresses are normalized to lowercase.

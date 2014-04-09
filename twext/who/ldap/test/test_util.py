@@ -26,14 +26,20 @@ from ...expression import (
 )
 from ...test.test_xml import UnknownConstant
 from .._constants import LDAPOperand
-from .._service import DirectoryService, RecordTypeSchema
+from .._service import (
+    DirectoryService, RecordTypeSchema, DEFAULT_FIELDNAME_ATTRIBUTE_MAP
+)
 from .._util import (
     ldapQueryStringFromQueryStrings,
     ldapQueryStringFromMatchExpression,
     ldapQueryStringFromCompoundExpression,
     ldapQueryStringFromExpression,
 )
+from ...idirectory import FieldName as BaseFieldName
 
+
+TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
+TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
 
 
 class LDAPQueryTestCase(unittest.TestCase):
@@ -44,7 +50,10 @@ class LDAPQueryTestCase(unittest.TestCase):
     def service(self):
         # Use intentionally funky conenction info, since we don't expect
         # to connect.
-        return DirectoryService(u"ldap://cretin/", u"o=plugh")
+        return DirectoryService(
+            u"ldap://cretin/", u"o=plugh",
+            fieldNameToAttributesMap=TEST_FIELDNAME_MAP
+        )
 
 
     def fieldNameMap(self, service):

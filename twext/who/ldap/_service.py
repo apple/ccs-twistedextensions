@@ -36,7 +36,7 @@ from twext.python.types import MappingProxyType
 from ..idirectory import (
     DirectoryServiceError, DirectoryAvailabilityError,
     FieldName as BaseFieldName, RecordType as BaseRecordType,
-    IPlaintextPasswordVerifier
+    IPlaintextPasswordVerifier, DirectoryConfigurationError
 )
 from ..directory import (
     DirectoryService as BaseDirectoryService,
@@ -275,6 +275,9 @@ class DirectoryService(BaseDirectoryService):
 
         if self.fieldName.recordType in fieldNameToAttributesMap:
             raise TypeError("Record type field may not be mapped")
+
+        if BaseFieldName.uid not in fieldNameToAttributesMap:
+            raise DirectoryConfigurationError("Mapping for uid required")
 
         self._fieldNameToAttributesMap = fieldNameToAttributesMap
         self._attributeToFieldNameMap = reverseDict(
