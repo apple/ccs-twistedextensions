@@ -938,37 +938,48 @@ def replaceTwistedLoggers():
         if moduleName is __name__:
             continue
 
-        for name, obj in module.__dict__.iteritems():
-            try:
-                newLogger = Logger(namespace=module.__name__)
-            except AttributeError:
-                # Can't look up __name__.  A hack in the "six" module causes
-                # this.  Skip the module.
-                # See https://trac.calendarserver.org/ticket/832
-                continue
+        try:
+            for name, obj in module.__dict__.iteritems():
+                try:
+                    newLogger = Logger(namespace=module.__name__)
+                except AttributeError:
+                    # Can't look up __name__.  A hack in the "six" module causes
+                    # this.  Skip the module.
+                    # See https://trac.calendarserver.org/ticket/832
+                    continue
 
-            legacyLogger = LegacyLogger(logger=newLogger)
+                legacyLogger = LegacyLogger(logger=newLogger)
 
-            if obj is twisted.python.log:
-                log.info(
-                    "Replacing Twisted log module object {0} in {1}"
-                    .format(name, module.__name__)
-                )
-                setattr(module, name, legacyLogger)
+                if obj is twisted.python.log:
+                    log.info(
+                        "Replacing Twisted log module object {0} in {1}"
+                        .format(name, module.__name__)
+                    )
+                    setattr(module, name, legacyLogger)
 
-            elif obj is twisted.python.log.msg:
-                log.info(
-                    "Replacing Twisted log.msg object {0} in {1}"
-                    .format(name, module.__name__)
-                )
-                setattr(module, name, legacyLogger.msg)
+                elif obj is twisted.python.log.msg:
+                    log.info(
+                        "Replacing Twisted log.msg object {0} in {1}"
+                        .format(name, module.__name__)
+                    )
+                    setattr(module, name, legacyLogger.msg)
 
-            elif obj is twisted.python.log.err:
-                log.info(
-                    "Replacing Twisted log.err object {0} in {1}"
-                    .format(name, module.__name__)
-                )
-                setattr(module, name, legacyLogger.err)
+                elif obj is twisted.python.log.err:
+                    log.info(
+                        "Replacing Twisted log.err object {0} in {1}"
+                        .format(name, module.__name__)
+                    )
+                    setattr(module, name, legacyLogger.err)
+        except RuntimeError as e:
+            # Python could use more specific exceptions, eh.
+            # What we mean to catch is:
+            # RuntimeError: dictionary changed size during iteration
+            log.error(
+                "Unable to replace twisted loggers for module {module}: "
+                "{error}",
+                module=module, error=e
+            )
+
 
 
 
