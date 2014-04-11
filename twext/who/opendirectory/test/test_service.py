@@ -27,7 +27,7 @@ from ...expression import (
 )
 from .._constants import ODAttribute
 from .._service import DirectoryService
-
+from ...idirectory import QueryNotSupportedError
 
 
 class OpenDirectoryServiceTestCase(unittest.TestCase):
@@ -224,4 +224,140 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 u"(dsAttrTypeStandard:EMailAddress=b*)"
                 u"(dsAttrTypeStandard:RealName=c))"
             )
+        )
+
+
+    def test_queryStringFromExpression_recordType(self):
+        """
+        Record type in expression
+        """
+        service = DirectoryService()
+
+        # AND expression
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.shortNames,
+                    u"xyzzy",
+                    matchType=MatchType.equals
+                ),
+                MatchExpression(
+                    service.fieldName.recordType,
+                    service.recordType.group,
+                    matchType=MatchType.equals
+                ),
+                MatchExpression(
+                    service.fieldName.recordType,
+                    service.recordType.user,
+                    matchType=MatchType.equals
+                ),
+            ],
+            Operand.AND
+        )
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"]))
+        self.assertEquals(
+            queryString,
+            u"(dsAttrTypeStandard:RecordName=xyzzy)"
+        )
+
+        # AND subexpression
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.shortNames,
+                    u"xyzzy",
+                    matchType=MatchType.equals
+                ),
+                CompoundExpression(
+                    [
+
+                        MatchExpression(
+                            service.fieldName.recordType,
+                            service.recordType.group,
+                            matchType=MatchType.equals
+                        ),
+                        MatchExpression(
+                            service.fieldName.recordType,
+                            service.recordType.user,
+                            matchType=MatchType.equals
+                        ),
+                    ],
+                    Operand.AND
+                ),
+            ],
+            Operand.AND
+        )
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"]))
+        self.assertEquals(
+            queryString,
+            u"(dsAttrTypeStandard:RecordName=xyzzy)"
+        )
+
+        # NOR expression
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.shortNames,
+                    u"xxxxx",
+                    matchType=MatchType.equals
+                ),
+                MatchExpression(
+                    service.fieldName.shortNames,
+                    u"yyyyy",
+                    matchType=MatchType.equals
+                ),
+                MatchExpression(
+                    service.fieldName.recordType,
+                    service.recordType.user,
+                    matchType=MatchType.equals,
+                    flags=MatchFlags.NOT
+                ),
+            ],
+            Operand.OR
+        )
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups"]))
+        self.assertEquals(
+            queryString,
+            u"("
+                u"|(dsAttrTypeStandard:RecordName=xxxxx)"
+                u"(dsAttrTypeStandard:RecordName=yyyyy)"
+            u")"
+        )
+
+        # Simple AND expression -> empty query string
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.recordType,
+                    service.recordType.user,
+                    matchType=MatchType.equals
+                ),
+            ],
+            Operand.AND
+        )
+        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Users"]))
+        self.assertEquals(
+            queryString,
+            u""
+        )
+
+        # recordType OR expression raises QueryNotSupportedError
+        expression = CompoundExpression(
+            [
+                MatchExpression(
+                    service.fieldName.recordType,
+                    service.recordType.user,
+                    matchType=MatchType.equals
+                ),
+            ],
+            Operand.OR
+        )
+        self.assertRaises(
+            QueryNotSupportedError,
+            service._queryStringAndRecordTypesFromExpression,
+            expression,
         )

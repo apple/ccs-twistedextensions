@@ -279,8 +279,10 @@ class DirectoryService(BaseDirectoryService):
         for subExpression in expression.expressions:
             queryToken, subExpRecordTypes = self._queryStringAndRecordTypesFromExpression(subExpression)
             if subExpRecordTypes:
-                if expression.operand is Operand.AND or queryToken == u"!": # AND or NOR
+                if expression.operand is Operand.AND:
                     recordTypes |= subExpRecordTypes
+                elif queryToken == u"!": #NOR
+                    recordTypes |= set([t.value for t in ODRecordType.iterconstants()]) - subExpRecordTypes
                 else:
                     raise QueryNotSupportedError(
                         "Record type matches must AND or NOR"
@@ -398,9 +400,6 @@ class DirectoryService(BaseDirectoryService):
 
         flags = tuple(expression.flags)
 
-        if MatchFlags.NOT in flags:
-            raise NotImplementedError()
-
         if MatchFlags.caseInsensitive in flags:
             caseInsensitive = 0x100
         else:
@@ -425,11 +424,17 @@ class DirectoryService(BaseDirectoryService):
             recordTypes = ODRecordType.fromRecordType(
                 expression.fieldValue
             ).value
+            if MatchFlags.NOT in flags:
+                recordTypes = set([t.value for t in ODRecordType.iterconstants()]) - recordTypes
+
             matchType = ODMatchType.any.value
             queryAttribute = None
             queryValue = None
 
         else:
+            if MatchFlags.NOT in flags:
+                raise NotImplementedError()
+
             if recordType is None:
                 recordTypes = [t.value for t in ODRecordType.iterconstants()]
             else:
