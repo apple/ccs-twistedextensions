@@ -76,7 +76,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 matchType=matchType
             )
             queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-            self.assertEquals(recordTypes, None)
+            self.assertEquals(
+                recordTypes,
+                set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+            )
             self.assertEquals(
                 queryString,
                 u"({attribute}{expected})".format(
@@ -96,7 +99,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             flags=MatchFlags.NOT
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(recordTypes, None)
+        self.assertEquals(
+            recordTypes,
+            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+        )
         self.assertEquals(
             queryString,
             u"(!{attribute}=xyzzy)".format(
@@ -117,7 +123,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             flags=MatchFlags.caseInsensitive
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(recordTypes, None)
+        self.assertEquals(
+            recordTypes,
+            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+        )
         self.assertEquals(
             queryString,
             u"???????({attribute}=xyzzy)".format(
@@ -141,7 +150,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             u"\\xyzzy: a/b/(c)* ~~ >=< ~~ &| \0!!"
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(recordTypes, None)
+        self.assertEquals(
+            recordTypes,
+            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+        )
         self.assertEquals(
             queryString,
             u"({attribute}={expected})".format(
@@ -185,7 +197,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             Operand.AND
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(recordTypes, None)
+        self.assertEquals(
+            recordTypes,
+            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+        )
         self.assertEquals(
             queryString,
             (
@@ -216,7 +231,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             Operand.OR
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(recordTypes, None)
+        self.assertEquals(
+            recordTypes,
+            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+        )
         self.assertEquals(
             queryString,
             (
@@ -255,7 +273,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             Operand.AND
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"]))
+        self.assertEquals(recordTypes, set())
         self.assertEquals(
             queryString,
             u"(dsAttrTypeStandard:RecordName=xyzzy)"
@@ -266,7 +284,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             [
                 MatchExpression(
                     service.fieldName.shortNames,
-                    u"xyzzy",
+                    u"xxxxx",
                     matchType=MatchType.equals
                 ),
                 CompoundExpression(
@@ -278,23 +296,25 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                             matchType=MatchType.equals
                         ),
                         MatchExpression(
-                            service.fieldName.recordType,
-                            service.recordType.user,
+                            service.fieldName.shortNames,
+                            u"yyyyy",
                             matchType=MatchType.equals
                         ),
                     ],
                     Operand.AND
                 ),
             ],
-            Operand.AND
+            Operand.OR
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"]))
+        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups", ]))
         self.assertEquals(
             queryString,
-            u"(dsAttrTypeStandard:RecordName=xyzzy)"
+            u"("
+                u"|(dsAttrTypeStandard:RecordName=xxxxx)"
+                u"(dsAttrTypeStandard:RecordName=yyyyy)"
+            u")"
         )
-
         # NOR expression
         expression = CompoundExpression(
             [

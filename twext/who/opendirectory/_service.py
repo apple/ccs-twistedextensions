@@ -86,6 +86,7 @@ class OpenDirectoryQueryError(OpenDirectoryError):
     """
 
 
+
 class OpenDirectoryDataError(OpenDirectoryError):
     """
     OpenDirectory data error.
@@ -210,15 +211,19 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
-    def _queryStringAndRecordTypesFromMatchExpression(self, expression):
+    def _queryStringAndRecordTypeFromMatchExpression(self, expression, recordTypes):
         """
         Generates an LDAP query string from a match expression.
 
         @param expression: A match expression.
         @type expression: L{MatchExpression}
 
-        @return: tuple(LDAP query string, recordTypes)
-        @rtype: (C{unicode}, set())
+        @param recordTypes: allowed Open Directory record type strings
+            or None for default record type strings
+        @type recordTypes: set(str)
+
+        @return: tuple(LDAP query string, Open Directory record type string)
+        @rtype: tuple(C{unicode}, C{unicode})
         """
         matchType = ODMatchType.fromMatchType(expression.matchType)
         if matchType is None:
@@ -237,7 +242,7 @@ class DirectoryService(BaseDirectoryService):
         #     raise NotImplementedError("Need to handle case sensitive")
 
         if expression.fieldName is self.fieldName.recordType:
-            return (notOp, set([ODRecordType.fromRecordType(expression.fieldValue).value]),)
+            return (notOp, ODRecordType.fromRecordType(expression.fieldValue).value)
 
         if expression.fieldName is self.fieldName.uid:
             odAttr = ODAttribute.guid
@@ -259,35 +264,48 @@ class DirectoryService(BaseDirectoryService):
             matchType.queryString.format(
                 notOp=notOp, attribute=odAttr.value, value=value
             ),
-            None,
+            None if recordTypes else set([t.value for t in ODRecordType.iterconstants()]),
         )
 
 
-    def _queryStringAndRecordTypesFromCompoundExpression(self, expression):
+    def _queryStringAndRecordTypesFromCompoundExpression(self, expression, recordTypes):
         """
         Generates an LDAP query string from a compound expression.
 
         @param expression: A compound expression.
         @type expression: L{MatchExpression}
 
-        @return: tuple(LDAP query string, recordTypes)
-        @rtype: (C{unicode}, set())
-        """
-        queryTokens = []
-        recordTypes = set()
+        @param recordTypes: allowed Open Directory record type strings
+            or None for default record type strings
+        @type recordTypes: set(str)
 
+        @return: tuple(LDAP query string, set(Open Directory record type strings))
+        @rtype: (C{unicode}, set(C{unicode}))
+        """
+        if recordTypes is None:
+            recordTypes = set([t.value for t in ODRecordType.iterconstants()])
+
+        queryTokens = []
         for subExpression in expression.expressions:
-            queryToken, subExpRecordTypes = self._queryStringAndRecordTypesFromExpression(subExpression)
+            queryToken, subExpRecordTypes = self._queryStringAndRecordTypesFromExpression(
+                subExpression, recordTypes
+            )
             if subExpRecordTypes:
-                if expression.operand is Operand.AND:
-                    recordTypes |= subExpRecordTypes
-                elif queryToken == u"!": #NOR
-                    recordTypes |= set([t.value for t in ODRecordType.iterconstants()]) - subExpRecordTypes
+                if not isinstance(subExpRecordTypes, set):
+                    if bool(expression.operand is Operand.AND) != bool(queryToken): # AND or NOR
+                        if expression.operand is Operand.AND:
+                            recordTypes = recordTypes & set([subExpRecordTypes])
+                        else:
+                            recordTypes = recordTypes - set([subExpRecordTypes])
+                        queryToken = None
+                    else:
+                        raise QueryNotSupportedError(
+                            "Record type matches must AND or NOR"
+                        )
                 else:
-                    raise QueryNotSupportedError(
-                        "Record type matches must AND or NOR"
-                    )
-            else:
+                    recordTypes = subExpRecordTypes
+
+            if queryToken:
                 queryTokens.append(queryToken)
 
         if queryTokens:
@@ -301,10 +319,10 @@ class DirectoryService(BaseDirectoryService):
                 queryTokens[:0] = (u"(")
                 queryTokens.append(u")")
 
-        return (u"".join(queryTokens), recordTypes if recordTypes else None,)
+        return (u"".join(queryTokens), recordTypes)
 
 
-    def _queryStringAndRecordTypesFromExpression(self, expression):
+    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=None):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
         query string.
@@ -312,15 +330,23 @@ class DirectoryService(BaseDirectoryService):
         @param expression: An expression.
         @type expression: L{MatchExpression} or L{CompoundExpression}
 
-        @return: tuple(LDAP query string, recordTypes)
-        @rtype: (C{unicode}, set())
+        @param recordTypes: allowed Open Directory record type strings
+            or None for default record type strings
+        @type recordTypes: set(str)
+
+        @return: tuple(LDAP query string, set(Open Directory record type strings))
+        @rtype: (C{unicode}, set(C{unicode}))
         """
 
         if isinstance(expression, MatchExpression):
-            return self._queryStringAndRecordTypesFromMatchExpression(expression)
+            return self._queryStringAndRecordTypeFromMatchExpression(
+                expression, recordTypes
+            )
 
         if isinstance(expression, CompoundExpression):
-            return self._queryStringAndRecordTypesFromCompoundExpression(expression)
+            return self._queryStringAndRecordTypesFromCompoundExpression(
+                expression, recordTypes
+            )
 
         raise QueryNotSupportedError(
             "Unknown expression type: {0!r}".format(expression)
@@ -334,20 +360,16 @@ class DirectoryService(BaseDirectoryService):
         @param expression: A compound expression.
         @type expression: L{CompoundExpression}
 
-        @return: A native OpenDirectory query.
+        @return: A native OpenDirectory query or None if query will return no records
         @rtype: L{ODQuery}
         """
 
-        queryString, recordTypes = self._queryStringAndRecordTypesFromExpression(expression)
-        supportedRecordTypes = set([t.value for t in ODRecordType.iterconstants()])
-        if recordTypes:
-            recordTypes = supportedRecordTypes & recordTypes
-            if not recordTypes:
-                raise QueryNotSupportedError(
-                    "Query for unsupported record types: {0!r}".format(recordTypes - supportedRecordTypes)
-                )
-        else:
-            recordTypes = supportedRecordTypes
+        queryString, recordTypes = self._queryStringAndRecordTypesFromExpression(
+            expression,
+            set([t.value for t in ODRecordType.iterconstants()])
+        )
+        if not recordTypes:
+            return None
 
         attributes = [a.value for a in ODAttribute.iterconstants()]
         maxResults = 0
@@ -357,7 +379,7 @@ class DirectoryService(BaseDirectoryService):
             recordTypes,
             None,
             ODMatchType.compound.value if queryString else ODMatchType.any.value,
-            queryString if queryString else None,
+            queryString,
             attributes,
             maxResults,
             None
@@ -488,6 +510,9 @@ class DirectoryService(BaseDirectoryService):
         # FIXME: This is blocking.
         # We can call scheduleInRunLoop:forMode:, which will call back to
         # its delegate...
+
+        if query is None:
+            return succeed(tuple())
 
         odRecords, error = query.resultsAllowingPartial_error_(False, None)
 
@@ -760,7 +785,6 @@ class DirectoryRecord(BaseDirectoryRecord):
             return succeed(False)
 
         return succeed(result)
-
 
 
     @inlineCallbacks
