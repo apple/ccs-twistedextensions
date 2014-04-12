@@ -211,18 +211,14 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
-    def _queryStringAndRecordTypeFromMatchExpression(self, expression, recordTypes):
+    def _queryStringAndRecordTypeFromMatchExpression(self, expression):
         """
-        Generates an LDAP query string from a match expression.
+        Generates an OD query string from a match expression.
 
         @param expression: A match expression.
         @type expression: L{MatchExpression}
 
-        @param recordTypes: allowed Open Directory record type strings
-            or None for default record type strings
-        @type recordTypes: set(str)
-
-        @return: tuple(LDAP query string, Open Directory record type string)
+        @return: tuple(OD query string, query's OD record type string)
         @rtype: tuple(C{unicode}, C{unicode})
         """
         matchType = ODMatchType.fromMatchType(expression.matchType)
@@ -264,22 +260,21 @@ class DirectoryService(BaseDirectoryService):
             matchType.queryString.format(
                 notOp=notOp, attribute=odAttr.value, value=value
             ),
-            None if recordTypes else set([t.value for t in ODRecordType.iterconstants()]),
+            None,
         )
 
 
     def _queryStringAndRecordTypesFromCompoundExpression(self, expression, recordTypes):
         """
-        Generates an LDAP query string from a compound expression.
+        Generates an OD query string from a compound expression.
 
         @param expression: A compound expression.
         @type expression: L{MatchExpression}
 
-        @param recordTypes: allowed Open Directory record type strings
-            or None for default record type strings
-        @type recordTypes: set(str)
+        @param recordTypes: allowed OD record type strings
+        @type recordTypes: set(C{unicode})
 
-        @return: tuple(LDAP query string, set(Open Directory record type strings))
+        @return: tuple(OD query string, set(query's OD record type strings))
         @rtype: (C{unicode}, set(C{unicode}))
         """
         if recordTypes is None:
@@ -291,7 +286,7 @@ class DirectoryService(BaseDirectoryService):
                 subExpression, recordTypes
             )
             if subExpRecordTypes:
-                if not isinstance(subExpRecordTypes, set):
+                if isinstance(subExpRecordTypes, unicode):
                     if bool(expression.operand is Operand.AND) != bool(queryToken): # AND or NOR
                         if expression.operand is Operand.AND:
                             recordTypes = recordTypes & set([subExpRecordTypes])
@@ -322,7 +317,7 @@ class DirectoryService(BaseDirectoryService):
         return (u"".join(queryTokens), recordTypes)
 
 
-    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=None):
+    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=set([t.value for t in ODRecordType.iterconstants()])):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
         query string.
@@ -330,18 +325,18 @@ class DirectoryService(BaseDirectoryService):
         @param expression: An expression.
         @type expression: L{MatchExpression} or L{CompoundExpression}
 
-        @param recordTypes: allowed Open Directory record type strings
-            or None for default record type strings
-        @type recordTypes: set(str)
+        @param recordTypes: allowed OD record type strings
+        @type recordTypes: set(C{unicode})
 
-        @return: tuple(LDAP query string, set(Open Directory record type strings))
+        @return: tuple(OD query string, set(query's OD record type strings))
         @rtype: (C{unicode}, set(C{unicode}))
         """
 
         if isinstance(expression, MatchExpression):
-            return self._queryStringAndRecordTypeFromMatchExpression(
-                expression, recordTypes
+            queryString, recordType = self._queryStringAndRecordTypeFromMatchExpression(
+                expression
             )
+            return (queryString, recordType if recordType else recordTypes)
 
         if isinstance(expression, CompoundExpression):
             return self._queryStringAndRecordTypesFromCompoundExpression(
@@ -366,7 +361,6 @@ class DirectoryService(BaseDirectoryService):
 
         queryString, recordTypes = self._queryStringAndRecordTypesFromExpression(
             expression,
-            set([t.value for t in ODRecordType.iterconstants()])
         )
         if not recordTypes:
             return None
