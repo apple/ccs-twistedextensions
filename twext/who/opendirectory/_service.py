@@ -367,6 +367,11 @@ class DirectoryService(BaseDirectoryService):
         if not recordTypes:
             return None
 
+        if queryString:
+            matchType = ODMatchType.compound.value
+        else:
+            matchType = ODMatchType.any.value
+
         attributes = [a.value for a in ODAttribute.iterconstants()]
         maxResults = 0
 
@@ -374,7 +379,7 @@ class DirectoryService(BaseDirectoryService):
             self.node,
             (t.value for t in recordTypes),
             None,
-            ODMatchType.compound.value if queryString else ODMatchType.any.value,
+            matchType,
             queryString,
             attributes,
             maxResults,
