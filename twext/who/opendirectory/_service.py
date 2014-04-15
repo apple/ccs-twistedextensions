@@ -235,10 +235,12 @@ class DirectoryService(BaseDirectoryService):
             notOp = u""
 
         # if MatchFlags.caseInsensitive not in flags:
-        #     raise NotImplementedError("Need to handle case sensitive")
+        #     raise QueryNotSupportedError(
+        #         "Case sensitive searches are not supported by LDAP"
+        #     )
 
         if expression.fieldName is self.fieldName.recordType:
-            return (notOp, ODRecordType.fromRecordType(expression.fieldValue).value)
+            return (notOp, ODRecordType.fromRecordType(expression.fieldValue))
 
         if expression.fieldName is self.fieldName.uid:
             odAttr = ODAttribute.guid
@@ -317,7 +319,7 @@ class DirectoryService(BaseDirectoryService):
         return (u"".join(queryTokens), recordTypes)
 
 
-    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=set([t.value for t in ODRecordType.iterconstants()])):
+    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=set(ODRecordType.iterconstants())):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
         query string.
@@ -370,7 +372,7 @@ class DirectoryService(BaseDirectoryService):
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
-            recordTypes,
+            (t.value for t in recordTypes),
             None,
             ODMatchType.compound.value if queryString else ODMatchType.any.value,
             queryString,
