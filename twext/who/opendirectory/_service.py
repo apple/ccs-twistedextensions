@@ -370,15 +370,8 @@ class DirectoryService(BaseDirectoryService):
         else:
             matchType = ODMatchType.any.value
 
-        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            self.node,
-            (t.value for t in recordTypes),
-            None,
-            matchType,
-            queryString,
-            [a.value for a in ODAttribute.iterconstants()],
-            0,
-            None
+        query, error = self._buildQuery(
+            recordTypes, matchType, queryString
         )
 
         if error:
@@ -423,9 +416,6 @@ class DirectoryService(BaseDirectoryService):
         else:
             caseInsensitive = 0x0
 
-        fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
-        maxResults = 0
-
         # For OpenDirectory, use guid for uid:
         if expression.fieldName is self.fieldName.uid:
             expression.fieldName = self.fieldName.guid
@@ -469,15 +459,10 @@ class DirectoryService(BaseDirectoryService):
             else:
                 queryValue = unicode(expression.fieldValue)
 
-        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            self.node,
+        query, error = self._buildQuery(
             recordTypes,
-            queryAttribute,
             matchType | caseInsensitive,
-            queryValue,
-            fetchAttributes,
-            maxResults,
-            None
+            queryString
         )
 
         if error:
@@ -490,6 +475,22 @@ class DirectoryService(BaseDirectoryService):
             )
 
         return query
+
+
+    def _buildQuery(self, recordTypes, matchType, queryString):
+        if not hasattr(self, "_odAttributes"):
+            self._odAttributes = [a.value for a in ODAttribute.iterconstants()]
+
+        return ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+            self.node,                       # node
+            (t.value for t in recordTypes),  # record types
+            None,                            # attribute
+            matchType,                       # matchType
+            queryString,                     # queryString
+            self._odAttributes,              # return attributes
+            0,                               # max results
+            None                             # error
+        )
 
 
     def _recordsFromQuery(self, query):
