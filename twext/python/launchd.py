@@ -35,11 +35,10 @@ Bindings for launchd check-in API.
 from __future__ import print_function
 
 from cffi import FFI, VerificationError
-from textwrap import dedent
 
 ffi = FFI()
 
-ffi.cdef(dedent(
+ffi.cdef(
     """
     static const char* LAUNCH_KEY_CHECKIN;
     static const char* LAUNCH_JOBKEY_LABEL;
@@ -97,7 +96,7 @@ ffi.cdef(dedent(
 
     void launch_data_free(launch_data_t);
     """
-))
+)
 
 try:
     lib = ffi.verify(
