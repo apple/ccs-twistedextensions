@@ -136,7 +136,7 @@ platforms = ["all"]
 setup_requirements = []
 
 install_requirements = [
-    "cffi==0.6",
+    "cffi>=0.6",
     "twisted>=13.2.0",
 ]
 
