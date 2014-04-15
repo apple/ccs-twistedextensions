@@ -211,7 +211,7 @@ class DirectoryService(BaseDirectoryService):
             self._node = node
 
 
-    def _queryStringFromMatchExpression(self, expression):
+    def _queryStringAndRecordTypeFromMatchExpression(self, expression):
         """
         Generates an OD query string from a match expression.
 
@@ -235,12 +235,10 @@ class DirectoryService(BaseDirectoryService):
             notOp = u""
 
         # if MatchFlags.caseInsensitive not in flags:
-        #     raise QueryNotSupportedError(
-        #         "Case sensitive searches are not supported by LDAP"
-        #     )
+        #     raise NotImplementedError("Need to handle case sensitive")
 
         if expression.fieldName is self.fieldName.recordType:
-            return (notOp, ODRecordType.fromRecordType(expression.fieldValue))
+            return (notOp, ODRecordType.fromRecordType(expression.fieldValue).value)
 
         if expression.fieldName is self.fieldName.uid:
             odAttr = ODAttribute.guid
@@ -266,7 +264,7 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def _queryStringFromCompoundExpression(self, expression, recordTypes):
+    def _queryStringAndRecordTypesFromCompoundExpression(self, expression, recordTypes):
         """
         Generates an OD query string from a compound expression.
 
@@ -280,11 +278,11 @@ class DirectoryService(BaseDirectoryService):
         @rtype: (C{unicode}, set(C{unicode}))
         """
         if recordTypes is None:
-            recordTypes = set(ODRecordType.iterconstants())
+            recordTypes = set([t.value for t in ODRecordType.iterconstants()])
 
         queryTokens = []
         for subExpression in expression.expressions:
-            queryToken, subExpRecordTypes = self._queryStringFromExpression(
+            queryToken, subExpRecordTypes = self._queryStringAndRecordTypesFromExpression(
                 subExpression, recordTypes
             )
             if subExpRecordTypes:
@@ -319,7 +317,7 @@ class DirectoryService(BaseDirectoryService):
         return (u"".join(queryTokens), recordTypes)
 
 
-    def _queryStringFromExpression(self, expression, recordTypes=None):
+    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=set([t.value for t in ODRecordType.iterconstants()])):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
         query string.
@@ -335,12 +333,13 @@ class DirectoryService(BaseDirectoryService):
         """
 
         if isinstance(expression, MatchExpression):
-            return self._queryStringFromMatchExpression(
+            queryString, recordType = self._queryStringAndRecordTypeFromMatchExpression(
                 expression
             )
+            return (queryString, recordType if recordType else recordTypes)
 
         if isinstance(expression, CompoundExpression):
-            return self._queryStringFromCompoundExpression(
+            return self._queryStringAndRecordTypesFromCompoundExpression(
                 expression, recordTypes
             )
 
@@ -360,19 +359,24 @@ class DirectoryService(BaseDirectoryService):
         @rtype: L{ODQuery}
         """
 
-        queryString, recordTypes = self._queryStringFromExpression(expression)
+        queryString, recordTypes = self._queryStringAndRecordTypesFromExpression(
+            expression,
+        )
         if not recordTypes:
             return None
 
-        if queryString:
-            matchType = ODMatchType.compound.value
-        else:
-            matchType = ODMatchType.any.value
+        attributes = [a.value for a in ODAttribute.iterconstants()]
+        maxResults = 0
 
-        query, error = self._buildQuery(
-            recordTypes=recordTypes,
-            matchType=matchType,
-            queryString=queryString,
+        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+            self.node,
+            recordTypes,
+            None,
+            ODMatchType.compound.value if queryString else ODMatchType.any.value,
+            queryString,
+            attributes,
+            maxResults,
+            None
         )
 
         if error:
@@ -417,6 +421,9 @@ class DirectoryService(BaseDirectoryService):
         else:
             caseInsensitive = 0x0
 
+        fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
+        maxResults = 0
+
         # For OpenDirectory, use guid for uid:
         if expression.fieldName is self.fieldName.uid:
             expression.fieldName = self.fieldName.guid
@@ -430,9 +437,11 @@ class DirectoryService(BaseDirectoryService):
                     "recordType argument does not match expression"
                 )
 
-            recordTypes = ODRecordType.fromRecordType(expression.fieldValue)
+            recordTypes = ODRecordType.fromRecordType(
+                expression.fieldValue
+            ).value
             if MatchFlags.NOT in flags:
-                recordTypes = None
+                recordTypes = set([t.value for t in ODRecordType.iterconstants()]) - recordTypes
 
             matchType = ODMatchType.any.value
             queryAttribute = None
@@ -443,9 +452,9 @@ class DirectoryService(BaseDirectoryService):
                 raise NotImplementedError()
 
             if recordType is None:
-                recordTypes = None
+                recordTypes = [t.value for t in ODRecordType.iterconstants()]
             else:
-                recordTypes = (ODRecordType.fromRecordType(recordType),)
+                recordTypes = ODRecordType.fromRecordType(recordType).value
 
             queryAttribute = ODAttribute.fromFieldName(
                 expression.fieldName
@@ -458,11 +467,15 @@ class DirectoryService(BaseDirectoryService):
             else:
                 queryValue = unicode(expression.fieldValue)
 
-        query, error = self._buildQuery(
-            recordTypes=recordTypes,
-            matchType=(matchType | caseInsensitive),
-            queryAttribute=queryAttribute,
-            queryString=queryValue,
+        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
+            self.node,
+            recordTypes,
+            queryAttribute,
+            matchType | caseInsensitive,
+            queryValue,
+            fetchAttributes,
+            maxResults,
+            None
         )
 
         if error:
@@ -475,39 +488,6 @@ class DirectoryService(BaseDirectoryService):
             )
 
         return query
-
-
-    def _buildQuery(
-        self, recordTypes, matchType, queryString, queryAttribute=None
-    ):
-        if not hasattr(self, "_odQuery"):
-            self._odQuery = getattr(
-                ODQuery,
-                "queryWithNode_"
-                "forRecordTypes_"
-                "attribute_"
-                "matchType_"
-                "queryValues_"
-                "returnAttributes_"
-                "maximumResults_error_"
-            )
-
-        if not hasattr(self, "_odAttributes"):
-            self._odAttributes = [a.value for a in ODAttribute.iterconstants()]
-
-        if recordTypes is None:
-            recordTypes = ODRecordType.itervalues()
-
-        return self._odQuery(
-            self.node,                       # node
-            (t.value for t in recordTypes),  # record types
-            queryAttribute,                  # attribute
-            matchType,                       # matchType
-            queryString,                     # queryString
-            self._odAttributes,              # return attributes
-            0,                               # max results
-            None                             # error
-        )
 
 
     def _recordsFromQuery(self, query):
