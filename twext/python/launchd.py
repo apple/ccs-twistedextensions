@@ -35,66 +35,77 @@ Bindings for launchd check-in API.
 from __future__ import print_function
 
 from cffi import FFI, VerificationError
+from textwrap import dedent
 
 ffi = FFI()
 
-ffi.cdef("""
+ffi.cdef(dedent(
+    """
+    static const char* LAUNCH_KEY_CHECKIN;
+    static const char* LAUNCH_JOBKEY_LABEL;
+    static const char* LAUNCH_JOBKEY_SOCKETS;
 
-static const char* LAUNCH_KEY_CHECKIN;
-static const char* LAUNCH_JOBKEY_LABEL;
-static const char* LAUNCH_JOBKEY_SOCKETS;
+    typedef enum {
+        LAUNCH_DATA_DICTIONARY = 1,
+        LAUNCH_DATA_ARRAY,
+        LAUNCH_DATA_FD,
+        LAUNCH_DATA_INTEGER,
+        LAUNCH_DATA_REAL,
+        LAUNCH_DATA_BOOL,
+        LAUNCH_DATA_STRING,
+        LAUNCH_DATA_OPAQUE,
+        LAUNCH_DATA_ERRNO,
+        LAUNCH_DATA_MACHPORT,
+    } launch_data_type_t;
 
-typedef enum {
-    LAUNCH_DATA_DICTIONARY = 1,
-    LAUNCH_DATA_ARRAY,
-    LAUNCH_DATA_FD,
-    LAUNCH_DATA_INTEGER,
-    LAUNCH_DATA_REAL,
-    LAUNCH_DATA_BOOL,
-    LAUNCH_DATA_STRING,
-    LAUNCH_DATA_OPAQUE,
-    LAUNCH_DATA_ERRNO,
-    LAUNCH_DATA_MACHPORT,
-} launch_data_type_t;
+    typedef struct _launch_data *launch_data_t;
 
-typedef struct _launch_data *launch_data_t;
+    bool launch_data_dict_insert(
+        launch_data_t, const launch_data_t, const char *
+    );
 
-bool launch_data_dict_insert(launch_data_t, const launch_data_t, const char *);
+    launch_data_t launch_data_alloc(launch_data_type_t);
+    launch_data_t launch_data_new_string(const char *);
+    launch_data_t launch_data_new_integer(long long);
+    launch_data_t launch_data_new_fd(int);
+    launch_data_t launch_data_new_bool(bool);
+    launch_data_t launch_data_new_real(double);
+    launch_data_t launch_msg(const launch_data_t);
 
-launch_data_t launch_data_alloc(launch_data_type_t);
-launch_data_t launch_data_new_string(const char *);
-launch_data_t launch_data_new_integer(long long);
-launch_data_t launch_data_new_fd(int);
-launch_data_t launch_data_new_bool(bool);
-launch_data_t launch_data_new_real(double);
-launch_data_t launch_msg(const launch_data_t);
+    launch_data_type_t launch_data_get_type(const launch_data_t);
 
-launch_data_type_t launch_data_get_type(const launch_data_t);
+    launch_data_t launch_data_dict_lookup(const launch_data_t, const char *);
+    size_t launch_data_dict_get_count(const launch_data_t);
+    long long launch_data_get_integer(const launch_data_t);
+    void launch_data_dict_iterate(
+        const launch_data_t, void (*)(
+            const launch_data_t, const char *, void *
+        ),
+        void *
+    );
 
-launch_data_t launch_data_dict_lookup(const launch_data_t, const char *);
-size_t launch_data_dict_get_count(const launch_data_t);
-long long launch_data_get_integer(const launch_data_t);
-void launch_data_dict_iterate(
-    const launch_data_t, void (*)(const launch_data_t, const char *, void *),
-    void *);
+    int launch_data_get_fd(const launch_data_t);
+    bool launch_data_get_bool(const launch_data_t);
+    const char * launch_data_get_string(const launch_data_t);
+    double launch_data_get_real(const launch_data_t);
 
-int launch_data_get_fd(const launch_data_t);
-bool launch_data_get_bool(const launch_data_t);
-const char * launch_data_get_string(const launch_data_t);
-double launch_data_get_real(const launch_data_t);
+    size_t launch_data_array_get_count(const launch_data_t);
+    launch_data_t launch_data_array_get_index(const launch_data_t, size_t);
+    bool launch_data_array_set_index(
+        launch_data_t, const launch_data_t, size_t
+    );
 
-size_t launch_data_array_get_count(const launch_data_t);
-launch_data_t launch_data_array_get_index(const launch_data_t, size_t);
-bool launch_data_array_set_index(launch_data_t, const launch_data_t, size_t);
-
-void launch_data_free(launch_data_t);
-""")
+    void launch_data_free(launch_data_t);
+    """
+))
 
 try:
-    lib = ffi.verify("""
-    #include <launch.h>
-    """,
-    tag=__name__.replace(".", "_"))
+    lib = ffi.verify(
+        """
+        #include <launch.h>
+        """,
+        tag=__name__.replace(".", "_")
+    )
 except VerificationError as ve:
     raise ImportError(ve)
 
@@ -128,9 +139,11 @@ class _LaunchDictionary(object):
         Return keys in the dictionary.
         """
         keys = []
+
         @ffi.callback("void (*)(const launch_data_t, const char *, void *)")
         def icb(v, k, n):
             keys.append(ffi.string(k))
+
         lib.launch_data_dict_iterate(self.launchdata, icb, ffi.NULL)
         return keys
 
@@ -140,9 +153,11 @@ class _LaunchDictionary(object):
         Return values in the dictionary.
         """
         values = []
+
         @ffi.callback("void (*)(const launch_data_t, const char *, void *)")
         def icb(v, k, n):
             values.append(_launchify(v))
+
         lib.launch_data_dict_iterate(self.launchdata, icb, ffi.NULL)
         return values
 
@@ -152,9 +167,11 @@ class _LaunchDictionary(object):
         Return items in the dictionary.
         """
         values = []
+
         @ffi.callback("void (*)(const launch_data_t, const char *, void *)")
         def icb(v, k, n):
             values.append((ffi.string(k), _launchify(v)))
+
         lib.launch_data_dict_iterate(self.launchdata, icb, ffi.NULL)
         return values
 
