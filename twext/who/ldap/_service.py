@@ -478,7 +478,7 @@ class DirectoryService(BaseDirectoryService):
 
             fields = {}
 
-            for attribute, value in recordData.iteritems():
+            for attribute, values in recordData.iteritems():
                 fieldNames = self._attributeToFieldNameMap.get(attribute)
 
                 if fieldNames is None:
@@ -493,12 +493,15 @@ class DirectoryService(BaseDirectoryService):
                     valueType = self.fieldName.valueType(fieldName)
 
                     if valueType in (unicode, UUID):
-                        if not isinstance(value, list):
-                            value = [value]
-                        newValue = [valueType(v) for v in value]
-                        if not self.fieldName.isMultiValue(fieldName):
-                            newValue = newValue[0]
-                        fields[fieldName] = newValue
+                        if not isinstance(values, list):
+                            values = [values]
+
+                        newValues = [valueType(v) for v in values]
+
+                        if self.fieldName.isMultiValue(fieldName):
+                            fields[fieldName] = newValues
+                        else:
+                            fields[fieldName] = newValues[0]
 
                     else:
                         raise LDAPConfigurationError(
