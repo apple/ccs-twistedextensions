@@ -266,7 +266,7 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def _queryStringAndRecordTypesFromCompoundExpression(self, expression, recordTypes):
+    def _queryStringFromCompoundExpression(self, expression, recordTypes):
         """
         Generates an OD query string from a compound expression.
 
@@ -284,7 +284,7 @@ class DirectoryService(BaseDirectoryService):
 
         queryTokens = []
         for subExpression in expression.expressions:
-            queryToken, subExpRecordTypes = self._queryStringAndRecordTypesFromExpression(
+            queryToken, subExpRecordTypes = self._queryStringFromExpression(
                 subExpression, recordTypes
             )
             if subExpRecordTypes:
@@ -319,7 +319,7 @@ class DirectoryService(BaseDirectoryService):
         return (u"".join(queryTokens), recordTypes)
 
 
-    def _queryStringAndRecordTypesFromExpression(self, expression, recordTypes=set(ODRecordType.iterconstants())):
+    def _queryStringFromExpression(self, expression, recordTypes=set(ODRecordType.iterconstants())):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
         query string.
@@ -341,7 +341,7 @@ class DirectoryService(BaseDirectoryService):
             return (queryString, recordType if recordType else recordTypes)
 
         if isinstance(expression, CompoundExpression):
-            return self._queryStringAndRecordTypesFromCompoundExpression(
+            return self._queryStringFromCompoundExpression(
                 expression, recordTypes
             )
 
@@ -361,9 +361,7 @@ class DirectoryService(BaseDirectoryService):
         @rtype: L{ODQuery}
         """
 
-        queryString, recordTypes = self._queryStringAndRecordTypesFromExpression(
-            expression,
-        )
+        queryString, recordTypes = self._queryStringFromExpression(expression)
         if not recordTypes:
             return None
 
@@ -372,17 +370,14 @@ class DirectoryService(BaseDirectoryService):
         else:
             matchType = ODMatchType.any.value
 
-        attributes = [a.value for a in ODAttribute.iterconstants()]
-        maxResults = 0
-
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,
             (t.value for t in recordTypes),
             None,
             matchType,
             queryString,
-            attributes,
-            maxResults,
+            [a.value for a in ODAttribute.iterconstants()],
+            0,
             None
         )
 
