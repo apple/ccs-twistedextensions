@@ -371,7 +371,9 @@ class DirectoryService(BaseDirectoryService):
             matchType = ODMatchType.any.value
 
         query, error = self._buildQuery(
-            recordTypes, matchType, queryString
+            recordTypes=recordTypes,
+            matchType=matchType,
+            queryString=queryString,
         )
 
         if error:
@@ -460,9 +462,10 @@ class DirectoryService(BaseDirectoryService):
                 queryValue = unicode(expression.fieldValue)
 
         query, error = self._buildQuery(
-            recordTypes,
-            matchType | caseInsensitive,
-            queryString
+            recordTypes=recordTypes,
+            matchType=(matchType | caseInsensitive),
+            queryAttribute=queryAttribute,
+            queryString=queryValue,
         )
 
         if error:
@@ -477,14 +480,16 @@ class DirectoryService(BaseDirectoryService):
         return query
 
 
-    def _buildQuery(self, recordTypes, matchType, queryString):
+    def _buildQuery(
+        self, recordTypes, matchType, queryString, queryAttribute=None
+    ):
         if not hasattr(self, "_odAttributes"):
             self._odAttributes = [a.value for a in ODAttribute.iterconstants()]
 
         return ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             self.node,                       # node
             (t.value for t in recordTypes),  # record types
-            None,                            # attribute
+            queryAttribute,                  # attribute
             matchType,                       # matchType
             queryString,                     # queryString
             self._odAttributes,              # return attributes
