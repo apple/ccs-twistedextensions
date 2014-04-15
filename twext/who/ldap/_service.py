@@ -510,17 +510,15 @@ class DirectoryService(BaseDirectoryService):
                             )
                         )
 
-            # Skip any results missing the uid
+            # Skip any results missing the uid, which is a required field
             if self.fieldName.uid not in fields:
                 continue
 
             # Set record type and dn fields
-
             fields[self.fieldName.recordType] = recordType
             fields[self.fieldName.dn] = dn.decode("utf-8")
 
             # Make a record object from fields.
-
             record = DirectoryRecord(self, fields)
             records.append(record)
 
@@ -594,7 +592,6 @@ class DirectoryRecord(BaseDirectoryRecord):
     #
     # Verifiers for twext.who.checker stuff.
     #
-
 
     def verifyPlaintextPassword(self, password):
         return self.service._authenticateUsernamePassword(self.dn, password)
