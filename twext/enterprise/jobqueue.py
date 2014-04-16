@@ -945,7 +945,8 @@ def ultimatelyPerform(txnFactory, jobID):
     def runJob(txn):
         try:
             job = yield JobItem.load(txn, jobID)
-            txn._label = "{} <{}>".format(txn._label, job.workType)
+            if hasattr(txn, "_label"):
+                txn._label = "{} <{}>".format(txn._label, job.workType)
             yield job.run()
         except NoSuchRecord:
             # The record has already been removed

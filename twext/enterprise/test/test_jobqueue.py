@@ -126,7 +126,7 @@ class UtilityTests(TestCase):
 
         createdTxns = []
 
-        def createTxn():
+        def createTxn(label):
             createdTxns.append(faketxn())
             return createdTxns[-1]
 
@@ -880,15 +880,17 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             return txn.execSQL(schemaText)
 
         yield inTransaction(
-            lambda: self.store.newTransaction("bonus schema"), doit
+            self.store.newTransaction,
+            doit,
+            label="bonus schema"
         )
 
-        def indirectedTransactionFactory(*a):
+        def indirectedTransactionFactory(*a, **b):
             """
             Allow tests to replace "self.store.newTransaction" to provide
             fixtures with extra methods on a test-by-test basis.
             """
-            return self.store.newTransaction(*a)
+            return self.store.newTransaction(*a, **b)
 
         def deschema():
             @inlineCallbacks
@@ -896,7 +898,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
                 for stmt in dropSQL:
                     yield txn.execSQL(stmt)
             return inTransaction(
-                lambda *a: self.store.newTransaction(*a), deletestuff
+                lambda *a, **b: self.store.newTransaction(*a, **b), deletestuff
             )
         self.addCleanup(deschema)
 
