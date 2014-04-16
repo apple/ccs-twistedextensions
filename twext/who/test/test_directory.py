@@ -295,12 +295,14 @@ class DirectoryServiceRecordsFromExpressionTest(
         result = yield service.recordsFromExpression("twistedmatrix.com")
 
         self.assertEquals(
-            set((
-                u"__wsanchez__",
-                u"__glyph__",
-                u"__exarkun__",
-                u"__dreid__",
-            )),
+            set(
+                (
+                    u"__wsanchez__",
+                    u"__glyph__",
+                    u"__exarkun__",
+                    u"__dreid__",
+                )
+            ),
             set((record.uid for record in result))
         )
 
@@ -324,15 +326,17 @@ class DirectoryServiceRecordsFromExpressionTest(
         )
 
         self.assertEquals(
-            set((
-                u"__wsanchez__",
-                u"__glyph__",
-                u"__sagen__",
-                u"__cdaboo__",
-                u"__dre__",
-                u"__exarkun__",
-                u"__dreid__",
-            )),
+            set(
+                (
+                    u"__wsanchez__",
+                    u"__glyph__",
+                    u"__sagen__",
+                    u"__cdaboo__",
+                    u"__dre__",
+                    u"__exarkun__",
+                    u"__dreid__",
+                )
+            ),
             set((record.uid for record in result))
         )
 
@@ -356,10 +360,12 @@ class DirectoryServiceRecordsFromExpressionTest(
         )
 
         self.assertEquals(
-            set((
-                u"__wsanchez__",
-                u"__glyph__",
-            )),
+            set(
+                (
+                    u"__wsanchez__",
+                    u"__glyph__",
+                )
+            ),
             set((record.uid for record in result))
         )
 
@@ -586,6 +592,17 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         FieldName.uid: u"UID:nobody",
         FieldName.recordType: RecordType.user,
         FieldName.shortNames: (u"nobody",),
+    }
+
+    fields_no_shortnames = {
+        FieldName.uid: u"UID:no_shortnames",
+        FieldName.recordType: RecordType.user,
+    }
+
+    fields_empty_shortnames = {
+        FieldName.uid: u"UID:empty_shortnames",
+        FieldName.recordType: RecordType.user,
+        FieldName.shortNames: (),
     }
 
     fields_none_password = {
@@ -822,14 +839,38 @@ class BaseDirectoryRecordTest(ServiceMixIn):
     )
 
 
-    def test_repr(self):
+    def test_reprWithShortName(self):
         """
-        L{DirectoryRecord.repr} returns the expected string.
+        L{DirectoryRecord.repr} returns a string using short name.
         """
         wsanchez = self.makeRecord(self.fields_wsanchez)
 
         self.assertEquals(
-            "<DirectoryRecord (user)UID:wsanchez>",
+            "<DirectoryRecord (user)wsanchez>",
+            repr(wsanchez)
+        )
+
+
+    def test_reprWithoutShortName(self):
+        """
+        L{DirectoryRecord.repr} returns a string using UID.
+        """
+        wsanchez = self.makeRecord(self.fields_no_shortnames)
+
+        self.assertEquals(
+            "<DirectoryRecord UID:no_shortnames>",
+            repr(wsanchez)
+        )
+
+
+    def test_reprEmptyShortName(self):
+        """
+        L{DirectoryRecord.repr} returns a string using UID.
+        """
+        wsanchez = self.makeRecord(self.fields_empty_shortnames)
+
+        self.assertEquals(
+            "<DirectoryRecord UID:empty_shortnames>",
             repr(wsanchez)
         )
 

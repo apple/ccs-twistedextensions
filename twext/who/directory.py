@@ -417,13 +417,21 @@ class DirectoryRecord(object):
 
 
     def __repr__(self):
-        return (
-            "<{self.__class__.__name__} ({recordType}){uid}>".format(
-                self=self,
-                recordType=describe(self.recordType),
-                uid=self.uid,
+        try:
+            return (
+                "<{self.__class__.__name__} ({recordType}){shortName}>".format(
+                    self=self,
+                    recordType=describe(self.recordType),
+                    shortName=self.shortNames[0],
+                )
             )
-        )
+        except (AttributeError, IndexError):
+            return (
+                "<{self.__class__.__name__} {uid}>".format(
+                    self=self,
+                    uid=self.uid,
+                )
+            )
 
 
     def __hash__(self):

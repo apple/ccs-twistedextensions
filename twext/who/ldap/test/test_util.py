@@ -48,7 +48,7 @@ class LDAPQueryTestCase(unittest.TestCase):
     """
 
     def service(self):
-        # Use intentionally funky conenction info, since we don't expect
+        # Use intentionally funky connection info, since we don't expect
         # to connect.
         return DirectoryService(
             u"ldap://cretin/", u"o=plugh",
