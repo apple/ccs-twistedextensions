@@ -33,7 +33,7 @@ from twext.enterprise.dal.syntax import (
     Savepoint, RollbackToSavepoint, ReleaseSavepoint, SavepointAction,
     Union, Intersect, Except, SetExpression, DALError,
     ResultAliasSyntax, Count, QueryGenerator, ALL_COLUMNS,
-    DatabaseLock, DatabaseUnlock, Not)
+    DatabaseLock, DatabaseUnlock, Not, Coalesce)
 from twext.enterprise.dal.syntax import FixedPlaceholder, NumericPlaceholder
 from twext.enterprise.dal.syntax import Function
 from twext.enterprise.dal.syntax import SchemaSyntax
@@ -1027,6 +1027,21 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Select([Min(self.schema.BOZ.QUX)], From=self.schema.BOZ).toSQL(),
             SQLFragment("select min(QUX) from BOZ")
+        )
+
+
+    def test_coalesce(self):
+        """
+        L{Coalesce}C{(column)} produces an object in the C{columns} clause that
+        renders the C{coalesce} conditional in SQL.
+        """
+        self.assertEquals(
+            Select(
+                [self.schema.BOZ.QUX],
+                From=self.schema.BOZ,
+                Where=Coalesce(self.schema.BOZ.QUX, self.schema.BOZ.QUUX) == 1
+            ).toSQL(),
+            SQLFragment("select QUX from BOZ where coalesce(QUX, QUUX) = ?", [1])
         )
 
 

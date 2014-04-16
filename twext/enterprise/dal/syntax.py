@@ -604,6 +604,8 @@ Min = Function("min")
 Len = Function("character_length", "length")
 Upper = Function("upper")
 Lower = Function("lower")
+Coalesce = Function("coalesce")
+
 _sqliteLastInsertRowID = Function("last_insert_rowid")
 
 # Use a specific value here for "the convention for case-insensitive values in
