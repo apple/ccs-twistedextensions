@@ -59,11 +59,12 @@ class SQLType(object):
 
     def __eq__(self, other):
         """
-        Compare equal to other L{SQLTypes} with matching name and length.
+        Compare equal to other L{SQLTypes} with matching name and length. The name is
+        normalized so we can compare schema from different types of DB implementations.
         """
         if not isinstance(other, SQLType):
             return NotImplemented
-        return (self.name, self.length) == (other.name, other.length)
+        return (self.normalizedName(), self.length) == (other.normalizedName(), other.length)
 
 
     def __ne__(self, other):
@@ -85,6 +86,20 @@ class SQLType(object):
         else:
             lendesc = ""
         return "<SQL Type: %r%s>" % (self.name, lendesc)
+
+
+    def normalizedName(self):
+        """
+        Map type names to standard names.
+        """
+        return {
+            "nchar": "char",
+            "varchar2": "varchar",
+            "nvarchar2": "varchar",
+            "clob": "text",
+            "nclob": "text",
+            "boolean": "integer",
+        }.get(self.name, self.name)
 
 
 
@@ -131,10 +146,12 @@ class Check(Constraint):
 
 
 
-class ProcedureCall(object):
+class ProcedureCall(FancyEqMixin):
     """
     An invocation of a stored procedure or built-in function.
     """
+
+    compareAttributes = 'name args'.split()
 
     def __init__(self, name, args):
         _checkstr(name)
@@ -158,6 +175,19 @@ def _checkstr(x):
     """
     if not isinstance(x, str):
         raise ValueError("%r is not a str." % (x,))
+
+
+
+def listIfNone(x):
+    return [] if x is None else x
+
+
+
+def stringIfNone(x, attr=None):
+    if attr:
+        return "" if x is None else getattr(x, attr)
+    else:
+        return "" if x is None else x
 
 
 
@@ -215,14 +245,23 @@ class Column(FancyEqMixin, object):
 
         results = []
 
-        # TODO: sql_dump does not do types write now - so ignore this
-        # if self.type != other.type:
-        #     results.append(
-        #         "Table: %s, mismatched column type: %s"
-        #         % (self.table.name, self.name)
-        #     )
-
-        # TODO: figure out how to compare default, references and deleteAction
+        if self.name != other.name:
+            results.append("Table: %s, column names %s and %s do not match" % (self.table.name, self.name, other.name,))
+        if self.type != other.type:
+            results.append("Table: %s, column name %s type mismatch" % (self.table.name, self.name,))
+        if self.default != other.default:
+            # Some DBs don't allow sequence as a default
+            if (
+                isinstance(self.default, Sequence) and other.default == NO_DEFAULT or
+                self.default == NO_DEFAULT and isinstance(other.default, Sequence)
+            ):
+                pass
+            else:
+                results.append("Table: %s, column name %s default mismatch" % (self.table.name, self.name,))
+        if stringIfNone(self.references, "name") != stringIfNone(other.references, "name"):
+            results.append("Table: %s, column name %s references mismatch" % (self.table.name, self.name,))
+        if self.deleteAction != other.deleteAction:
+            results.append("Table: %s, column name %s delete action mismatch" % (self.table.name, self.name,))
         return results
 
 
@@ -333,7 +372,18 @@ class Table(FancyEqMixin, object):
         for name in set(myColumns.keys()) & set(otherColumns.keys()):
             results.extend(myColumns[name].compare(otherColumns[name]))
 
-        # TODO: figure out how to compare schemaRows
+        if not all([len(a.compare(b)) == 0 for a, b in zip(
+            listIfNone(self.primaryKey),
+            listIfNone(other.primaryKey),
+        )]):
+            results.append("Table: %s, mismatched primary key" % (self.name,))
+
+        for myRow, otherRow in zip(self.schemaRows, other.schemaRows):
+            myRows = dict([(column.name, value) for column, value in myRow.items()])
+            otherRows = dict([(column.name, value) for column, value in otherRow.items()])
+            if myRows != otherRows:
+                results.append("Table: %s, mismatched schema rows: %s" % (self.name, myRows))
+
         return results
 
 
@@ -392,7 +442,7 @@ class Table(FancyEqMixin, object):
         self.constraints.append(Check(protoExpression, name))
 
 
-    def insertSchemaRow(self, values):
+    def insertSchemaRow(self, values, columns=None):
         """
         A statically-defined row was inserted as part of the schema itself.
         This is used for tables that want to track static enumerations, for
@@ -405,9 +455,12 @@ class Table(FancyEqMixin, object):
 
         @param values: a C{list} of data items, one for each column in this
             table's current list of L{Column}s.
+        @param columns: a C{list} of column names to insert into. If C{None}
+            then use all table columns.
         """
         row = {}
-        for column, value in zip(self.columns, values):
+        columns = self.columns if columns is None else [self.columnNamed(name) for name in columns]
+        for column, value in zip(columns, values):
             row[column] = value
         self.schemaRows.append(row)
 

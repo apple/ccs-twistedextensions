@@ -209,17 +209,23 @@ def addSQLToSchema(schema, schemaData):
                     idx.addColumn(idx.table.columnNamed(columnName))
 
             elif createType == u"FUNCTION":
-                FunctionModel(
-                    schema,
-                    stmt.token_next(2, True).value.encode("utf-8")
-                )
+                parseFunction(schema, stmt)
 
         elif stmt.get_type() == "INSERT":
             insertTokens = iterSignificant(stmt)
             expect(insertTokens, ttype=Keyword.DML, value="INSERT")
             expect(insertTokens, ttype=Keyword, value="INTO")
 
-            tableName = expect(insertTokens, cls=Identifier).get_name()
+            token = insertTokens.next()
+
+            if isinstance(token, Function):
+                [tableName, columnArgs] = iterSignificant(token)
+                tableName = tableName.get_name()
+                columns = namesInParens(columnArgs)
+            else:
+                tableName = token.get_name()
+                columns = None
+
             expect(insertTokens, ttype=Keyword, value="VALUES")
 
             values = expect(insertTokens, cls=Parenthesis)
@@ -238,21 +244,37 @@ def addSQLToSchema(schema, schemaData):
                     [ident.ttype](ident.value)
                 )
 
-            schema.tableNamed(tableName).insertSchemaRow(rowData)
+            schema.tableNamed(tableName).insertSchemaRow(rowData, columns=columns)
 
         elif stmt.get_type() == "CREATE OR REPLACE":
             createType = stmt.token_next(1, True).value.upper()
 
             if createType == u"FUNCTION":
-                FunctionModel(
-                    schema,
-                    stmt.token_next(2, True).token_first(True).token_first(True).value.encode("utf-8")
-                )
+                parseFunction(schema, stmt)
 
         else:
             print("unknown type:", stmt.get_type())
 
     return schema
+
+
+
+def parseFunction(schema, stmt):
+    """
+    A FUNCTION may or may not have an argument list, so we need to account for
+    both possibilities.
+    """
+    fn_name = stmt.token_next(2, True)
+    if isinstance(fn_name, Function):
+        [fn_name, _ignore_args] = iterSignificant(fn_name)
+        fn_name = fn_name.get_name()
+    else:
+        fn_name = fn_name.get_name()
+
+    FunctionModel(
+        schema,
+        fn_name.encode("utf-8"),
+    )
 
 
 
@@ -326,22 +348,6 @@ class _ColumnParser(object):
             return self.parseConstraint(maybeIdent)
 
 
-    def namesInParens(self, parens):
-        parens = iterSignificant(parens)
-        expect(parens, ttype=Punctuation, value="(")
-        idorids = parens.next()
-
-        if isinstance(idorids, Identifier):
-            idnames = [idorids.get_name()]
-        elif isinstance(idorids, IdentifierList):
-            idnames = [x.get_name() for x in idorids.get_identifiers()]
-        else:
-            raise ViolatedExpectation("identifier or list", repr(idorids))
-
-        expect(parens, ttype=Punctuation, value=")")
-        return idnames
-
-
     def readExpression(self, parens):
         """
         Read a given expression from a Parenthesis object.  (This is currently
@@ -369,7 +375,7 @@ class _ColumnParser(object):
             funcName = expect(parens, ttype=Keyword).value.encode("ascii")
             rhs = FunctionSyntax(funcName)(*[
                 ColumnSyntax(self.table.columnNamed(x)) for x in
-                self.namesInParens(expect(parens, cls=Parenthesis))
+                namesInParens(expect(parens, cls=Parenthesis))
             ])
             result = CompoundComparison(lhs, op, rhs)
 
@@ -404,10 +410,10 @@ class _ColumnParser(object):
 
         if constraintType.match(Keyword, "PRIMARY"):
             expect(self, ttype=Keyword, value="KEY")
-            names = self.namesInParens(expect(self, cls=Parenthesis))
+            names = namesInParens(expect(self, cls=Parenthesis))
             self.table.primaryKey = [self.table.columnNamed(n) for n in names]
         elif constraintType.match(Keyword, "UNIQUE"):
-            names = self.namesInParens(expect(self, cls=Parenthesis))
+            names = namesInParens(expect(self, cls=Parenthesis))
             self.table.tableConstraint(Constraint.UNIQUE, names)
         elif constraintType.match(Keyword, "CHECK"):
             self.table.checkConstraint(self.readExpression(self.next()), ident)
@@ -519,7 +525,7 @@ class _ColumnParser(object):
                             defaultValue.referringColumns.append(theColumn)
                         else:
                             defaultValue = ProcedureCall(
-                                thingo.encode("utf-8"), parens
+                                thingo.encode("utf-8"), namesInParens(parens),
                             )
 
                     elif theDefault.ttype == Number.Integer:
@@ -545,6 +551,17 @@ class _ColumnParser(object):
 
                     elif theDefault.ttype == String.Single:
                         defaultValue = _destringify(theDefault.value)
+
+                    # Oracle format for current timestamp mapped to postgres variant
+                    elif (
+                        theDefault.ttype == Keyword and
+                        theDefault.value.lower() == "current_timestamp"
+                    ):
+                        expect(self, ttype=Keyword, value="at")
+                        expect(self, ttype=None, value="time")
+                        expect(self, ttype=None, value="zone")
+                        expect(self, ttype=String.Single, value="'UTC'")
+                        defaultValue = ProcedureCall("timezone", [u"UTC", u"CURRENT_TIMESTAMP"])
 
                     else:
                         raise RuntimeError(
@@ -635,8 +652,32 @@ def nameOrIdentifier(token):
         return token.get_name()
     elif token.ttype == Name:
         return token.value
+    elif token.ttype == String.Single:
+        return _destringify(token.value)
+    elif token.ttype == Keyword:
+        return token.value
     else:
         raise ViolatedExpectation("identifier or name", repr(token))
+
+
+
+def namesInParens(parens):
+    parens = iterSignificant(parens)
+    expect(parens, ttype=Punctuation, value="(")
+    idorids = parens.next()
+
+    if isinstance(idorids, Identifier):
+        idnames = [idorids.get_name()]
+    elif isinstance(idorids, IdentifierList):
+        idnames = [nameOrIdentifier(x) for x in idorids.get_identifiers()]
+    elif idorids.ttype == String.Single:
+        idnames = [nameOrIdentifier(idorids)]
+    else:
+        expectSingle(idorids, ttype=Punctuation, value=")")
+        return []
+
+    expect(parens, ttype=Punctuation, value=")")
+    return idnames
 
 
 

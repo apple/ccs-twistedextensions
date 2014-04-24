@@ -19,7 +19,7 @@ Tests for parsing an SQL schema, which cover L{twext.enterprise.dal.model}
 and L{twext.enterprise.dal.parseschema}.
 """
 
-from twext.enterprise.dal.model import Schema
+from twext.enterprise.dal.model import Schema, ProcedureCall
 from twext.enterprise.dal.syntax import CompoundComparison, ColumnSyntax
 
 try:
@@ -174,6 +174,29 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(table.columnNamed("d").default, True)
         self.assertEquals(table.columnNamed("e").default, 'sample value')
         self.assertEquals(table.columnNamed("f").default, None)
+
+
+    def test_defaultFunctionColumns(self):
+        """
+        Parsing a 'default' column with a function call in it will return
+        that function as the 'default' attribute of the Column object.
+        """
+        s = self.schemaFromString(
+            """
+            create table a (
+                b1 integer default tz(),
+                b2 integer default tz('UTC'),
+                b3 integer default tz('UTC', 'GMT'),
+                b4 integer default timezone('UTC', CURRENT_TIMESTAMP),
+                b5 integer default CURRENT_TIMESTAMP at time zone 'UTC'
+            );
+            """)
+        table = s.tableNamed("a")
+        self.assertEquals(table.columnNamed("b1").default, ProcedureCall("tz", []))
+        self.assertEquals(table.columnNamed("b2").default, ProcedureCall("tz", ["UTC"]))
+        self.assertEquals(table.columnNamed("b3").default, ProcedureCall("tz", ["UTC", "GMT"]))
+        self.assertEquals(table.columnNamed("b4").default, ProcedureCall("timezone", ["UTC", "CURRENT_TIMESTAMP"]))
+        self.assertEquals(table.columnNamed("b5").default, ProcedureCall("timezone", ["UTC", "CURRENT_TIMESTAMP"]))
 
 
     def test_needsValue(self):
@@ -333,7 +356,7 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             """
             create table a1 (b1 integer primary key);
             create table c2 (d2 integer references a1 on delete cascade);
-            create table e3 (f3 integer references a1 on delete set null);
+            create table ee3 (f3 integer references a1 on delete set null);
             create table g4 (h4 integer references a1 on delete set default);
             """
         )
@@ -346,7 +369,7 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             "cascade"
         )
         self.assertEquals(
-            s.tableNamed("e3").columnNamed("f3").deleteAction,
+            s.tableNamed("ee3").columnNamed("f3").deleteAction,
             "set null"
         )
         self.assertEquals(
@@ -388,7 +411,7 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             """
             create table q (b integer); -- noise
             create table a (b integer primary key, c integer);
-            create table z (c integer, unique(c) );
+            create table z (c integer, unique (c) );
 
             create unique index idx_a_c on a(c);
             create index idx_a_b_c on a (c, b);
@@ -417,7 +440,17 @@ BEGIN
     RETURN i + 1;
 END;
 $$ LANGUAGE plpgsql;
+CREATE FUNCTION autoincrement RETURNS integer AS $$
+BEGIN
+    RETURN 1;
+END;
+$$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION decrement(i integer) RETURNS integer AS $$
+BEGIN
+    RETURN i - 1;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION autodecrement (i integer) RETURNS integer AS $$
 BEGIN
     RETURN i - 1;
 END;
@@ -427,3 +460,27 @@ $$ LANGUAGE plpgsql;
         self.assertTrue(s.functionNamed("increment") is not None)
         self.assertTrue(s.functionNamed("decrement") is not None)
         self.assertRaises(KeyError, s.functionNamed, "merge")
+
+
+    def test_insert(self):
+        """
+        An 'insert' statement will add an L{schemaRows} to an L{Table}.
+        """
+        s = self.schemaFromString(
+            """
+            create table alpha (beta integer, gamma integer not null);
+
+            insert into alpha values (1, 2);
+            insert into alpha (gamma, beta) values (3, 4);
+            """
+        )
+        self.assertTrue(s.tableNamed("alpha") is not None)
+        self.assertEqual(len(s.tableNamed("alpha").schemaRows), 2)
+        rows = [[(column.name, value) for column, value in sorted(row.items(), key=lambda x:x[0])] for row in s.tableNamed("alpha").schemaRows]
+        self.assertEqual(
+            rows,
+            [
+                [("beta", 1), ("gamma", 2)],
+                [("beta", 4), ("gamma", 3)],
+            ]
+        )

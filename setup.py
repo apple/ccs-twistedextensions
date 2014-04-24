@@ -38,6 +38,7 @@ def find_packages():
     return modules + setuptools_find_packages()
 
 
+
 def version():
     """
     Compute the version number.
@@ -142,7 +143,7 @@ install_requirements = [
 
 extras_requirements = {
     # Database Abstraction Layer
-    "DAL": ["sqlparse==0.1.2"],
+    "DAL": ["sqlparse>=0.1.11"],
 
     # LDAP
     "LDAP": ["python-ldap"],
@@ -175,6 +176,7 @@ if sys.platform == "darwin":
         extensions.append(launchd.ffi.verifier.get_extension())
     except ImportError:
         pass
+
 
 
 #
