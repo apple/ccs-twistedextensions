@@ -476,7 +476,7 @@ $$ LANGUAGE plpgsql;
         )
         self.assertTrue(s.tableNamed("alpha") is not None)
         self.assertEqual(len(s.tableNamed("alpha").schemaRows), 2)
-        rows = [[(column.name, value) for column, value in sorted(row.items(), key=lambda x:x[0])] for row in s.tableNamed("alpha").schemaRows]
+        rows = [[(column.name, value) for column, value in sorted(row.items(), key=lambda x:x[0].name)] for row in s.tableNamed("alpha").schemaRows]
         self.assertEqual(
             rows,
             [
