@@ -230,7 +230,13 @@ class DirectoryService(BaseDirectoryService):
         # Punt if we've read the file and it's still the same.
         #
         if stat:
-            self.filePath.restat()
+            try:
+                self.filePath.restat()
+            except (OSError, IOError):
+                # Can't read the file
+                self.flush()
+                return
+
             cacheTag = (
                 self.filePath.getModificationTime(),
                 self.filePath.getsize()
@@ -243,14 +249,16 @@ class DirectoryService(BaseDirectoryService):
         #
         # Open and parse the file
         #
-        fh = self.filePath.open()
         try:
-            try:
-                etree = parseXML(fh)
-            except XMLParseError as e:
-                raise ParseError(e)
-        finally:
-            fh.close()
+            with self.filePath.open() as fh:
+                try:
+                    etree = parseXML(fh)
+                except XMLParseError as e:
+                    raise ParseError(e)
+        except (OSError, IOError):
+            # Can't read the file
+            self.flush()
+            return
 
         #
         # Pull data from DOM
