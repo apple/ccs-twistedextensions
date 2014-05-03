@@ -27,7 +27,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 
-from ..idirectory import NoSuchRecordError
+from ..idirectory import DirectoryAvailabilityError, NoSuchRecordError
 from ..expression import (
     CompoundExpression, Operand,
     MatchExpression, MatchType, MatchFlags
@@ -888,23 +888,16 @@ class DirectoryRecordTest(
         )
 
 
+
 class MissingFileTest(unittest.TestCase):
 
-    @inlineCallbacks
     def test_missingFile(self):
         service = DirectoryService(FilePath(self.mktemp()))
-        record = yield service.recordWithUID(u"missing")
-        self.assertEquals(record, None)
 
-        fields = {
-            service.fieldName.uid: u"notmissing",
-            service.fieldName.recordType: service.recordType.user,
-        }
-
-        updatedRecord = DirectoryRecord(service, fields)
-        yield service.updateRecords((updatedRecord,))
-        record = yield service.recordWithUID(u"notmissing")
-        self.assertEquals(record.uid, u"notmissing")
+        self.assertFailure(
+            service.recordWithUID(u"missing"),
+            DirectoryAvailabilityError
+        )
 
 
 

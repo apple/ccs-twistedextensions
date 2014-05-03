@@ -39,7 +39,7 @@ from twisted.python.constants import Names, Values, ValueConstant, Flags
 from twisted.internet.defer import fail
 
 from .idirectory import (
-    DirectoryServiceError,
+    DirectoryServiceError, DirectoryAvailabilityError,
     NoSuchRecordError, UnknownRecordTypeError,
     RecordType as BaseRecordType, FieldName as BaseFieldName,
 )
@@ -211,8 +211,7 @@ class DirectoryService(BaseDirectoryService):
         Does nothing if a successful refresh has happened within the
         last L{self.refreshInterval} seconds.
 
-        @param loadNow: If true, load now (ignoring
-            L{self.refreshInterval})
+        @param loadNow: If true, load now (ignoring L{self.refreshInterval})
         @type loadNow: L{type}
 
         @param stat: If true, check file metadata and don't reload if
@@ -235,7 +234,9 @@ class DirectoryService(BaseDirectoryService):
             except (OSError, IOError):
                 # Can't read the file
                 self.flush()
-                return
+                raise DirectoryAvailabilityError(
+                    "Can't open {}".format(self.filePath)
+                )
 
             cacheTag = (
                 self.filePath.getModificationTime(),
@@ -258,7 +259,9 @@ class DirectoryService(BaseDirectoryService):
         except (OSError, IOError):
             # Can't read the file
             self.flush()
-            return
+            raise DirectoryAvailabilityError(
+                "Can't open {}".format(self.filePath)
+            )
 
         #
         # Pull data from DOM
@@ -545,7 +548,7 @@ class DirectoryService(BaseDirectoryService):
         Drop cached data and load the XML DOM.
         """
         self.flush()
-        etree = self.loadRecords(loadNow=True)
+        etree = self.loadRecords(loadNow=True, stat=False)
         return etree.getroot()
 
 
