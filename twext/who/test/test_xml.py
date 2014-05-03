@@ -888,6 +888,25 @@ class DirectoryRecordTest(
         )
 
 
+class MissingFileTest(unittest.TestCase):
+
+    @inlineCallbacks
+    def test_missingFile(self):
+        service = DirectoryService(FilePath(self.mktemp()))
+        record = yield service.recordWithUID(u"missing")
+        self.assertEquals(record, None)
+
+        fields = {
+            service.fieldName.uid: u"notmissing",
+            service.fieldName.recordType: service.recordType.user,
+        }
+
+        updatedRecord = DirectoryRecord(service, fields)
+        yield service.updateRecords((updatedRecord,))
+        record = yield service.recordWithUID(u"notmissing")
+        self.assertEquals(record.uid, u"notmissing")
+
+
 
 class QueryMixIn(object):
     def query(
