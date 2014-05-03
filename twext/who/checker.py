@@ -65,7 +65,7 @@ class UsernamePasswordCredentialChecker(BaseCredentialChecker):
             )
 
         record = yield self.service.recordWithShortName(
-            RecordType.user, credentials.username
+            RecordType.user, credentials.username.decode("utf-8")
         )
 
         if record is None:
@@ -110,7 +110,7 @@ class HTTPDigestCredentialChecker(BaseCredentialChecker):
             )
 
         record = yield self.service.recordWithShortName(
-            RecordType.user, credentials.username
+            RecordType.user, credentials.username.decode("utf-8")
         )
 
         if record is None:
