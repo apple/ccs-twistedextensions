@@ -1,4 +1,6 @@
-# Get our own dependencies
+# Requirements for development.
+
+# Get our own dependencies (from setup.py)
 -e .
 
 # Additional dependencies for development

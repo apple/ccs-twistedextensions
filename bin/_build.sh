@@ -29,6 +29,21 @@ conditional_set () {
 }
 
 
+c_macro () {
+  local sys_header="$1"; shift;
+  local version_macro="$1"; shift;
+
+  local value="$(printf "#include <${sys_header}>\n${version_macro}\n" | cc -x c -E - 2>/dev/null | tail -1)";
+
+  if [ "${value}" = "${version_macro}" ]; then
+    # Macro was not replaced
+    return 1;
+  fi;
+
+  echo "${value}";
+}
+
+
 # Checks for presence of a C header, optionally with a version comparison.
 # With only a header file name, try to include it, returning nonzero if absent.
 # With 3 params, also attempt a version check, returning nonzero if too old.
@@ -55,14 +70,9 @@ find_header () {
   fi;
 
   # Check for presence of a header of specified version
-  local found_version="$(printf "#include <${sys_header}>\n${version_macro}\n" | cc -x c -E - | tail -1)";
+  local found_version="$(c_macro "${sys_header}" "${version_macro}")";
 
-  if [ "${found_version}" = "${version_macro}" ]; then
-    # Macro was not replaced
-    return 1;
-  fi;
-
-  if cmp_version "${min_version}" "${found_version}"; then
+  if [ -n "${found_version}" ] && cmp_version "${min_version}" "${found_version}"; then
     return 0;
   else
     return 1;
@@ -74,16 +84,24 @@ find_header () {
 init_build () {
   init_py;
 
+  # These variables are defaults for things which might be configured by
+  # environment; only set them if they're un-set.
+  conditional_set wd "$(pwd)";
+  conditional_set do_get "true";
+  conditional_set do_setup "true";
+  conditional_set force_setup "false";
+  conditional_set requirements "${wd}/requirements-dev.txt"
+
       dev_home="${wd}/.develop";
      dev_roots="${dev_home}/roots";
   dep_packages="${dev_home}/pkg";
    dep_sources="${dev_home}/src";
 
-    py_root="${dev_roots}/py_modules";
-  py_libdir="${py_root}/lib/python";
-  py_bindir="${py_root}/bin";
+  py_virtualenv="${dev_home}/virtualenv";
+      py_bindir="${py_virtualenv}/bin";
 
-  python="${py_bindir}/python";
+  python="${bootstrap_python}";
+  export PYTHON="${python}";
 
   if [ -z "${TWEXT_PKG_CACHE-}" ]; then
     dep_packages="${dev_home}/pkg";
@@ -91,21 +109,9 @@ init_build () {
     dep_packages="${TWEXT_PKG_CACHE}";
   fi;
 
-  if [ ! -d "${py_root}" ]; then
-    "${bootstrap_python}" -m virtualenv "${py_root}";
-  fi;
-
   project="$(setup_print name)";
 
   export _DEVELOP_PROJECT_="${project}";
-
-  # These variables are defaults for things which might be configured by
-  # environment; only set them if they're un-set.
-
-  conditional_set wd "$(pwd)";
-  conditional_set do_get "true";
-  conditional_set do_setup "true";
-  conditional_set force_setup "false";
 
   # Find some hashing commands
   # sha1() = sha1 hash, if available
@@ -154,7 +160,7 @@ init_build () {
 setup_print () {
   what="$1"; shift;
 
-  PYTHONPATH="${wd}" "${python}" - << EOF
+  PYTHONPATH="${wd}:${PYTHONPATH:-}" "${bootstrap_python}" - << EOF
 from __future__ import print_function
 import setup
 print(setup.${what})
@@ -306,80 +312,7 @@ www_get () {
     rm -rf "${path}";
     cd "$(dirname "${path}")";
     get | ${decompress} | ${unpack};
-    cd /;
-  fi;
-}
-
-
-# If do_get is turned on, check a name out from SVN.
-svn_get () {
-  if ! "${do_get}"; then
-    return 0;
-  fi;
-
-  local     name="$1"; shift;
-  local     path="$1"; shift;
-  local      uri="$1"; shift;
-  local revision="$1"; shift;
-
-  if [ -d "${path}" ]; then
-    local wc_uri="$(svn info --xml "${path}" 2> /dev/null | sed -n 's|^.*<url>\(.*\)</url>.*$|\1|p')";
-
-    if "${force_setup}"; then
-      # Verify that we have a working copy checked out from the correct URI
-      if [ "${wc_uri}" != "${uri}" ]; then
-        echo "Current working copy (${path}) is from the wrong URI: ${wc_uri} != ${uri}";
-        rm -rf "${path}";
-        svn_get "${name}" "${path}" "${uri}" "${revision}";
-        return $?;
-      fi;
-
-      echo "Reverting ${name}...";
-      svn revert -R "${path}";
-
-      echo "Updating ${name}...";
-      svn update -r "${revision}" "${path}";
-    else
-      # Verify that we have a working copy checked out from the correct URI
-      if [ "${wc_uri}" != "${uri}" ]; then
-        echo "Current working copy (${path}) is from the wrong URI: ${wc_uri} != ${uri}";
-        echo "Performing repository switch for ${name}...";
-        svn switch -r "${revision}" "${uri}" "${path}";
-      else
-        local svnversion="$(svnversion "${path}")";
-        if [ "${svnversion%%[M:]*}" != "${revision}" ]; then
-          echo "Updating ${name}...";
-          svn update -r "${revision}" "${path}";
-        fi;
-      fi;
-    fi;
-  else
-    checkout () {
-      echo "Checking out ${name}...";
-      svn checkout -r "${revision}" "${uri}@${revision}" "${path}";
-    }
-
-    if [ "${revision}" != "HEAD" ] && \
-       [ -n "${dep_packages}" ] && \
-       [ -n "${hash}" ] \
-    ; then
-      local cacheid="${name}-$(echo "${uri}" | hash)";
-      local cache_file="${dep_packages}/${cacheid}@r${revision}.tgz";
-
-      mkdir -p "${dep_packages}";
-
-      if [ -f "${cache_file}" ]; then
-        echo "Unpacking ${name} from cache...";
-        mkdir -p "${path}";
-        tar -C "${path}" -xvzf "${cache_file}";
-      else
-        checkout;
-        echo "Caching ${name}...";
-        tar -C "${path}" -cvzf "${cache_file}" .;
-      fi;
-    else
-      checkout;
-    fi;
+    cd "${wd}";
   fi;
 }
 
@@ -405,14 +338,20 @@ jmake () {
 }
 
 # Declare a dependency on a C project built with autotools.
+# Support for custom configure, prebuild, build, and install commands
+# prebuild_cmd, build_cmd, and install_cmd phases may be skipped by
+# passing the corresponding option with the empty string as the value.
+# By default, do: ./configure --prefix ... ; jmake ; make install
 c_dependency () {
   local f_hash="";
+  local configure="configure";
 
   OPTIND=1;
-  while getopts "m:s:" option; do
+  while getopts "m:s:c:" option; do
     case "${option}" in
       'm') f_hash="-m ${OPTARG}"; ;;
       's') f_hash="-s ${OPTARG}"; ;;
+      'c') configure="${OPTARG}"; ;;
     esac;
   done;
   shift $((${OPTIND} - 1));
@@ -421,7 +360,7 @@ c_dependency () {
   local path="$1"; shift;
   local  uri="$1"; shift;
 
-  # Extra arguments are processed below, as arguments to './configure'.
+  # Extra arguments are processed below, as arguments to configure.
 
   mkdir -p "${dep_sources}";
 
@@ -446,9 +385,10 @@ c_dependency () {
     if [ ! -d "${dstroot}" ]; then
       echo "Building ${name}...";
       cd "${srcdir}";
-      ./configure --prefix="${dstroot}" "$@";
+      "./${configure}" --prefix="${dstroot}" "$@";
       jmake;
       jmake install;
+      cd "${wd}";
     else
       echo "Using built ${name}.";
       echo "";
@@ -482,10 +422,36 @@ using_system () {
 # Build C dependencies
 #
 c_dependencies () {
-     c_glue_root="${dev_roots}/c_glue";
-  c_glue_include="${c_glue_root}/include";
+  local    c_glue_root="${dev_roots}/c_glue";
+  local c_glue_include="${c_glue_root}/include";
 
   export C_INCLUDE_PATH="${c_glue_include}:${C_INCLUDE_PATH:-}";
+
+
+  # The OpenSSL version number is special. Our strategy is to get the integer
+  # value of OPENSSL_VERSION_NUBMER for use in inequality comparison.
+  ruler;
+
+  local min_ssl_version="9470367000";  # OpenSSL 0.9.8y
+
+  local ssl_version="$(c_macro openssl/ssl.h OPENSSL_VERSION_NUMBER)";
+  if [ -z "${ssl_version}" ]; then ssl_version="0x0"; fi;
+  ssl_version="$("${bootstrap_python}" -c "print ${ssl_version}")";
+
+  if [ "${ssl_version}" -lt "${min_ssl_version}" ]; then
+    using_system "OpenSSL";
+  else
+    local v="0.9.8y";
+    local n="openssl";
+    local p="${n}-${v}";
+
+    # use 'config' instead of 'configure'; 'make' instead of 'jmake'.
+    # also pass 'shared' to config to build shared libs.
+    c_dependency -c "config" -m "47c7fb37f78c970f1d30aa2f9e9e26d8" \
+      "openssl" "${p}" \
+      "http://www.openssl.org/source/${p}.tar.gz" "no-ssl2";
+  fi;
+
 
   ruler;
   if find_header ffi.h; then
@@ -506,6 +472,7 @@ c_dependencies () {
       "ftp://sourceware.org/pub/libffi/${p}.tar.gz"
   fi;
 
+
   ruler;
   if find_header ldap.h 20428 LDAP_VENDOR_VERSION; then
     using_system "OpenLDAP";
@@ -519,6 +486,7 @@ c_dependencies () {
       "http://www.openldap.org/software/download/OpenLDAP/${n}-release/${p}.tgz" \
       --disable-bdb --disable-hdb;
   fi;
+
 
   ruler;
   if find_header sasl.h; then
@@ -540,26 +508,6 @@ c_dependencies () {
       --disable-macos-framework;
   fi;
 
-  ruler;
-  if type -P memcached > /dev/null; then
-    using_system "memcached";
-  else
-    local v="2.0.21-stable";
-    local n="libevent";
-    local p="${n}-${v}";
-
-    c_dependency -m "b2405cc9ebf264aa47ff615d9de527a2" \
-      "libevent" "${p}" \
-      "http://github.com/downloads/libevent/libevent/${p}.tar.gz";
-
-    local v="1.4.16";
-    local n="memcached";
-    local p="${n}-${v}";
-
-    c_dependency -m "1c5781fecb52d70b615c6d0c9c140c9c" \
-      "memcached" "${p}" \
-      "http://www.memcached.org/files/${p}.tar.gz";
-  fi;
 
   ruler;
   if type -P postgres > /dev/null; then
@@ -588,7 +536,9 @@ c_dependencies () {
 # Build Python dependencies
 #
 py_dependencies () {
-  export PATH="${py_root}/bin:${PATH}";
+  python="${py_bindir}/python";
+
+  export PATH="${py_virtualenv}/bin:${PATH}";
   export PYTHON="${python}";
   export PYTHONPATH="${wd}:${PYTHONPATH:-}";
 
@@ -596,7 +546,7 @@ py_dependencies () {
   # 10.9.2 and prior due to a hard error if the -mno-fused-madd is used, as
   # it was in the system Python, and is therefore passed along by disutils.
   if [ "$(uname -s)" = "Darwin" ]; then
-    if "${python}" -c 'import distutils.sysconfig; print distutils.sysconfig.get_config_var("CFLAGS")' \
+    if "${bootstrap_python}" -c 'import distutils.sysconfig; print distutils.sysconfig.get_config_var("CFLAGS")' \
        | grep -e -mno-fused-madd > /dev/null; then
       export ARCHFLAGS="-Wno-error=unused-command-line-argument-hard-error-in-future";
     fi;
@@ -608,31 +558,34 @@ py_dependencies () {
 
   if "${force_setup}"; then
     # Nuke the virtual environment first
-    rm -rf "${py_root}";
+    rm -rf "${py_virtualenv}";
   fi;
 
-  "${bootstrap_python}" -m virtualenv "${py_root}";
+  if [ ! -d "${py_virtualenv}" ]; then
+    bootstrap_virtualenv;
+    "${bootstrap_python}" -m virtualenv --system-site-packages "${py_virtualenv}";
+  fi;
+
+  cd "${wd}";
 
   # Make sure setup got called enough to write the version file.
 
   "${python}" "${wd}/setup.py" check > /dev/null;
 
-  if [ -d "${wd}/requirements/cache" ]; then
+  if [ -d "${dev_home}/pip_downloads" ]; then
     pip_install="pip_install_from_cache";
   else
     pip_install="pip_download_and_install";
   fi;
 
-  local requirements="${wd}/requirements.txt";
-
   ruler "Preparing Python requirements";
   echo "";
-  "${pip_install}" "--requirement=${requirements}";
+  "${pip_install}" --requirement="${requirements}";
 
-  for option in $("${python}" -c 'import setup; print "\n".join(setup.extras_requirements.keys())'); do
+  for option in $("${bootstrap_python}" -c 'import setup; print "\n".join(setup.extras_requirements.keys())'); do
     ruler "Preparing Python requirements for optional feature: ${option}";
     echo "";
-    if ! "${pip_install}" "--editable=.[${option}]"; then
+    if ! "${pip_install}" --editable="${wd}[${option}]"; then
       echo "Feature ${option} is optional; continuing.";
     fi;
   done;
@@ -641,24 +594,82 @@ py_dependencies () {
 }
 
 
-pip_install_from_cache () {
-  local require="$1"; shift;
+bootstrap_virtualenv () {
+  py_ve_tools="${dev_home}/ve_tools";
 
+  if [ -d "${py_ve_tools}/lib" ]; then
+    export PYTHONPATH="${py_ve_tools}/lib:${PYTHONPATH:-}";
+  fi;
+
+  if "${bootstrap_python}" -m virtualenv > /dev/null 2>&1; then
+    return 0;
+  fi;
+
+  mkdir -p "${py_ve_tools}";
+  mkdir -p "${py_ve_tools}/lib";
+  mkdir -p "${py_ve_tools}/junk";
+
+  for pkg in             \
+      pip-1.5.4          \
+      virtualenv-1.11.4  \
+      setuptools-3.4.4   \
+  ; do
+         name="${pkg%-*}";
+      version="${pkg#*-}";
+       first="$(echo "${name}" | sed 's|^\(.\).*$|\1|')";
+         url="https://pypi.python.org/packages/source/${first}/${name}/${pkg}.tar.gz";
+
+      ruler "Downloading ${pkg}";
+
+      tmp="$(mktemp -d -t ccsXXXXX)";
+
+      curl -L "${url}" | tar -C "${tmp}" -xvzf -;
+
+      cd "${tmp}/$(basename "${pkg}")";
+      PYTHONPATH="${py_ve_tools}/lib"                \
+        "${bootstrap_python}" setup.py install       \
+            --install-base="${py_ve_tools}"          \
+            --install-lib="${py_ve_tools}/lib"       \
+            --install-headers="${py_ve_tools}/junk"  \
+            --install-scripts="${py_ve_tools}/junk"  \
+            --install-data="${py_ve_tools}/junk"     \
+            ;                                        \
+      cd "${wd}";
+
+      rm -rf "${tmp}";
+  done;
+
+  export PYTHONPATH="${py_ve_tools}/lib:${PYTHONPATH:-}";
+}
+
+
+pip_download () {
+  mkdir -p "${dev_home}/pip_downloads";
+
+  "${python}" -m pip install               \
+    --download="${dev_home}/pip_downloads" \
+    --pre --allow-all-external             \
+    --log-file="${dev_home}/pip.log"       \
+    "$@";
+}
+
+
+pip_install_from_cache () {
   "${python}" -m pip install                 \
-    "${require}"                             \
-    --find-links="${wd}/requirements/cache"  \
+    --pre --allow-all-external               \
     --no-index                               \
-    --log="${dev_home}/pip.log";
+    --find-links="${dev_home}/pip_downloads" \
+    --log-file="${dev_home}/pip.log"         \
+    "$@";
 }
 
 
 pip_download_and_install () {
-  local require="$1"; shift;
-
-  "${python}" -m pip install                  \
-    "${require}"                              \
-    --download-cache="${dev_home}/pip_cache"  \
-    --log="${dev_home}/pip.log";
+  "${python}" -m pip install                 \
+    --pre --allow-all-external               \
+    --download-cache="${dev_home}/pip_cache" \
+    --log-file="${dev_home}/pip.log"         \
+    "$@";
 }
 
 
