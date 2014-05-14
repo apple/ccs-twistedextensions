@@ -1433,9 +1433,12 @@ class Select(_Statement):
                 stmt.append(SQLFragment(kw))
 
         if self.ForUpdate:
-            stmt.text += " for update"
-            if self.NoWait:
-                stmt.text += " nowait"
+            # FOR UPDATE not supported with sqlite - but that is probably not relevant
+            # given that sqlite does file level locking of the DB
+            if queryGenerator.dialect != SQLITE_DIALECT:
+                stmt.text += " for update"
+                if self.NoWait:
+                    stmt.text += " nowait"
 
         if self.Limit is not None:
             limitConst = Constant(self.Limit).subSQL(queryGenerator, allTables)

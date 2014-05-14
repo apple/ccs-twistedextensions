@@ -352,7 +352,7 @@ class Record(object):
 
 
     @classmethod
-    def query(cls, transaction, expr, order=None, ascending=True, group=None, forUpdate=False, noWait=False):
+    def query(cls, transaction, expr, order=None, ascending=True, group=None, forUpdate=False, noWait=False, limit=None):
         """
         Query the table that corresponds to C{cls}, and return instances of
         C{cls} corresponding to the rows that are returned from that table.
@@ -385,6 +385,8 @@ class Record(object):
             kw.update(ForUpdate=True)
             if noWait:
                 kw.update(NoWait=True)
+        if limit is not None:
+            kw.update(Limit=limit)
         return cls._rowsFromQuery(
             transaction,
             Select(

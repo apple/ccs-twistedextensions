@@ -154,13 +154,14 @@ class _ConnectedTxn(object):
 
     noisy = False
 
-    def __init__(self, pool, threadHolder, connection, cursor):
+    def __init__(self, pool, threadHolder, connection, cursor, label=None):
         self._pool = pool
         self._completed = "idle"
         self._cursor = cursor
         self._connection = connection
         self._holder = threadHolder
         self._first = True
+        self._label = label
 
 
     @_forward
@@ -402,10 +403,11 @@ class _NoTxn(object):
     """
     implements(IAsyncTransaction)
 
-    def __init__(self, pool, reason):
+    def __init__(self, pool, reason, label=None):
         self.paramstyle = pool.paramstyle
         self.dialect = pool.dialect
         self.reason = reason
+        self._label = label
 
 
     def _everything(self, *a, **kw):
@@ -430,7 +432,7 @@ class _WaitingTxn(object):
 
     implements(IAsyncTransaction)
 
-    def __init__(self, pool):
+    def __init__(self, pool, label=None):
         """
         Initialize a L{_WaitingTxn} based on a L{ConnectionPool}.  (The C{pool}
         is used only to reflect C{dialect} and C{paramstyle} attributes; not
@@ -439,6 +441,7 @@ class _WaitingTxn(object):
         self._spool = []
         self.paramstyle = pool.paramstyle
         self.dialect = pool.dialect
+        self._label = label
 
 
     def _enspool(self, cmd, a=(), kw={}):
@@ -593,6 +596,7 @@ class _SingleTxn(_CommitAndAbortHooks,
         super(_SingleTxn, self).__init__()
         self._pool = pool
         self._baseTxn = baseTxn
+        self._label = self._baseTxn._label
         self._completed = False
         self._currentBlock = None
         self._blockedQueue = None
@@ -718,7 +722,8 @@ class _SingleTxn(_CommitAndAbortHooks,
         self._unspoolOnto(_NoTxn(
             self._pool,
             "connection pool shut down while txn "
-            "waiting for database connection."
+            "waiting for database connection.",
+            label=self._label,
         ))
 
 
@@ -746,7 +751,7 @@ class _SingleTxn(_CommitAndAbortHooks,
         self._checkComplete()
         block = CommandBlock(self)
         if self._currentBlock is None:
-            self._blockedQueue = _WaitingTxn(self._pool)
+            self._blockedQueue = _WaitingTxn(self._pool, label=self._label)
             # FIXME: test the case where it's ready immediately.
             self._checkNextBlock()
         return block
@@ -795,7 +800,7 @@ class CommandBlock(object):
         self._singleTxn = singleTxn
         self.paramstyle = singleTxn.paramstyle
         self.dialect = singleTxn.dialect
-        self._spool = _WaitingTxn(singleTxn._pool)
+        self._spool = _WaitingTxn(singleTxn._pool, label=singleTxn._label)
         self._started = False
         self._ended = False
         self._waitingForEnd = []
@@ -1067,14 +1072,15 @@ class ConnectionPool(Service, object):
         if self._stopping:
             # FIXME: should be wrapping a _SingleTxn around this to get
             # .commandBlock()
-            return _NoTxn(self, "txn created while DB pool shutting down")
+            return _NoTxn(self, "txn created while DB pool shutting down", label=label)
 
         if self._free:
             basetxn = self._free.pop(0)
+            basetxn._label = label
             self._busy.append(basetxn)
             txn = _SingleTxn(self, basetxn)
         else:
-            txn = _SingleTxn(self, _WaitingTxn(self))
+            txn = _SingleTxn(self, _WaitingTxn(self, label=label))
             self._waiting.append(txn)
             # FIXME/TESTME: should be len(self._busy) + len(self._finishing)
             # (free doesn't need to be considered, as it's tested above)
