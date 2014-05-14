@@ -22,16 +22,16 @@ import datetime
 
 from zope.interface.verify import verifyObject
 
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase, SkipTest
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
-from twisted.internet.defer import (
-    Deferred, inlineCallbacks, gatherResults, passthru, returnValue
-)
+from twisted.internet.defer import \
+    Deferred, inlineCallbacks, gatherResults, passthru, returnValue, succeed
 from twisted.internet.task import Clock as _Clock
 from twisted.protocols.amp import Command, AMP, Integer
 from twisted.application.service import Service, MultiService
 
-from twext.enterprise.dal.syntax import SchemaSyntax, Select
+from twext.enterprise.dal.syntax import SchemaSyntax
 from twext.enterprise.dal.record import fromTable
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
@@ -40,7 +40,9 @@ from twext.enterprise.jobqueue import (
     inTransaction, PeerConnectionPool, astimestamp,
     LocalPerformer, _IJobPerformer, WorkItem, WorkerConnectionPool,
     ConnectionFromPeerNode, LocalQueuer,
-    _BaseQueuer, NonPerformingQueuer
+    _BaseQueuer, NonPerformingQueuer, JobItem,
+    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM,
+    JobDescriptor
 )
 import twext.enterprise.jobqueue
 
@@ -67,6 +69,26 @@ class Clock(_Clock):
         return super(Clock, self).callLater(_seconds, _f, *args, **kw)
 
 
+    @inlineCallbacks
+    def advanceCompletely(self, amount):
+        """
+        Move time on this clock forward by the given amount and run whatever
+        pending calls should be run. Always complete the deferred calls before
+        returning.
+
+        @type amount: C{float}
+        @param amount: The number of seconds which to advance this clock's
+        time.
+        """
+        self.rightNow += amount
+        self._sortCalls()
+        while self.calls and self.calls[0].getTime() <= self.seconds():
+            call = self.calls.pop(0)
+            call.called = 1
+            yield call.func(*call.args, **call.kw)
+            self._sortCalls()
+
+
 
 class MemoryReactorWithClock(MemoryReactor, Clock):
     """
@@ -75,6 +97,7 @@ class MemoryReactorWithClock(MemoryReactor, Clock):
     def __init__(self):
         MemoryReactor.__init__(self)
         Clock.__init__(self)
+        self._sortCalls()
 
 
 
@@ -180,8 +203,9 @@ jobSchema = SQL(
       WORK_TYPE   varchar(255) not null,
       PRIORITY    integer default 0,
       WEIGHT      integer default 0,
-      NOT_BEFORE  timestamp default null,
-      NOT_AFTER   timestamp default null
+      NOT_BEFORE  timestamp not null,
+      ASSIGNED    timestamp default null,
+      FAILED      integer default 0
     );
     """
 )
@@ -194,11 +218,6 @@ schemaText = SQL(
       A integer, B integer,
       DELETE_ON_LOAD integer default 0
     );
-    create table DUMMY_WORK_DONE (
-      WORK_ID integer primary key,
-      JOB_ID integer references JOB,
-      A_PLUS_B integer
-    );
     """
 )
 
@@ -207,22 +226,14 @@ try:
 
     dropSQL = [
         "drop table {name} cascade".format(name=table)
-        for table in ("DUMMY_WORK_ITEM", "DUMMY_WORK_DONE")
+        for table in ("DUMMY_WORK_ITEM",)
     ] + ["delete from job"]
 except SkipTest as e:
-    DummyWorkDone = DummyWorkItem = object
+    DummyWorkItem = object
     skip = e
 else:
-    DummyWorkDone = fromTable(schema.DUMMY_WORK_DONE)
     DummyWorkItem = fromTable(schema.DUMMY_WORK_ITEM)
     skip = False
-
-
-
-class DummyWorkDone(WorkItem, DummyWorkDone):
-    """
-    Work result.
-    """
 
 
 
@@ -232,12 +243,13 @@ class DummyWorkItem(WorkItem, DummyWorkItem):
     in another table.
     """
 
+    results = {}
+
     def doWork(self):
         if self.a == -1:
             raise ValueError("Ooops")
-        return DummyWorkDone.makeJob(
-            self.transaction, jobID=self.jobID + 100, workID=self.workID + 100, aPlusB=self.a + self.b
-        )
+        self.results[self.jobID] = self.a + self.b
+        return succeed(None)
 
 
     @classmethod
@@ -250,7 +262,7 @@ class DummyWorkItem(WorkItem, DummyWorkItem):
         """
         workItems = yield super(DummyWorkItem, cls).loadForJob(txn, *a)
         if workItems[0].deleteOnLoad:
-            otherTransaction = txn.concurrently()
+            otherTransaction = txn.store().newTransaction()
             otherSelf = yield super(DummyWorkItem, cls).loadForJob(txn, *a)
             yield otherSelf[0].delete()
             yield otherTransaction.commit()
@@ -306,12 +318,10 @@ class WorkItemTests(TestCase):
 
 
     @inlineCallbacks
-    def test_enqueue(self):
-        """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
-        """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+    def _enqueue(self, dbpool, a, b, notBefore=None, priority=None, weight=None):
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+        if notBefore is None:
+            notBefore = datetime.datetime(2012, 12, 13, 12, 12, 0)
         sinceEpoch = astimestamp(fakeNow)
         clock = Clock()
         clock.advance(sinceEpoch)
@@ -329,33 +339,131 @@ class WorkItemTests(TestCase):
         @transactionally(dbpool.connection)
         def check(txn):
             return qpool.enqueueWork(
-                txn, DummyWorkItem, a=3, b=9,
-                notBefore=datetime.datetime(2012, 12, 13, 12, 12, 0)
+                txn, DummyWorkItem,
+                a=a, b=b, priority=priority, weight=weight,
+                notBefore=notBefore
             )
 
         proposal = yield check
         yield proposal.whenProposed()
 
+
+    @inlineCallbacks
+    def test_enqueue(self):
+        """
+        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        """
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        yield self._enqueue(dbpool, 1, 2)
+
         # Make sure we have one JOB and one DUMMY_WORK_ITEM
         @transactionally(dbpool.connection)
         def checkJob(txn):
-            return Select(
-                From=schema.JOB
-            ).on(txn)
+            return JobItem.all(txn)
 
         jobs = yield checkJob
         self.assertTrue(len(jobs) == 1)
-        self.assertTrue(jobs[0][1] == "DUMMY_WORK_ITEM")
+        self.assertTrue(jobs[0].workType == "DUMMY_WORK_ITEM")
+        self.assertTrue(jobs[0].assigned is None)
 
         @transactionally(dbpool.connection)
         def checkWork(txn):
-            return Select(
-                From=schema.DUMMY_WORK_ITEM
-            ).on(txn)
+            return DummyWorkItem.all(txn)
 
         work = yield checkWork
         self.assertTrue(len(work) == 1)
-        self.assertTrue(work[0][1] == jobs[0][0])
+        self.assertTrue(work[0].jobID == jobs[0].jobID)
+
+
+    @inlineCallbacks
+    def test_assign(self):
+        """
+        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        """
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        yield self._enqueue(dbpool, 1, 2)
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(dbpool.connection, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(jobs[0].assigned is None)
+
+        @inlineCallbacks
+        def assignJob(txn):
+            job = yield JobItem.load(txn, jobs[0].jobID)
+            yield job.assign(datetime.datetime.utcnow())
+        yield inTransaction(dbpool.connection, assignJob)
+
+        jobs = yield inTransaction(dbpool.connection, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(jobs[0].assigned is not None)
+
+
+    @inlineCallbacks
+    def test_nextjob(self):
+        """
+        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        """
+
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        now = datetime.datetime.utcnow()
+
+        # Empty job queue
+        @inlineCallbacks
+        def _next(txn, priority=WORK_PRIORITY_LOW):
+            job = yield JobItem.nextjob(txn, now, priority, now - datetime.timedelta(seconds=PeerConnectionPool.queueOrphanTimeout))
+            if job is not None:
+                work = yield job.workItem()
+            else:
+                work = None
+            returnValue((job, work))
+        job, work = yield inTransaction(dbpool.connection, _next)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
+
+        # Unassigned job with future notBefore not returned
+        yield self._enqueue(dbpool, 1, 1, now + datetime.timedelta(days=1))
+        job, work = yield inTransaction(dbpool.connection, _next)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
+
+        # Unassigned job with past notBefore returned
+        yield self._enqueue(dbpool, 2, 1, now + datetime.timedelta(days=-1))
+        job, work = yield inTransaction(dbpool.connection, _next)
+        self.assertTrue(job is not None)
+        self.assertTrue(work.a == 2)
+        assignID = job.jobID
+
+        # Assigned job with past notBefore not returned
+        @inlineCallbacks
+        def assignJob(txn, when=None):
+            assignee = yield JobItem.load(txn, assignID)
+            yield assignee.assign(now if when is None else when)
+        yield inTransaction(dbpool.connection, assignJob)
+        job, work = yield inTransaction(dbpool.connection, _next)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
+
+        # Unassigned low priority job with past notBefore not returned if high priority required
+        yield self._enqueue(dbpool, 4, 1, now + datetime.timedelta(days=-1))
+        job, work = yield inTransaction(dbpool.connection, _next, priority=WORK_PRIORITY_HIGH)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
+
+        # Unassigned low priority job with past notBefore not returned if medium priority required
+        yield self._enqueue(dbpool, 5, 1, now + datetime.timedelta(days=-1))
+        job, work = yield inTransaction(dbpool.connection, _next, priority=WORK_PRIORITY_MEDIUM)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
+
+        # Assigned job with past notBefore, but overdue is returned
+        yield inTransaction(dbpool.connection, assignJob, when=now + datetime.timedelta(days=-1))
+        job, work = yield inTransaction(dbpool.connection, _next, priority=WORK_PRIORITY_HIGH)
+        self.assertTrue(job is not None)
+        self.assertTrue(work.a == 2)
 
 
 
@@ -412,6 +520,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         Create a L{PeerConnectionPool} that is just initialized enough.
         """
         self.pcp = PeerConnectionPool(None, None, 4321)
+        DummyWorkItem.results = {}
 
 
     def checkPerformer(self, cls):
@@ -422,6 +531,34 @@ class PeerConnectionPoolUnitTests(TestCase):
         performer = self.pcp.choosePerformer()
         self.failUnlessIsInstance(performer, cls)
         verifyObject(_IJobPerformer, performer)
+
+
+    def _setupPools(self):
+        """
+        Setup pool and reactor clock for time stepped tests.
+        """
+        reactor = MemoryReactorWithClock()
+        cph = SteppablePoolHelper(nodeSchema + jobSchema + schemaText)
+        then = datetime.datetime(2012, 12, 12, 12, 12, 12)
+        reactor.advance(astimestamp(then))
+        cph.setUp(self)
+        qpool = PeerConnectionPool(reactor, cph.pool.connection, 4321)
+
+        realChoosePerformer = qpool.choosePerformer
+        performerChosen = []
+
+        def catchPerformerChoice(onlyLocally=False):
+            result = realChoosePerformer(onlyLocally=onlyLocally)
+            performerChosen.append(True)
+            return result
+
+        qpool.choosePerformer = catchPerformerChoice
+        reactor.callLater(0, qpool._workCheck)
+
+        qpool.startService()
+        cph.flushHolders()
+
+        return cph, qpool, reactor, performerChosen
 
 
     def test_choosingPerformerWhenNoPeersAndNoWorkers(self):
@@ -478,8 +615,8 @@ class PeerConnectionPoolUnitTests(TestCase):
         d = Deferred()
 
         class DummyPerformer(object):
-            def performJob(self, jobID):
-                self.jobID = jobID
+            def performJob(self, job):
+                self.jobID = job.jobID
                 return d
 
         # Doing real database I/O in this test would be tedious so fake the
@@ -490,7 +627,7 @@ class PeerConnectionPoolUnitTests(TestCase):
             return dummy
 
         peer.choosePerformer = chooseDummy
-        performed = local.performJob(7384)
+        performed = local.performJob(JobDescriptor(7384, 1))
         performResult = []
         performed.addCallback(performResult.append)
 
@@ -535,25 +672,19 @@ class PeerConnectionPoolUnitTests(TestCase):
 
 
     @inlineCallbacks
-    def test_notBeforeWhenCheckingForLostWork(self):
+    def test_notBeforeWhenCheckingForWork(self):
         """
-        L{PeerConnectionPool._periodicLostWorkCheck} should execute any
+        L{PeerConnectionPool._workCheck} should execute any
         outstanding work items, but only those that are expired.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
-        # An arbitrary point in time.
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
-        # *why* does datetime still not have .astimestamp()
-        sinceEpoch = astimestamp(fakeNow)
-        clock = Clock()
-        clock.advance(sinceEpoch)
-        qpool = PeerConnectionPool(clock, dbpool.connection, 0)
 
         # Let's create a couple of work items directly, not via the enqueue
         # method, so that they exist but nobody will try to immediately execute
         # them.
 
-        @transactionally(dbpool.connection)
+        @transactionally(dbpool.pool.connection)
         @inlineCallbacks
         def setup(txn):
             # First, one that's right now.
@@ -564,9 +695,7 @@ class PeerConnectionPoolUnitTests(TestCase):
                 txn, a=3, b=4, notBefore=(
                     # Schedule it in the past so that it should have already
                     # run.
-                    fakeNow - datetime.timedelta(
-                        seconds=qpool.queueProcessTimeout + 20
-                    )
+                    fakeNow - datetime.timedelta(seconds=20)
                 )
             )
 
@@ -575,14 +704,13 @@ class PeerConnectionPoolUnitTests(TestCase):
                 txn, a=10, b=20, notBefore=fakeNow + datetime.timedelta(1000)
             )
         yield setup
-        yield qpool._periodicLostWorkCheck()
 
-        @transactionally(dbpool.connection)
-        def check(txn):
-            return DummyWorkDone.all(txn)
+        # Wait for job
+        while len(DummyWorkItem.results) != 2:
+            clock.advance(1)
 
-        every = yield check
-        self.assertEquals([x.aPlusB for x in every], [7])
+        # Work item complete
+        self.assertTrue(DummyWorkItem.results == {1: 3, 2: 7})
 
 
     @inlineCallbacks
@@ -592,23 +720,10 @@ class PeerConnectionPoolUnitTests(TestCase):
         only executes it when enough time has elapsed to allow the C{notBefore}
         attribute of the given work item to have passed.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
-        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
-        sinceEpoch = astimestamp(fakeNow)
-        clock = Clock()
-        clock.advance(sinceEpoch)
-        qpool = PeerConnectionPool(clock, dbpool.connection, 0)
-        realChoosePerformer = qpool.choosePerformer
-        performerChosen = []
 
-        def catchPerformerChoice():
-            result = realChoosePerformer()
-            performerChosen.append(True)
-            return result
+        dbpool, qpool, clock, performerChosen = self._setupPools()
 
-        qpool.choosePerformer = catchPerformerChoice
-
-        @transactionally(dbpool.connection)
+        @transactionally(dbpool.pool.connection)
         def check(txn):
             return qpool.enqueueWork(
                 txn, DummyWorkItem, a=3, b=9,
@@ -630,11 +745,12 @@ class PeerConnectionPoolUnitTests(TestCase):
         clock.advance(20 - 12)
         self.assertEquals(performerChosen, [True])
 
-        # FIXME: if this fails, it will hang, but that's better than no
-        # notification that it is broken at all.
+        # Wait for job
+        while (yield inTransaction(dbpool.pool.connection, lambda txn: JobItem.all(txn))):
+            clock.advance(1)
 
-        result = yield proposal.whenExecuted()
-        self.assertIdentical(result, proposal)
+        # Work item complete
+        self.assertTrue(DummyWorkItem.results == {1: 12})
 
 
     @inlineCallbacks
@@ -643,23 +759,9 @@ class PeerConnectionPoolUnitTests(TestCase):
         L{PeerConnectionPool.enqueueWork} will execute its work immediately if
         the C{notBefore} attribute of the work item in question is in the past.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
-        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
-        sinceEpoch = astimestamp(fakeNow)
-        clock = Clock()
-        clock.advance(sinceEpoch)
-        qpool = PeerConnectionPool(clock, dbpool.connection, 0)
-        realChoosePerformer = qpool.choosePerformer
-        performerChosen = []
+        dbpool, qpool, clock, performerChosen = self._setupPools()
 
-        def catchPerformerChoice():
-            result = realChoosePerformer()
-            performerChosen.append(True)
-            return result
-
-        qpool.choosePerformer = catchPerformerChoice
-
-        @transactionally(dbpool.connection)
+        @transactionally(dbpool.pool.connection)
         def check(txn):
             return qpool.enqueueWork(
                 txn, DummyWorkItem, a=3, b=9,
@@ -673,8 +775,12 @@ class PeerConnectionPoolUnitTests(TestCase):
         # Advance far beyond the given timestamp.
         self.assertEquals(performerChosen, [True])
 
-        result = yield proposal.whenExecuted()
-        self.assertIdentical(result, proposal)
+        # Wait for job
+        while (yield inTransaction(dbpool.pool.connection, lambda txn: JobItem.all(txn))):
+            clock.advance(1)
+
+        # Work item complete
+        self.assertTrue(DummyWorkItem.results == {1: 12})
 
 
     def test_workerConnectionPoolPerformJob(self):
@@ -696,12 +802,12 @@ class PeerConnectionPoolUnitTests(TestCase):
         worker2, _ignore_trans2 = peer()
 
         # Ask the worker to do something.
-        worker1.performJob(1)
+        worker1.performJob(JobDescriptor(1, 1))
         self.assertEquals(worker1.currentLoad, 1)
         self.assertEquals(worker2.currentLoad, 0)
 
         # Now ask the pool to do something
-        peerPool.workerPool.performJob(2)
+        peerPool.workerPool.performJob(JobDescriptor(2, 1))
         self.assertEquals(worker1.currentLoad, 1)
         self.assertEquals(worker2.currentLoad, 1)
 
@@ -716,49 +822,42 @@ class PeerConnectionPoolUnitTests(TestCase):
         reactor.advance(astimestamp(then))
         cph.setUp(self)
         pcp = PeerConnectionPool(reactor, cph.pool.connection, 4321)
-        now = then + datetime.timedelta(seconds=pcp.queueProcessTimeout * 2)
+        now = then + datetime.timedelta(seconds=20)
 
         @transactionally(cph.pool.connection)
         def createOldWork(txn):
-            one = DummyWorkItem.makeJob(txn, jobID=100, workID=1, a=3, b=4, notBefore=then)
-            two = DummyWorkItem.makeJob(txn, jobID=101, workID=2, a=7, b=9, notBefore=now)
+            one = DummyWorkItem.makeJob(txn, jobID=1, workID=1, a=3, b=4, notBefore=then)
+            two = DummyWorkItem.makeJob(txn, jobID=2, workID=2, a=7, b=9, notBefore=now)
             return gatherResults([one, two])
 
         pcp.startService()
         cph.flushHolders()
-        reactor.advance(pcp.queueProcessTimeout * 2)
+        reactor.advance(19)
         self.assertEquals(
-            cph.rows("select * from DUMMY_WORK_DONE"),
-            [(101, 200, 7)]
+            DummyWorkItem.results,
+            {1: 7}
         )
-        cph.rows("delete from DUMMY_WORK_DONE")
-        reactor.advance(pcp.queueProcessTimeout * 2)
+        reactor.advance(20)
         self.assertEquals(
-            cph.rows("select * from DUMMY_WORK_DONE"),
-            [(102, 201, 16)]
+            DummyWorkItem.results,
+            {1: 7, 2: 16}
         )
 
 
     @inlineCallbacks
-    def test_exceptionWhenCheckingForLostWork(self):
+    def test_exceptionWhenWorking(self):
         """
-        L{PeerConnectionPool._periodicLostWorkCheck} should execute any
+        L{PeerConnectionPool._workCheck} should execute any
         outstanding work items, and keep going if some raise an exception.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
-        # An arbitrary point in time.
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
-        # *why* does datetime still not have .astimestamp()
-        sinceEpoch = astimestamp(fakeNow)
-        clock = Clock()
-        clock.advance(sinceEpoch)
-        qpool = PeerConnectionPool(clock, dbpool.connection, 0)
 
         # Let's create a couple of work items directly, not via the enqueue
         # method, so that they exist but nobody will try to immediately execute
         # them.
 
-        @transactionally(dbpool.connection)
+        @transactionally(dbpool.pool.connection)
         @inlineCallbacks
         def setup(txn):
             # First, one that's right now.
@@ -776,14 +875,51 @@ class PeerConnectionPoolUnitTests(TestCase):
                 txn, a=2, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60)
             )
         yield setup
-        yield qpool._periodicLostWorkCheck()
+        clock.advance(20 - 12)
 
-        @transactionally(dbpool.connection)
+        # Wait for job
+#        while True:
+#            jobs = yield inTransaction(dbpool.pool.connection, lambda txn: JobItem.all(txn))
+#            if all([job.a == -1 for job in jobs]):
+#                break
+#            clock.advance(1)
+
+        # Work item complete
+        self.assertTrue(DummyWorkItem.results == {1: 1, 3: 2})
+
+
+    @inlineCallbacks
+    def test_exceptionUnassign(self):
+        """
+        When a work item fails it should appear as unassigned in the JOB
+        table and have the failure count bumped, and a notBefore one minute ahead.
+        """
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
+        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+
+        # Let's create a couple of work items directly, not via the enqueue
+        # method, so that they exist but nobody will try to immediately execute
+        # them.
+
+        @transactionally(dbpool.pool.connection)
+        @inlineCallbacks
+        def setup(txn):
+            # Next, create failing work that's actually far enough into the past to run.
+            yield DummyWorkItem.makeJob(
+                txn, a=-1, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+        yield setup
+        clock.advance(20 - 12)
+
+        @transactionally(dbpool.pool.connection)
         def check(txn):
-            return DummyWorkDone.all(txn)
+            return JobItem.all(txn)
 
-        every = yield check
-        self.assertEquals([x.aPlusB for x in every], [1, 2])
+        jobs = yield check
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(jobs[0].assigned is None)
+        self.assertTrue(jobs[0].failed == 1)
+        self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow())
 
 
 
@@ -902,7 +1038,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             )
         self.addCleanup(deschema)
 
-        from twisted.internet import reactor
         self.node1 = PeerConnectionPool(
             reactor, indirectedTransactionFactory, 0)
         self.node2 = PeerConnectionPool(
@@ -928,6 +1063,8 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         yield gatherResults([d1, d2])
         self.store.queuer = self.node1
 
+        DummyWorkItem.results = {}
+
 
     def test_currentNodeInfo(self):
         """
@@ -942,12 +1079,11 @@ class PeerConnectionPoolIntegrationTests(TestCase):
 
 
     @inlineCallbacks
-    def test_enqueueHappyPath(self):
+    def test_enqueueWorkDone(self):
         """
         When a L{WorkItem} is scheduled for execution via
-        L{PeerConnectionPool.enqueueWork} its C{doWork} method will be invoked
-        by the time the L{Deferred} returned from the resulting
-        L{WorkProposal}'s C{whenExecuted} method has fired.
+        L{PeerConnectionPool.enqueueWork} its C{doWork} method will be
+        run.
         """
         # TODO: this exact test should run against LocalQueuer as well.
         def operation(txn):
@@ -956,22 +1092,12 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             # Should probably do something with components.
             return txn.enqueue(DummyWorkItem, a=3, b=4, jobID=100, workID=1,
                                notBefore=datetime.datetime.utcnow())
-        result = yield inTransaction(self.store.newTransaction, operation)
+        yield inTransaction(self.store.newTransaction, operation)
+
         # Wait for it to be executed.  Hopefully this does not time out :-\.
-        yield result.whenExecuted()
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
 
-        def op2(txn):
-            return Select(
-                [
-                    schema.DUMMY_WORK_DONE.WORK_ID,
-                    schema.DUMMY_WORK_DONE.JOB_ID,
-                    schema.DUMMY_WORK_DONE.A_PLUS_B,
-                ],
-                From=schema.DUMMY_WORK_DONE
-            ).on(txn)
-
-        rows = yield inTransaction(self.store.newTransaction, op2)
-        self.assertEquals(rows, [[101, 200, 7]])
+        self.assertEquals(DummyWorkItem.results, {100: 7})
 
 
     @inlineCallbacks
@@ -980,16 +1106,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         When a L{WorkItem} is concurrently deleted by another transaction, it
         should I{not} perform its work.
         """
-        # Provide access to a method called "concurrently" everything using
-        original = self.store.newTransaction
-
-        def decorate(*a, **k):
-            result = original(*a, **k)
-            result.concurrently = self.store.newTransaction
-            return result
-
-        self.store.newTransaction = decorate
-
         def operation(txn):
             return txn.enqueue(
                 DummyWorkItem, a=30, b=40, workID=5678,
@@ -997,30 +1113,12 @@ class PeerConnectionPoolIntegrationTests(TestCase):
                 notBefore=datetime.datetime.utcnow()
             )
 
-        proposal = yield inTransaction(self.store.newTransaction, operation)
-        yield proposal.whenExecuted()
+        yield inTransaction(self.store.newTransaction, operation)
 
-        # Sanity check on the concurrent deletion.
-        def op2(txn):
-            return Select(
-                [schema.DUMMY_WORK_ITEM.WORK_ID],
-                From=schema.DUMMY_WORK_ITEM
-            ).on(txn)
+        # Wait for it to be executed.  Hopefully this does not time out :-\.
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
 
-        rows = yield inTransaction(self.store.newTransaction, op2)
-        self.assertEquals(rows, [])
-
-        def op3(txn):
-            return Select(
-                [
-                    schema.DUMMY_WORK_DONE.WORK_ID,
-                    schema.DUMMY_WORK_DONE.A_PLUS_B,
-                ],
-                From=schema.DUMMY_WORK_DONE
-            ).on(txn)
-
-        rows = yield inTransaction(self.store.newTransaction, op3)
-        self.assertEquals(rows, [])
+        self.assertEquals(DummyWorkItem.results, {})
 
 
 

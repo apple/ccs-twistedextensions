@@ -1323,6 +1323,9 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         self._lostWorkCheckCall = None
 
+        if not self.running:
+            return
+
         @passthru(
             self._periodicLostWorkCheck().addErrback(log.err).addCallback
         )
@@ -1390,10 +1393,14 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         Stop this service, terminating any incoming or outgoing connections.
         """
-        yield super(PeerConnectionPool, self).stopService()
-
+        # If in the process of starting up, always wait for startup to complete before
+        # stopping,.
         if self._startingUp is not None:
-            yield self._startingUp
+            d = Deferred()
+            self._startingUp.addBoth(lambda result: d.callback(None))
+            yield d
+
+        yield super(PeerConnectionPool, self).stopService()
 
         if self._listeningPort is not None:
             yield self._listeningPort.stopListening()
@@ -1402,7 +1409,12 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             self._lostWorkCheckCall.cancel()
 
         if self._currentWorkDeferred is not None:
-            yield self._currentWorkDeferred
+            self._currentWorkDeferred.cancel()
+
+        for connector in self._connectingToPeer:
+            d = Deferred()
+            connector.addBoth(lambda result: d.callback(None))
+            yield d
 
         for peer in self.peers:
             peer.transport.abortConnection()
@@ -1426,6 +1438,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             # self.mappedPeers.pop((host, port)).transport.loseConnection()
         self.mappedPeers[(host, port)] = peer
 
+    _connectingToPeer = []
 
     def _startConnectingTo(self, node):
         """
@@ -1435,8 +1448,10 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         @type node: L{NodeInfo}
         """
         connected = node.endpoint(self.reactor).connect(self.peerFactory())
+        self._connectingToPeer.append(connected)
 
         def whenConnected(proto):
+            self._connectingToPeer.remove(connected)
             self.mapPeer(node.hostname, node.port, proto)
             proto.callRemote(
                 IdentifyNode,
@@ -1445,6 +1460,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             ).addErrback(noted, "identify")
 
         def noted(err, x="connect"):
+            if x == "connect":
+                self._connectingToPeer.remove(connected)
             log.msg(
                 "Could not {0} to cluster peer {1} because {2}"
                 .format(x, node, str(err.value))

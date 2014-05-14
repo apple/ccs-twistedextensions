@@ -221,12 +221,12 @@ class Column(FancyEqMixin, object):
 
     compareAttributes = 'table name'.split()
 
-    def __init__(self, table, name, type):
+    def __init__(self, table, name, type, default=NO_DEFAULT):
         _checkstr(name)
         self.table = table
         self.name = name
         self.type = type
-        self.default = NO_DEFAULT
+        self.default = default
         self.references = None
         self.deleteAction = None
 
@@ -253,14 +253,16 @@ class Column(FancyEqMixin, object):
             # Some DBs don't allow sequence as a default
             if (
                 isinstance(self.default, Sequence) and other.default == NO_DEFAULT or
-                self.default == NO_DEFAULT and isinstance(other.default, Sequence)
+                self.default == NO_DEFAULT and isinstance(other.default, Sequence) or
+                self.default is None and other.default == NO_DEFAULT or
+                self.default == NO_DEFAULT and other.default is None
             ):
                 pass
             else:
                 results.append("Table: %s, column name %s default mismatch" % (self.table.name, self.name,))
         if stringIfNone(self.references, "name") != stringIfNone(other.references, "name"):
             results.append("Table: %s, column name %s references mismatch" % (self.table.name, self.name,))
-        if self.deleteAction != other.deleteAction:
+        if stringIfNone(self.deleteAction, "") != stringIfNone(other.deleteAction, ""):
             results.append("Table: %s, column name %s delete action mismatch" % (self.table.name, self.name,))
         return results
 
@@ -403,7 +405,7 @@ class Table(FancyEqMixin, object):
         raise KeyError("no such column: %r" % (name,))
 
 
-    def addColumn(self, name, type):
+    def addColumn(self, name, type, default=NO_DEFAULT, notNull=False, primaryKey=False):
         """
         A new column was parsed for this table.
 
@@ -413,8 +415,12 @@ class Table(FancyEqMixin, object):
 
         @param type: The L{SQLType} describing the column's type.
         """
-        column = Column(self, name, type)
+        column = Column(self, name, type, default=default)
         self.columns.append(column)
+        if notNull:
+            self.tableConstraint(Constraint.NOT_NULL, [name])
+        if primaryKey:
+            self.primaryKey = [column]
         return column
 
 

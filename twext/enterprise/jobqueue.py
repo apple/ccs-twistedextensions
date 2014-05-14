@@ -81,7 +81,8 @@ Such an application might be implemented with this queuing system like so::
 """
 
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import namedtuple
 
 from zope.interface import implements
 
@@ -91,12 +92,12 @@ from twisted.internet.defer import (
     inlineCallbacks, returnValue, Deferred, passthru, succeed
 )
 from twisted.internet.endpoints import TCP4ClientEndpoint
-from twisted.protocols.amp import AMP, Command, Integer, String
+from twisted.protocols.amp import AMP, Command, Integer, String, Argument
 from twisted.python.reflect import qual
-from twisted.python import log
+from twext.python.log import Logger
 
 from twext.enterprise.dal.syntax import (
-    SchemaSyntax, Lock, NamedValue, Select, Count
+    SchemaSyntax, Lock, NamedValue
 )
 
 from twext.enterprise.dal.model import ProcedureCall
@@ -109,6 +110,9 @@ from twext.enterprise.ienterprise import IQueuer
 from zope.interface.interface import Interface
 from twext.enterprise.locking import NamedLock
 
+import time
+
+log = Logger()
 
 class _IJobPerformer(Interface):
     """
@@ -118,10 +122,10 @@ class _IJobPerformer(Interface):
     (in the worst case) pass from worker->controller->controller->worker.
     """
 
-    def performJob(jobID):  # @NoSelf
+    def performJob(job):  # @NoSelf
         """
-        @param jobID: The primary key identifier of the given job.
-        @type jobID: L{int}
+        @param job: Details about the job to perform.
+        @type job: L{JobDescriptor}
 
         @return: a L{Deferred} firing with an empty dictionary when the work is
             complete.
@@ -180,17 +184,13 @@ def makeJobSchema(inSchema):
     # transaction is made aware of somehow.
     JobTable = Table(inSchema, "JOB")
 
-    JobTable.addColumn("JOB_ID", SQLType("integer", None)).setDefaultValue(
-        ProcedureCall("nextval", ["JOB_SEQ"])
-    )
-    JobTable.addColumn("WORK_TYPE", SQLType("varchar", 255))
-    JobTable.addColumn("PRIORITY", SQLType("integer", 0))
-    JobTable.addColumn("WEIGHT", SQLType("integer", 0))
-    JobTable.addColumn("NOT_BEFORE", SQLType("timestamp", None))
-    JobTable.addColumn("NOT_AFTER", SQLType("timestamp", None))
-    for column in ("JOB_ID", "WORK_TYPE"):
-        JobTable.tableConstraint(Constraint.NOT_NULL, [column])
-    JobTable.primaryKey = [JobTable.columnNamed("JOB_ID"), ]
+    JobTable.addColumn("JOB_ID", SQLType("integer", None), default=ProcedureCall("nextval", ["JOB_SEQ"]), notNull=True, primaryKey=True)
+    JobTable.addColumn("WORK_TYPE", SQLType("varchar", 255), notNull=True)
+    JobTable.addColumn("PRIORITY", SQLType("integer", 0), default=0)
+    JobTable.addColumn("WEIGHT", SQLType("integer", 0), default=0)
+    JobTable.addColumn("NOT_BEFORE", SQLType("timestamp", None), notNull=True)
+    JobTable.addColumn("ASSIGNED", SQLType("timestamp", None), default=None)
+    JobTable.addColumn("FAILED", SQLType("integer", 0), default=0)
 
     return inSchema
 
@@ -199,7 +199,7 @@ JobInfoSchema = SchemaSyntax(makeJobSchema(Schema(__file__)))
 
 
 @inlineCallbacks
-def inTransaction(transactionCreator, operation, label="jobqueue.inTransaction"):
+def inTransaction(transactionCreator, operation, label="jobqueue.inTransaction", **kwargs):
     """
     Perform the given operation in a transaction, committing or aborting as
     required.
@@ -218,7 +218,7 @@ def inTransaction(transactionCreator, operation, label="jobqueue.inTransaction")
     """
     txn = transactionCreator(label=label)
     try:
-        result = yield operation(txn)
+        result = yield operation(txn, **kwargs)
     except:
         f = Failure()
         yield txn.abort()
@@ -270,12 +270,26 @@ def abstract(thunk):
 
 
 
+class JobFailedError(Exception):
+    """
+    A job failed to run - we need to be smart about clean up.
+    """
+
+    def __init__(self, ex):
+        self._ex = ex
+
+
+
 class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     """
     An item in the job table. This is typically not directly used by code
     creating work items, but rather is used for internal book keeping of jobs
     associated with work items.
     """
+
+    def descriptor(self):
+        return JobDescriptor(self.jobID, self.weight)
+
 
     @inlineCallbacks
     def workItem(self):
@@ -284,6 +298,182 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             self.transaction, self.jobID
         )
         returnValue(workItems[0] if len(workItems) == 1 else None)
+
+
+    def assign(self, now):
+        """
+        Mark this job as assigned to a worker by setting the assigned column to the current,
+        or provided, timestamp.
+
+        @param now: current timestamp
+        @type now: L{datetime.datetime}
+        @param when: explicitly set the assigned time - typically only used in tests
+        @type when: L{datetime.datetime} or L{None}
+        """
+        return self.update(assigned=now)
+
+
+    def failedToRun(self):
+        """
+        The attempt to run the job failed. Leave it in the queue, but mark it
+        as unassigned, bump the failure count and set to run at some point in
+        the future.
+        """
+        return self.update(
+            assigned=None,
+            failed=self.failed + 1,
+            notBefore=datetime.utcnow() + timedelta(seconds=60)
+        )
+
+
+    @classmethod
+    @inlineCallbacks
+    def ultimatelyPerform(cls, txnFactory, jobID):
+        """
+        Eventually, after routing the job to the appropriate place, somebody
+        actually has to I{do} it.
+
+        @param txnFactory: a 0- or 1-argument callable that creates an
+            L{IAsyncTransaction}
+        @type txnFactory: L{callable}
+
+        @param jobID: the ID of the job to be performed
+        @type jobID: L{int}
+
+        @return: a L{Deferred} which fires with C{None} when the job has been
+            performed, or fails if the job can't be performed.
+        """
+
+        t = time.time()
+        def _tm():
+            return "{:.3f}".format(1000 * (time.time() - t))
+        def _overtm(nb):
+            return "{:.0f}".format(1000 * (t - astimestamp(nb)))
+
+        log.debug("JobItem: starting to run {jobid}".format(jobid=jobID))
+        txn = txnFactory(label="ultimatelyPerform: {}".format(jobID))
+        try:
+            job = yield cls.load(txn, jobID)
+            if hasattr(txn, "_label"):
+                txn._label = "{} <{}>".format(txn._label, job.workType)
+            log.debug("JobItem: loaded {jobid} {work} t={tm}".format(
+                jobid=jobID,
+                work=job.workType,
+                tm=_tm())
+            )
+            yield job.run()
+
+        except NoSuchRecord:
+            # The record has already been removed
+            yield txn.commit()
+            log.debug("JobItem: already removed {jobid} t={tm}".format(jobid=jobID, tm=_tm()))
+
+        except JobFailedError:
+            # Job failed: abort with cleanup, but pretend this method succeeded
+            def _cleanUp():
+                @inlineCallbacks
+                def _cleanUp2(txn2):
+                    job = yield cls.load(txn2, jobID)
+                    log.debug("JobItem: marking as failed {jobid}, failure count: {count} t={tm}".format(jobid=jobID, count=job.failed + 1, tm=_tm()))
+                    yield job.failedToRun()
+                return inTransaction(txnFactory, _cleanUp2, "ultimatelyPerform._cleanUp")
+            txn.postAbort(_cleanUp)
+            yield txn.abort()
+            log.debug("JobItem: failed {jobid} {work} t={tm}".format(
+                jobid=jobID,
+                work=job.workType,
+                tm=_tm()
+            ))
+
+        except:
+            f = Failure()
+            log.error("JobItem: Unknown exception for {jobid} failed t={tm} {exc}".format(
+                jobid=jobID,
+                tm=_tm(),
+                exc=f,
+            ))
+            yield txn.abort()
+            returnValue(f)
+
+        else:
+            yield txn.commit()
+            log.debug("JobItem: completed {jobid} {work} t={tm} over={over}".format(
+                jobid=jobID,
+                work=job.workType,
+                tm=_tm(),
+                over=_overtm(job.notBefore)
+            ))
+
+        returnValue(None)
+
+
+    @classmethod
+    @inlineCallbacks
+    def nextjob(cls, txn, now, minPriority, overdue):
+        """
+        Find the next available job based on priority, also return any that are overdue. This
+        method relies on there being a nextjob() SQL stored procedure to enable skipping over
+        items which are row locked to help avoid contention when multiple nodes are operating
+        on the job queue simultaneously.
+
+        @param txn: the transaction to use
+        @type txn: L{IAsyncTransaction}
+        @param now: current timestamp
+        @type now: L{datetime.datetime}
+        @param minPriority: lowest priority level to query for
+        @type minPriority: L{int}
+        @param overdue: how long before an assigned item is considered overdue
+        @type overdue: L{datetime.datetime}
+
+        @return: the job record
+        @rtype: L{JobItem}
+        """
+
+        jobs = yield cls.nextjobs(txn, now, minPriority, overdue, limit=1)
+
+        # Must only be one or zero
+        if jobs and len(jobs) > 1:
+            raise AssertionError("next_job() returned more than one row")
+
+        returnValue(jobs[0] if jobs else None)
+
+
+    @classmethod
+    @inlineCallbacks
+    def nextjobs(cls, txn, now, minPriority, overdue, limit=1):
+        """
+        Find the next available job based on priority, also return any that are overdue. This
+        method relies on there being a nextjob() SQL stored procedure to enable skipping over
+        items which are row locked to help avoid contention when multiple nodes are operating
+        on the job queue simultaneously.
+
+        @param txn: the transaction to use
+        @type txn: L{IAsyncTransaction}
+        @param now: current timestamp
+        @type now: L{datetime.datetime}
+        @param minPriority: lowest priority level to query for
+        @type minPriority: L{int}
+        @param overdue: how long before an assigned item is considered overdue
+        @type overdue: L{datetime.datetime}
+        @param limit: limit on number of jobs to return
+        @type limit: L{int}
+
+        @return: the job record
+        @rtype: L{JobItem}
+        """
+
+        jobs = yield cls.query(
+            txn,
+            (cls.notBefore <= now).And
+            (((cls.priority >= minPriority).And(cls.assigned == None)).Or(cls.assigned < overdue)),
+            order=(cls.assigned, cls.priority),
+            ascending=False,
+            forUpdate=True,
+            noWait=False,
+            limit=limit,
+        )
+
+        returnValue(jobs)
 
 
     @inlineCallbacks
@@ -304,7 +494,15 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 # The record has already been removed
                 pass
             else:
-                yield workItem.doWork()
+                try:
+                    yield workItem.doWork()
+                except Exception as e:
+                    log.error("JobItem: {jobid}, WorkItem: {workid} failed: {exc}".format(
+                        jobid=self.jobID,
+                        workid=workItem.workID,
+                        exc=e,
+                    ))
+                    raise JobFailedError(e)
 
         try:
             # Once the work is done we delete ourselves
@@ -325,21 +523,47 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
+    def waitEmpty(cls, txnCreator, reactor, timeout):
+        """
+        Wait for the job queue to drain. Only use this in tests
+        that need to wait for results from jobs.
+        """
+        t = time.time()
+        while True:
+            work = yield inTransaction(txnCreator, cls.all)
+            if not work:
+                break
+            if time.time() - t > timeout:
+                returnValue(False)
+            d = Deferred()
+            reactor.callLater(0.1, lambda : d.callback(None))
+            yield d
+
+        returnValue(True)
+
+
+    @classmethod
+    @inlineCallbacks
     def histogram(cls, txn):
         """
         Generate a histogram of work items currently in the queue.
         """
-        jb = JobInfoSchema.JOB
-        rows = yield Select(
-            [jb.WORK_TYPE, Count(jb.WORK_TYPE)],
-            From=jb,
-            GroupBy=jb.WORK_TYPE
-        ).on(txn)
-        results = dict(rows)
-
-        # Add in empty data for other work
+        results = {}
+        now = datetime.utcnow()
         for workType in cls.workTypes():
-            results.setdefault(workType.table.model.name, 0)
+            results.setdefault(workType.table.model.name, [0, 0, 0, 0])
+
+        jobs = yield cls.all(txn)
+
+        for job in jobs:
+            r = results[job.workType]
+            r[0] += 1
+            if job.assigned is not None:
+                r[1] += 1
+            if job.failed:
+                r[2] += 1
+            if job.assigned is None and job.notBefore < now:
+                r[3] += 1
 
         returnValue(results)
 
@@ -349,11 +573,38 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         return len(cls.workTypes())
 
 
+JobDescriptor = namedtuple("JobDescriptor", ["jobID", "weight"])
+
+class JobDescriptorArg(Argument):
+    """
+    Comma-separated.
+    """
+    def toString(self, inObject):
+        return ",".join(map(str, inObject))
+
+
+    def fromString(self, inString):
+        return JobDescriptor(*map(int, inString.split(",")))
+
 
 # Priority for work - used to order work items in the job queue
 WORK_PRIORITY_LOW = 1
 WORK_PRIORITY_MEDIUM = 2
 WORK_PRIORITY_HIGH = 3
+
+# Weight for work - used to schedule workers based on capacity
+WORK_WEIGHT_0 = 0
+WORK_WEIGHT_1 = 1
+WORK_WEIGHT_2 = 2
+WORK_WEIGHT_3 = 3
+WORK_WEIGHT_4 = 4
+WORK_WEIGHT_5 = 5
+WORK_WEIGHT_6 = 6
+WORK_WEIGHT_7 = 7
+WORK_WEIGHT_8 = 8
+WORK_WEIGHT_9 = 9
+WORK_WEIGHT_10 = 10
+WORK_WEIGHT_CAPACITY = 10   # Total amount of work any one worker can manage
 
 
 
@@ -450,7 +701,8 @@ class WorkItem(Record):
     """
 
     group = None
-    priority = WORK_PRIORITY_LOW    # Default - subclasses should override
+    default_priority = WORK_PRIORITY_LOW    # Default - subclasses should override
+    default_weight = WORK_WEIGHT_5          # Default - subclasses should override
 
 
     @classmethod
@@ -469,18 +721,20 @@ class WorkItem(Record):
         }
 
         def _transferArg(name):
-            if name in kwargs:
-                jobargs[name] = kwargs[name]
-                del kwargs[name]
+            arg = kwargs.pop(name, None)
+            if arg is not None:
+                jobargs[name] = arg
+            elif hasattr(cls, "default_{}".format(name)):
+                jobargs[name] = getattr(cls, "default_{}".format(name))
 
         _transferArg("jobID")
-        if "priority" in kwargs:
-            _transferArg("priority")
-        else:
-            jobargs["priority"] = cls.priority
+        _transferArg("priority")
         _transferArg("weight")
         _transferArg("notBefore")
-        _transferArg("notAfter")
+
+        # Always need a notBefore
+        if "notBefore" not in jobargs:
+            jobargs["notBefore"] = datetime.utcnow()
 
         job = yield JobItem.create(transaction, **jobargs)
 
@@ -540,7 +794,7 @@ class PerformJob(Command):
     """
 
     arguments = [
-        ("jobID", Integer()),
+        ("job", JobDescriptorArg()),
     ]
     response = []
 
@@ -665,7 +919,7 @@ class ConnectionFromPeerNode(AMP):
         return self._reportedLoad + self._bonusLoad
 
 
-    def performJob(self, jobID):
+    def performJob(self, job):
         """
         A L{local worker connection <ConnectionFromWorker>} is asking this
         specific peer node-controller process to perform a job, having
@@ -673,12 +927,12 @@ class ConnectionFromPeerNode(AMP):
 
         @see: L{_IJobPerformer.performJob}
         """
-        d = self.callRemote(PerformJob, jobID=jobID)
-        self._bonusLoad += 1
+        d = self.callRemote(PerformJob, job=job)
+        self._bonusLoad += job.weight
 
         @d.addBoth
         def performed(result):
-            self._bonusLoad -= 1
+            self._bonusLoad -= job.weight
             return result
 
         @d.addCallback
@@ -689,17 +943,17 @@ class ConnectionFromPeerNode(AMP):
 
 
     @PerformJob.responder
-    def dispatchToWorker(self, jobID):
+    def dispatchToWorker(self, job):
         """
         A remote peer node has asked this node to do a job; dispatch it to
         a local worker on this node.
 
-        @param jobID: the identifier of the job.
-        @type jobID: L{int}
+        @param job: the details of the job.
+        @type job: L{JobDescriptor}
 
         @return: a L{Deferred} that fires when the work has been completed.
         """
-        d = self.peerPool.performJobForPeer(jobID)
+        d = self.peerPool.performJobForPeer(job)
         d.addCallback(lambda ignored: {})
         return d
 
@@ -721,7 +975,7 @@ class WorkerConnectionPool(object):
     """
     implements(_IJobPerformer)
 
-    def __init__(self, maximumLoadPerWorker=5):
+    def __init__(self, maximumLoadPerWorker=WORK_WEIGHT_CAPACITY):
         self.workers = []
         self.maximumLoadPerWorker = maximumLoadPerWorker
 
@@ -753,6 +1007,26 @@ class WorkerConnectionPool(object):
         return False
 
 
+    def loadLevel(self):
+        """
+        Return the overall load of this worker connection pool have as a percentage of
+        total capacity.
+
+        @return: current load percentage.
+        @rtype: L{int}
+        """
+        current = sum(worker.currentLoad for worker in self.workers)
+        total = len(self.workers) * self.maximumLoadPerWorker
+        return ((current * 100) / total) if total else 0
+
+
+    def eachWorkerLoad(self):
+        """
+        The load of all currently connected workers.
+        """
+        return [(worker.currentLoad, worker.totalCompleted) for worker in self.workers]
+
+
     def allWorkerLoad(self):
         """
         The total load of all currently connected workers.
@@ -771,20 +1045,20 @@ class WorkerConnectionPool(object):
         return sorted(self.workers[:], key=lambda w: w.currentLoad)[0]
 
 
-    def performJob(self, jobID):
+    def performJob(self, job):
         """
         Select a local worker that is idle enough to perform the given job,
         then ask them to perform it.
 
-        @param jobID: The primary key identifier of the given job.
-        @type jobID: L{int}
+        @param job: The details of the given job.
+        @type job: L{JobDescriptor}
 
         @return: a L{Deferred} firing with an empty dictionary when the work is
             complete.
         @rtype: L{Deferred} firing L{dict}
         """
         preferredWorker = self._selectLowestLoadWorker()
-        result = preferredWorker.performJob(jobID)
+        result = preferredWorker.performJob(job)
         return result
 
 
@@ -799,6 +1073,7 @@ class ConnectionFromWorker(AMP):
         super(ConnectionFromWorker, self).__init__(boxReceiver, locator)
         self.peerPool = peerPool
         self._load = 0
+        self._completed = 0
 
 
     @property
@@ -807,6 +1082,14 @@ class ConnectionFromWorker(AMP):
         What is the current load of this worker?
         """
         return self._load
+
+
+    @property
+    def totalCompleted(self):
+        """
+        What is the current load of this worker?
+        """
+        return self._completed
 
 
     def startReceivingBoxes(self, sender):
@@ -829,19 +1112,20 @@ class ConnectionFromWorker(AMP):
 
 
     @PerformJob.responder
-    def performJob(self, jobID):
+    def performJob(self, job):
         """
         Dispatch a job to this worker.
 
         @see: The responder for this should always be
             L{ConnectionFromController.actuallyReallyExecuteJobHere}.
         """
-        d = self.callRemote(PerformJob, jobID=jobID)
-        self._load += 1
+        d = self.callRemote(PerformJob, job=job)
+        self._load += job.weight
 
         @d.addBoth
         def f(result):
-            self._load -= 1
+            self._load -= job.weight
+            self._completed += 1
             return result
 
         return d
@@ -883,11 +1167,11 @@ class ConnectionFromController(AMP):
         return self
 
 
-    def performJob(self, jobID):
+    def performJob(self, job):
         """
         Ask the controller to perform a job on our behalf.
         """
-        return self.callRemote(PerformJob, jobID=jobID)
+        return self.callRemote(PerformJob, job=job)
 
 
     @inlineCallbacks
@@ -914,45 +1198,15 @@ class ConnectionFromController(AMP):
 
 
     @PerformJob.responder
-    def actuallyReallyExecuteJobHere(self, jobID):
+    def actuallyReallyExecuteJobHere(self, job):
         """
         This is where it's time to actually do the job.  The controller
         process has instructed this worker to do it; so, look up the data in
         the row, and do it.
         """
-        d = ultimatelyPerform(self.transactionFactory, jobID)
+        d = JobItem.ultimatelyPerform(self.transactionFactory, job.jobID)
         d.addCallback(lambda ignored: {})
         return d
-
-
-
-def ultimatelyPerform(txnFactory, jobID):
-    """
-    Eventually, after routing the job to the appropriate place, somebody
-    actually has to I{do} it.
-
-    @param txnFactory: a 0- or 1-argument callable that creates an
-        L{IAsyncTransaction}
-    @type txnFactory: L{callable}
-
-    @param jobID: the ID of the job to be performed
-    @type jobID: L{int}
-
-    @return: a L{Deferred} which fires with C{None} when the job has been
-        performed, or fails if the job can't be performed.
-    """
-    @inlineCallbacks
-    def runJob(txn):
-        try:
-            job = yield JobItem.load(txn, jobID)
-            if hasattr(txn, "_label"):
-                txn._label = "{} <{}>".format(txn._label, job.workType)
-            yield job.run()
-        except NoSuchRecord:
-            # The record has already been removed
-            pass
-
-    return inTransaction(txnFactory, runJob, label="ultimatelyPerform: {}".format(jobID))
 
 
 
@@ -970,11 +1224,11 @@ class LocalPerformer(object):
         self.txnFactory = txnFactory
 
 
-    def performJob(self, jobID):
+    def performJob(self, job):
         """
         Perform the given job right now.
         """
-        return ultimatelyPerform(self.txnFactory, jobID)
+        return JobItem.ultimatelyPerform(self.txnFactory, job.jobID)
 
 
 
@@ -1049,7 +1303,6 @@ class WorkProposal(object):
         self.txn = txn
         self.workItemType = workItemType
         self.kw = kw
-        self._whenExecuted = Deferred()
         self._whenCommitted = Deferred()
         self.workItem = None
 
@@ -1073,58 +1326,9 @@ class WorkProposal(object):
             def whenDone():
                 self._whenCommitted.callback(self)
 
-                def maybeLater():
-                    performer = self._chooser.choosePerformer()
-
-                    @passthru(
-                        performer.performJob(created.jobID).addCallback
-                    )
-                    def performed(result):
-                        self._whenExecuted.callback(self)
-
-                    @performed.addErrback
-                    def notPerformed(why):
-                        self._whenExecuted.errback(why)
-
-                reactor = self._chooser.reactor
-
-                if created.job.notBefore is not None:
-                    when = max(
-                        0,
-                        astimestamp(created.job.notBefore) - reactor.seconds()
-                    )
-                else:
-                    when = 0
-                # TODO: Track the returned DelayedCall so it can be stopped
-                # when the service stops.
-                self._chooser.reactor.callLater(when, maybeLater)
-
             @self.txn.postAbort
             def whenFailed():
                 self._whenCommitted.errback(TransactionFailed)
-
-
-    def whenExecuted(self):
-        """
-        Let the caller know when the proposed work has been fully executed.
-
-        @note: The L{Deferred} returned by C{whenExecuted} should be used with
-            extreme caution.  If an application decides to do any
-            database-persistent work as a result of this L{Deferred} firing,
-            that work I{may be lost} as a result of a service being normally
-            shut down between the time that the work is scheduled and the time
-            that it is executed.  So, the only things that should be added as
-            callbacks to this L{Deferred} are those which are ephemeral, in
-            memory, and reflect only presentation state associated with the
-            user's perception of the completion of work, not logical chains of
-            work which need to be completed in sequence; those should all be
-            completed within the transaction of the L{WorkItem.doWork} that
-            gets executed.
-
-        @return: a L{Deferred} that fires with this L{WorkProposal} when the
-            work has been completed remotely.
-        """
-        return _cloneDeferred(self._whenExecuted)
 
 
     def whenProposed(self):
@@ -1221,14 +1425,14 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         than waiting for it to be requested.  By default, 10 minutes.
     @type queueProcessTimeout: L{float} (in seconds)
 
-    @ivar queueDelayedProcessInterval: The amount of time between database
+    @ivar queuePollInterval: The amount of time between database
         pings, i.e. checks for over-due queue items that might have been
         orphaned by a controller process that died mid-transaction.  This is
         how often the shared database should be pinged by I{all} nodes (i.e.,
         all controller processes, or each instance of L{PeerConnectionPool});
         each individual node will ping commensurately less often as more nodes
         join the database.
-    @type queueDelayedProcessInterval: L{float} (in seconds)
+    @type queuePollInterval: L{float} (in seconds)
 
     @ivar reactor: The reactor used for scheduling timed events.
     @type reactor: L{IReactorTime} provider.
@@ -1243,8 +1447,12 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
     getfqdn = staticmethod(getfqdn)
     getpid = staticmethod(getpid)
 
-    queueProcessTimeout = (10.0 * 60.0)
-    queueDelayedProcessInterval = (60.0)
+    queuePollInterval = 0.1             # How often to poll for new work
+    queueOrphanTimeout = 5.0 * 60.0     # How long before assigned work is possibly orphaned
+
+    overloadLevel = 95          # Percentage load level above which job queue processing stops
+    highPriorityLevel = 80      # Percentage load level above which only high priority jobs are processed
+    mediumPriorityLevel = 50    # Percentage load level above which high and medium priority jobs are processed
 
     def __init__(self, reactor, transactionFactory, ampPort):
         """
@@ -1324,13 +1532,13 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             return LocalPerformer(self.transactionFactory)
 
 
-    def performJobForPeer(self, jobID):
+    def performJobForPeer(self, job):
         """
         A peer has requested us to perform a job; choose a job performer
         local to this node, and then execute it.
         """
         performer = self.choosePerformer(onlyLocally=True)
-        return performer.performJob(jobID)
+        return performer.performJob(job)
 
 
     def totalNumberOfNodes(self):
@@ -1362,67 +1570,113 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         return self._lastSeenNodeIndex
 
 
-    def _periodicLostWorkCheck(self):
+    @inlineCallbacks
+    def _workCheck(self):
         """
-        Periodically, every node controller has to check to make sure that work
-        hasn't been dropped on the floor by someone.  In order to do that it
-        queries each work-item table.
+        Every node controller will periodically check for any new work to do, and dispatch
+        as much as possible given the current load.
         """
-        @inlineCallbacks
-        def workCheck(txn):
-            if self.thisProcess:
-                nodes = [(node.hostname, node.port) for node in
-                         (yield self.activeNodes(txn))]
-                nodes.sort()
-                self._lastSeenTotalNodes = len(nodes)
-                self._lastSeenNodeIndex = nodes.index(
-                    (self.thisProcess.hostname, self.thisProcess.port)
-                )
+        # FIXME: not sure if we should do this node check on every work poll
+#        if self.thisProcess:
+#            nodes = [(node.hostname, node.port) for node in
+#                     (yield self.activeNodes(txn))]
+#            nodes.sort()
+#            self._lastSeenTotalNodes = len(nodes)
+#            self._lastSeenNodeIndex = nodes.index(
+#                (self.thisProcess.hostname, self.thisProcess.port)
+#            )
 
+        loopCounter = 0
+        while True:
+            if not self.running:
+                returnValue(None)
+
+            # Check the overall service load - if overloaded skip this poll cycle.
+            # FIXME: need to include capacity of other nodes. For now we only check
+            # our own capacity and stop processing if too busy. Other nodes that
+            # are not busy will pick up work.
+            level = self.workerPool.loadLevel()
+
+            # Check overload level first
+            if level > self.overloadLevel:
+                log.error("workCheck: jobqueue is overloaded")
+                break
+            elif level > self.highPriorityLevel:
+                log.debug("workCheck: jobqueue high priority only")
+                minPriority = WORK_PRIORITY_HIGH
+            elif level > self.mediumPriorityLevel:
+                log.debug("workCheck: jobqueue high/medium priority only")
+                minPriority = WORK_PRIORITY_MEDIUM
+            else:
+                minPriority = WORK_PRIORITY_LOW
+
+            # Determine what the timestamp cutoff
             # TODO: here is where we should iterate over the unlocked items
             # that are due, ordered by priority, notBefore etc
-            tooLate = datetime.utcfromtimestamp(
-                self.reactor.seconds() - self.queueProcessTimeout
-            )
-            overdueItems = (yield JobItem.query(
-                txn, (JobItem.notBefore < tooLate))
-            )
-            for overdueItem in overdueItems:
-                peer = self.choosePerformer()
-                try:
-                    yield peer.performJob(overdueItem.jobID)
-                except Exception as e:
-                    log.err("Failed to perform periodic lost job for jobid={}, {}".format(overdueItem.jobID, e))
+            nowTime = datetime.utcfromtimestamp(self.reactor.seconds())
+            orphanTime = nowTime - timedelta(seconds=self.queueOrphanTimeout)
 
-        return inTransaction(self.transactionFactory, workCheck, label="periodicLostWorkCheck")
+            txn = self.transactionFactory(label="jobqueue.workCheck")
+            try:
+                nextJob = yield JobItem.nextjob(txn, nowTime, minPriority, orphanTime)
+                if nextJob is None:
+                    break
+
+                # If it is now assigned but not earlier than the orphan time, ignore as this may have
+                # been returned after another txn just assigned it
+                if nextJob.assigned is not None and nextJob.assigned > orphanTime:
+                    continue
+
+                # Always assign as a new job even when it is an orphan
+                yield nextJob.assign(nowTime)
+                loopCounter += 1
+
+            except Exception as e:
+                log.error("Failed to pick a new job, {exc}", exc=e)
+                yield txn.abort()
+                txn = None
+                nextJob = None
+            finally:
+                if txn:
+                    yield txn.commit()
+
+            if nextJob is not None:
+                peer = self.choosePerformer(onlyLocally=True)
+                try:
+                    # Send the job over but DO NOT block on the response - that will ensure
+                    # we can do stuff in parallel
+                    peer.performJob(nextJob.descriptor())
+                except Exception as e:
+                    log.error("Failed to perform job for jobid={jobid}, {exc}", jobid=nextJob.jobID, exc=e)
+
+        if loopCounter:
+            log.debug("workCheck: processed {} jobs in one loop".format(loopCounter))
 
     _currentWorkDeferred = None
-    _lostWorkCheckCall = None
+    _workCheckCall = None
 
-    def _lostWorkCheckLoop(self):
+    def _workCheckLoop(self):
         """
         While the service is running, keep checking for any overdue / lost work
         items and re-submit them to the cluster for processing.  Space out
         those checks in time based on the size of the cluster.
         """
-        self._lostWorkCheckCall = None
+        self._workCheckCall = None
+
+        if not self.running:
+            return
 
         @passthru(
-            self._periodicLostWorkCheck().addErrback(log.err).addCallback
+            self._workCheck().addErrback(log.error).addCallback
         )
         def scheduleNext(result):
+            # TODO: if multiple nodes are present, see if we can
+            # stagger the polling to avoid contention.
             self._currentWorkDeferred = None
             if not self.running:
                 return
-            index = self.nodeIndex()
-            now = self.reactor.seconds()
-
-            interval = self.queueDelayedProcessInterval
-            count = self.totalNumberOfNodes()
-            when = (now - (now % interval)) + (interval * (count + index))
-            delay = when - now
-            self._lostWorkCheckCall = self.reactor.callLater(
-                delay, self._lostWorkCheckLoop
+            self._workCheckCall = self.reactor.callLater(
+                self.queuePollInterval, self._workCheckLoop
             )
 
         self._currentWorkDeferred = scheduleNext
@@ -1432,32 +1686,37 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         Register ourselves with the database and establish all outgoing
         connections to other servers in the cluster.
+
+        @param waitForService: an optional L{Deferred} that will be called back when
+            the service startup is done.
+        @type waitForService: L{Deferred} or L{None}
         """
         @inlineCallbacks
         def startup(txn):
-            endpoint = TCP4ServerEndpoint(self.reactor, self.ampPort)
-            # If this fails, the failure mode is going to be ugly, just like
-            # all conflicted-port failures.  But, at least it won't proceed.
-            self._listeningPort = yield endpoint.listen(self.peerFactory())
-            self.ampPort = self._listeningPort.getHost().port
-            yield Lock.exclusive(NodeInfo.table).on(txn)
-            nodes = yield self.activeNodes(txn)
-            selves = [node for node in nodes
-                      if ((node.hostname == self.hostname) and
-                          (node.port == self.ampPort))]
-            if selves:
-                self.thisProcess = selves[0]
-                nodes.remove(self.thisProcess)
-                yield self.thisProcess.update(pid=self.pid,
-                                              time=datetime.now())
-            else:
-                self.thisProcess = yield NodeInfo.create(
-                    txn, hostname=self.hostname, port=self.ampPort,
-                    pid=self.pid, time=datetime.now()
-                )
+            if self.ampPort is not None:
+                endpoint = TCP4ServerEndpoint(self.reactor, self.ampPort)
+                # If this fails, the failure mode is going to be ugly, just like
+                # all conflicted-port failures.  But, at least it won't proceed.
+                self._listeningPort = yield endpoint.listen(self.peerFactory())
+                self.ampPort = self._listeningPort.getHost().port
+                yield Lock.exclusive(NodeInfo.table).on(txn)
+                nodes = yield self.activeNodes(txn)
+                selves = [node for node in nodes
+                          if ((node.hostname == self.hostname) and
+                              (node.port == self.ampPort))]
+                if selves:
+                    self.thisProcess = selves[0]
+                    nodes.remove(self.thisProcess)
+                    yield self.thisProcess.update(pid=self.pid,
+                                                  time=datetime.now())
+                else:
+                    self.thisProcess = yield NodeInfo.create(
+                        txn, hostname=self.hostname, port=self.ampPort,
+                        pid=self.pid, time=datetime.now()
+                    )
 
-            for node in nodes:
-                self._startConnectingTo(node)
+                for node in nodes:
+                    self._startConnectingTo(node)
 
         self._startingUp = inTransaction(self.transactionFactory, startup, label="PeerConnectionPool.startService")
 
@@ -1465,7 +1724,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         def done(result):
             self._startingUp = None
             super(PeerConnectionPool, self).startService()
-            self._lostWorkCheckLoop()
+            self._workCheckLoop()
             return result
 
 
@@ -1474,19 +1733,29 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         Stop this service, terminating any incoming or outgoing connections.
         """
-        yield super(PeerConnectionPool, self).stopService()
 
+        # If in the process of starting up, always wait for startup to complete before
+        # stopping,.
         if self._startingUp is not None:
-            yield self._startingUp
+            d = Deferred()
+            self._startingUp.addBoth(lambda result: d.callback(None))
+            yield d
+
+        yield super(PeerConnectionPool, self).stopService()
 
         if self._listeningPort is not None:
             yield self._listeningPort.stopListening()
 
-        if self._lostWorkCheckCall is not None:
-            self._lostWorkCheckCall.cancel()
+        if self._workCheckCall is not None:
+            self._workCheckCall.cancel()
 
         if self._currentWorkDeferred is not None:
-            yield self._currentWorkDeferred
+            self._currentWorkDeferred.cancel()
+
+        for connector in self._connectingToPeer:
+            d = Deferred()
+            connector.addBoth(lambda result: d.callback(None))
+            yield d
 
         for peer in self.peers:
             peer.transport.abortConnection()
@@ -1510,6 +1779,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             # self.mappedPeers.pop((host, port)).transport.loseConnection()
         self.mappedPeers[(host, port)] = peer
 
+    _connectingToPeer = []
 
     def _startConnectingTo(self, node):
         """
@@ -1519,8 +1789,10 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         @type node: L{NodeInfo}
         """
         connected = node.endpoint(self.reactor).connect(self.peerFactory())
+        self._connectingToPeer.append(connected)
 
         def whenConnected(proto):
+            self._connectingToPeer.remove(connected)
             self.mapPeer(node.hostname, node.port, proto)
             proto.callRemote(
                 IdentifyNode,
@@ -1529,9 +1801,11 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             ).addErrback(noted, "identify")
 
         def noted(err, x="connect"):
-            log.msg(
-                "Could not {0} to cluster peer {1} because {2}"
-                .format(x, node, str(err.value))
+            if x == "connect":
+                self._connectingToPeer.remove(connected)
+            log.error(
+                "Could not {action} to cluster peer {node} because {reason}",
+                action=x, node=node, reason=str(err.value),
             )
 
         connected.addCallbacks(whenConnected, noted)
@@ -1594,7 +1868,7 @@ class NonPerformer(object):
     """
     implements(_IJobPerformer)
 
-    def performJob(self, jobID):
+    def performJob(self, job):
         """
         Don't perform job.
         """
