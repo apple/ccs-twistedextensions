@@ -129,86 +129,95 @@ class DirectoryService(BaseDirectoryService):
         return u"OpenDirectory Node {self.nodeName!r}".format(self=self)
 
 
-    @property
-    def session(self):
-        """
-        Get the underlying directory session.
-        """
-        self._connect()
-        return self._session
-
 
     @property
     def node(self):
         """
         Get the underlying (network) directory node.
         """
-        self._connect()
+        if not hasattr(self, "_node"):
+            self._node = self._connect(self._nodeName)
         return self._node
 
 
-    # @property
-    # def localNode(self):
-    #     """
-    #     Get the local node from the search path (if any), so that we can
-    #     handle it specially.
-    #     """
-    #     if not hasattr(self, "_localNode"):
-    #         if self.nodeName == ODSearchPath.search.value:
-    #             result = getNodeAttributes(
-    #                 self.node, ODSearchPath.search.value,
-    #                 (ODAttribute.searchPath.value,)
-    #             )
-    #             if (
-    #                 ODSearchPath.local.value in
-    #                 result[ODAttribute.searchPath.value]
-    #             ):
-    #                 try:
-    #                     self._localNode = odInit(ODSearchPath.local.value)
-    #                 except ODError, e:
-    #                     self.log.error(
-    #                         "Failed to open local node: {error}}",
-    #                         error=e,
-    #                     )
-    #                     raise OpenDirectoryError("", e)
-    #             else:
-    #                 self._localNode = None
-
-    #         elif self.nodeName == ODSearchPath.local.value:
-    #             self._localNode = self.node
-
-    #         else:
-    #             self._localNode = None
-
-    #     return self._localNode
-
-
-    def _connect(self):
+    @property
+    def localNode(self):
         """
-        Connect to the directory server.
+        Get the local node from the search path (if any), so that we can
+        handle it specially.
+        """
+        if not hasattr(self, "_localNode"):
 
-        @raises: L{OpenDirectoryConnectionError} if unable to connect.
+            if self.nodeName == ODSearchPath.search.value:
+                details, error = self.node.nodeDetailsForKeys_error_(
+                    (ODAttribute.searchPath.value,), None
+                )
+                if error:
+                    self.log.error(
+                        "Error while examining Search path",
+                        error=error
+                    )
+                    raise OpenDirectoryConnectionError(
+                        "Unable to connect to OpenDirectory node",
+                        error
+                    )
+
+                if (
+                    ODSearchPath.local.value in
+                    details[ODAttribute.searchPath.value]
+                ):
+                    self._localNode = self._connect(ODSearchPath.local.value)
+                else:
+                    self._localNode = None
+
+            elif self.nodeName == ODSearchPath.local.value:
+                self._localNode = self.node
+
+            else:
+                self._localNode = None
+
+        return self._localNode
+
+
+    @property
+    def session(self):
+        """
+        Get the underlying directory session.
         """
         if not hasattr(self, "_session"):
             session = ODSession.defaultSession()
+            self._session = session
+        return self._session
 
-            node, error = ODNode.nodeWithSession_name_error_(
-                session, self.nodeName, None
+
+    def _connect(self, nodeName):
+        """
+        Connect to the directory server.
+
+        @param nodeName: The OD node name to connect to
+        @type nodeName: C{str}
+
+        @return: the OD node
+
+        @raises: L{OpenDirectoryConnectionError} if unable to connect.
+        """
+
+        node, error = ODNode.nodeWithSession_name_error_(
+            self.session, nodeName, None
+        )
+
+        if error:
+            self.log.error(
+                "Error while trying to connect to OpenDirectory node "
+                "{source.nodeName!r}: {error}",
+                error=error
+            )
+            raise OpenDirectoryConnectionError(
+                "Unable to connect to OpenDirectory node",
+                error
             )
 
-            if error:
-                self.log.error(
-                    "Error while trying to connect to OpenDirectory node "
-                    "{source.nodeName!r}: {error}",
-                    error=error
-                )
-                raise OpenDirectoryConnectionError(
-                    "Unable to connect to OpenDirectory node",
-                    error
-                )
-
-            self._session = session
-            self._node = node
+        return node
 
 
     def _queryStringAndRecordTypeFromMatchExpression(self, expression):
@@ -287,7 +296,7 @@ class DirectoryService(BaseDirectoryService):
             )
             if subExpRecordTypes:
                 if isinstance(subExpRecordTypes, unicode):
-                    if bool(expression.operand is Operand.AND) != bool(queryToken): # AND or NOR
+                    if bool(expression.operand is Operand.AND) != bool(queryToken):  # AND or NOR
                         if expression.operand is Operand.AND:
                             recordTypes = recordTypes & set([subExpRecordTypes])
                         else:
@@ -348,12 +357,15 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def _queryFromCompoundExpression(self, expression):
+    def _queryFromCompoundExpression(self, expression, local=False):
         """
         Form an OpenDirectory query from a compound expression.
 
         @param expression: A compound expression.
         @type expression: L{CompoundExpression}
+
+        @param local: Whether to restrict the query to the local node
+        @type local: C{Boolean}
 
         @return: A native OpenDirectory query or None if query will return no records
         @rtype: L{ODQuery}
@@ -369,7 +381,7 @@ class DirectoryService(BaseDirectoryService):
         maxResults = 0
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            self.node,
+            self.node if not local else self.localNode,
             recordTypes,
             None,
             ODMatchType.compound.value if queryString else ODMatchType.any.value,
@@ -391,7 +403,7 @@ class DirectoryService(BaseDirectoryService):
         return query
 
 
-    def _queryFromMatchExpression(self, expression, recordType=None):
+    def _queryFromMatchExpression(self, expression, recordType=None, local=False):
         """
         Form an OpenDirectory query from a match expression.
 
@@ -400,6 +412,9 @@ class DirectoryService(BaseDirectoryService):
 
         @param recordType: A record type to insert into the query.
         @type recordType: L{NamedConstant}
+
+        @param local: Whether to restrict the query to the local node
+        @type local: C{Boolean}
 
         @return: A native OpenDirectory query.
         @rtype: L{ODQuery}
@@ -468,7 +483,7 @@ class DirectoryService(BaseDirectoryService):
                 queryValue = unicode(expression.fieldValue)
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            self.node,
+            self.node if not local else self.localNode,
             recordTypes,
             queryAttribute,
             matchType | caseInsensitive,
@@ -550,15 +565,97 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
+    @inlineCallbacks
     def recordsFromCompoundExpression(self, expression, records=None):
+        """
+        Returns records matching the CompoundExpression.  Because the
+        local node doesn't perform Compound queries in a case insensitive
+        fashion (but will do case insensitive for a simple MatchExpression)
+        also call localRecordsFromCompoundExpression() which breaks the
+        CompoundExpression up into MatchExpressions for sending to the local
+        node.
+        """
+
         try:
             query = self._queryFromCompoundExpression(expression)
-            return self._recordsFromQuery(query)
 
         except QueryNotSupportedError:
-            return BaseDirectoryService.recordsFromCompoundExpression(
-                self, expression
+            returnValue(
+                BaseDirectoryService.recordsFromCompoundExpression(
+                    self, expression
+                )
             )
+
+        results = yield self._recordsFromQuery(query)
+
+        if self.localNode is not None:
+
+            localRecords = yield self.localRecordsFromCompoundExpression(
+                expression
+            )
+            for localRecord in localRecords:
+                if localRecord not in results:
+                    results.append(localRecord)
+
+        returnValue(results)
+
+
+
+    @inlineCallbacks
+    def localRecordsFromCompoundExpression(self, expression):
+        """
+        Takes a CompoundExpression, and recursively goes through each
+        MatchExpression, passing those specifically to the local node, and
+        ADDing or ORing the results as needed.
+        """
+
+        # We keep a set of resulting uids for each sub expression so it's
+        # easy to either union (OR) or intersection (AND) the sets
+        sets = []
+
+        # Mapping of uid to record
+        byUID = {}
+
+        for subExpression in expression.expressions:
+
+            if isinstance(subExpression, CompoundExpression):
+                subRecords = yield self.localRecordsFromCompoundExpression(
+                    subExpression
+                )
+
+            elif isinstance(subExpression, MatchExpression):
+                subQuery = yield self._queryFromMatchExpression(
+                    subExpression, local=True
+                )
+                subRecords = yield self._recordsFromQuery(subQuery)
+
+            else:
+                raise QueryNotSupportedError(
+                    "Unsupported expression type: {}".format(
+                        type(subExpression)
+                    )
+                )
+
+            newSet = set()
+            for record in subRecords:
+                byUID[record.uid] = record
+                newSet.add(record.uid)
+            sets.append(newSet)
+
+        results = []
+        if byUID:  # If there are any records
+            if expression.operand == Operand.AND:
+                uids = set.intersection(*sets)
+            elif expression.operand == Operand.OR:
+                uids = set.union(*sets)
+            else:
+                raise QueryNotSupportedError(
+                    "Unsupported operand: {}".format(expression.operand)
+                )
+            for uid in uids:
+                results.append(byUID[uid])
+
+        returnValue(results)
 
 
     def _getUserRecord(self, username):
