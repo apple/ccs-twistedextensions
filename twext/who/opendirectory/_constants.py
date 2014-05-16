@@ -172,6 +172,11 @@ class ODAttribute(Values):
     nestedGroups = ValueConstant(u"dsAttrTypeStandard:NestedGroups")
     nestedGroups.fieldName = FieldName.nestedGroupsUIDs
 
+    # For determining whether it's a system record
+    uniqueId = ValueConstant(u"dsAttrTypeStandard:UniqueID")
+    primaryGroupId = ValueConstant(u"dsAttrTypeStandard:PrimaryGroupID")
+    isHidden = ValueConstant(u"dsAttrTypeNative:IsHidden")
+
     # # Single value fields
     # AdminLimits = ValueConstant(u"dsAttrTypeStandard:AdminLimits")
     # AppleAliasData = ValueConstant(u"dsAttrTypeStandard:AppleAliasData")
@@ -230,7 +235,6 @@ class ODAttribute(Values):
     # PresetUserIsAdmin = ValueConstant(u"dsAttrTypeStandard:PresetUserIsAdmin")
     # PrimaryComputerGUID = ValueConstant(u"dsAttrTypeStandard:PrimaryComputerGUID")
     # PrimaryComputerList = ValueConstant(u"dsAttrTypeStandard:PrimaryComputerList")
-    # PrimaryGroupID = ValueConstant(u"dsAttrTypeStandard:PrimaryGroupID")
     # Printer1284DeviceID = ValueConstant(u"dsAttrTypeStandard:Printer1284DeviceID")
     # PrinterLPRHost = ValueConstant(u"dsAttrTypeStandard:PrinterLPRHost")
     # PrinterLPRQueue = ValueConstant(u"dsAttrTypeStandard:PrinterLPRQueue")
@@ -263,7 +267,6 @@ class ODAttribute(Values):
     # SetupAssistantLocation = ValueConstant(u"dsAttrTypeStandard:SetupAssistantLocation")
     # Occupation = ValueConstant(u"dsAttrTypeStandard:Occupation")
     # TimeToLive = ValueConstant(u"dsAttrTypeStandard:TimeToLive")
-    # UniqueID = ValueConstant(u"dsAttrTypeStandard:UniqueID")
     # UserCertificate = ValueConstant(u"dsAttrTypeStandard:UserCertificate")
     # UserPKCS12Data = ValueConstant(u"dsAttrTypeStandard:UserPKCS12Data")
     # UserShell = ValueConstant(u"dsAttrTypeStandard:UserShell")

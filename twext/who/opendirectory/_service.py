@@ -111,12 +111,21 @@ class DirectoryService(BaseDirectoryService):
     fieldName = ConstantsContainer((BaseDirectoryService.fieldName, FieldName))
 
 
-    def __init__(self, nodeName=ODSearchPath.search.value):
+    def __init__(
+        self,
+        nodeName=ODSearchPath.search.value,
+        suppressSystemRecords=False
+    ):
         """
         @param nodeName: the OpenDirectory node to query against.
         @type nodeName: bytes
+
+        @parm suppressSystemRecords: If True, any results returned from this
+            service will not contain Mac OS X "system" records.
+        @type suppressSystemRecords: C{Boolean}
         """
         self._nodeName = nodeName
+        self._suppressSystemRecords = suppressSystemRecords
 
 
     @property
@@ -505,6 +514,69 @@ class DirectoryService(BaseDirectoryService):
         return query
 
 
+    def _isSystemRecord(self, odRecord):
+        """
+        Examines the OD record to see if it's a Mac OS X system account record.
+
+        @param odRecord: an OD record object
+
+        @return: True if system account record, False otherwise
+        @rtype: C{Boolean}
+        """
+        details, error = odRecord.recordDetailsForAttributes_error_(None, None)
+
+        if error:
+            self.log.error(
+                "Error while reading OpenDirectory record: {error}",
+                error=error
+            )
+            raise OpenDirectoryDataError(
+                "Unable to read OpenDirectory record", error
+            )
+
+        # GeneratedUID matches a special pattern
+        guid = details.get(ODAttribute.guid.value, (u"",))[0]
+        if guid.lower().startswith("ffffeeee-dddd-cccc-bbbb-aaaa"):
+            return True
+
+        # ISHidden is True
+        isHidden = details.get(ODAttribute.isHidden.value, False)
+        if isHidden:
+            return True
+
+        # Record-type specific indicators...
+        recType = details.get(ODAttribute.recordType.value, (u"",))[0]
+
+        # ...users with UniqueID <= 500
+        if recType == ODRecordType.user.value:
+            uniqueId = int(
+                details.get(ODAttribute.uniqueId.value, (u"0",))[0]
+            )
+            if uniqueId <= 500:
+                return True
+
+        # ...groups with PrimaryGroupID <= 500
+        elif recType == ODRecordType.group.value:
+            primaryGroupId = int(
+                details.get(ODAttribute.primaryGroupId.value, (u"0",))[0]
+            )
+            if primaryGroupId <= 500:
+                return True
+
+        # RecordName matches specific prefixes; if *all* RecordName values for
+        # a record start with either of these prefixes, it's a system record.
+        shortNames = details.get(ODAttribute.shortName.value, (u"",))
+        for shortName in shortNames:
+            if not (
+                shortName.startswith("_") or shortName.startswith("com.apple.")
+            ):
+                break
+        else:
+            return True
+
+        return False
+
+
     def _recordsFromQuery(self, query):
         """
         Executes a query and generates directory records from it.
@@ -536,6 +608,11 @@ class DirectoryService(BaseDirectoryService):
 
         result = []
         for odRecord in odRecords:
+
+            # Conditionally suppress system records
+            if self._suppressSystemRecords and self._isSystemRecord(odRecord):
+                continue
+
             try:
                 record = DirectoryRecord(self, odRecord)
             except InvalidDirectoryRecordError as e:
@@ -759,8 +836,14 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         fields = {}
         for name, values in details.iteritems():
-            if name == ODAttribute.metaRecordName.value:
+            if name in (
                 # We get this field even though we did not ask for it...
+                ODAttribute.metaRecordName.value,
+                # We fetch these records to look for system accounts...
+                ODAttribute.uniqueId.value,
+                ODAttribute.primaryGroupId.value,
+                ODAttribute.isHidden.value,
+            ):
                 continue
 
             try:
