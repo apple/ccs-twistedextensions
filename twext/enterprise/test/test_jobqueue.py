@@ -313,7 +313,7 @@ class WorkItemTests(TestCase):
         table.
         """
         self.assertIdentical(
-            WorkItem.forTableName(schema.DUMMY_WORK_ITEM.model.name), DummyWorkItem
+            JobItem.workItemForType(schema.DUMMY_WORK_ITEM.model.name), DummyWorkItem
         )
 
 
