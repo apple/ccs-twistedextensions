@@ -920,20 +920,26 @@ class DirectoryRecord(BaseDirectoryRecord):
         )
 
         if qop:
-            responseArg = (
-                'username="%s",realm="%s",algorithm=%s,'
-                'nonce="%s",cnonce="%s",nc=%s,qop=%s,'
-                'digest-uri="%s",response=%s'
-                % (
-                    username, realm, algorithm, nonce, cnonce, nc, qop,
-                    uri, response
-                )
+            responseTemplate = (
+                'username="{username}",realm="{realm}",algorithm={algorithm},'
+                'nonce="{nonce}",cnonce="{cnonce}",nc={nc},qop={qop},'
+                'digest-uri="{uri}",response={response}'
             )
         else:
-            responseArg = (
-                'Digest username="%s", uri="%s", response=%s'
-                % (username, uri, response)
+            responseTemplate = (
+                'Digest username="{username}", '
+                'realm="{realm}", '
+                'nonce="{nonce}", '
+                'uri="{uri}", '
+                'response="{response}",'
+                'algorithm={algorithm}'
             )
+
+        responseArg = responseTemplate.format(
+            username=username, realm=realm, algorithm=algorithm,
+            nonce=nonce, cnonce=cnonce, nc=nc, qop=qop, uri=uri,
+            response=response
+        )
 
         # print("username = {0!r}".format(username))
         # print("realm = {0!r}".format(realm))
