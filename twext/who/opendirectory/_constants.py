@@ -145,9 +145,6 @@ class ODAttribute(Values):
     recordType = ValueConstant(u"dsAttrTypeStandard:RecordType")
     recordType.fieldName = BaseFieldName.recordType
 
-    # uid = ValueConstant(u"dsAttrTypeStandard:GeneratedUID")
-    # uid.fieldName = BaseFieldName.uid
-
     guid = ValueConstant(u"dsAttrTypeStandard:GeneratedUID")
     guid.fieldName = BaseFieldName.guid
 
