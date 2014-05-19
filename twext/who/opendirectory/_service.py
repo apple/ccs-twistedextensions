@@ -875,10 +875,11 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         fields = {}
         for name, values in details.iteritems():
+            # Ignore attributes that we don't map to fields
             if name in (
-                # We get this field even though we did not ask for it...
+                # We get this attribute even though we did not ask for it
                 ODAttribute.metaRecordName.value,
-                # We fetch these records to look for system accounts...
+                # We fetch these attributes only to look for system accounts
                 ODAttribute.uniqueId.value,
                 ODAttribute.primaryGroupId.value,
                 ODAttribute.isHidden.value,
