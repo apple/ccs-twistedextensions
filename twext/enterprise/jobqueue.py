@@ -1359,9 +1359,8 @@ class ConnectionFromController(AMP):
         self.reactor = reactor
 
 
-    @property
-    def transactionFactory(self):
-        txn = self._txnFactory()
+    def transactionFactory(self, *args, **kwargs):
+        txn = self._txnFactory(*args, **kwargs)
         txn._queuer = self
         return txn
 
