@@ -1361,7 +1361,7 @@ class ConnectionFromController(AMP):
 
     @property
     def transactionFactory(self):
-        txn = self._txnFactory
+        txn = self._txnFactory()
         txn._queuer = self
         return txn
 
