@@ -513,33 +513,18 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         # date.
         workItem = yield self.workItem()
         if workItem is not None:
-            if workItem.group is not None:
-                try:
-                    yield NamedLock.acquire(self.transaction, workItem.group)
-                except Exception as e:
-                    log.error("JobItem: {jobid}, WorkItem: {workid} lock failed: {exc}".format(
-                        jobid=self.jobID,
-                        workid=workItem.workID,
-                        exc=e,
-                    ))
-                    raise JobFailedError(e)
-
             try:
-                # Once the work is done we delete ourselves
-                yield workItem.delete()
-            except NoSuchRecord:
-                # The record has already been removed
-                pass
-            else:
-                try:
+                okToGo = yield workItem.beforeWork()
+                if okToGo:
                     yield workItem.doWork()
-                except Exception as e:
-                    log.error("JobItem: {jobid}, WorkItem: {workid} failed: {exc}".format(
-                        jobid=self.jobID,
-                        workid=workItem.workID,
-                        exc=e,
-                    ))
-                    raise JobFailedError(e)
+                    yield workItem.afterWork()
+            except Exception as e:
+                log.error("JobItem: {jobid}, WorkItem: {workid} failed: {exc}".format(
+                    jobid=self.jobID,
+                    workid=workItem.workID,
+                    exc=e,
+                ))
+                raise JobFailedError(e)
 
         try:
             # Once the work is done we delete ourselves
@@ -826,6 +811,40 @@ class WorkItem(Record):
         returnValue(workItems)
 
 
+    @inlineCallbacks
+    def beforeWork(self):
+        """
+        A hook that gets called before the L{WorkItem} does its real work. This can be used
+        for common behaviors need by work items. The base implementation handles the group
+        locking behavior.
+
+        @return: an L{Deferred} that fires with L{True} if processing of the L{WorkItem}
+            should continue, L{False} if it should be skipped without error.
+        @rtype: L{Deferred}
+        """
+        if self.group is not None:
+            try:
+                yield NamedLock.acquire(self.transaction, self.group)
+            except Exception as e:
+                log.error("JobItem: {jobid}, WorkItem: {workid} lock failed: {exc}".format(
+                    jobid=self.jobID,
+                    workid=self.workID,
+                    exc=e,
+                ))
+                raise JobFailedError(e)
+
+        try:
+            # Work item is deleted before doing work - but someone else may have
+            # done it whilst we waited on the lock so handle that by simply
+            # ignoring the work
+            yield self.delete()
+        except NoSuchRecord:
+            # The record has already been removed
+            returnValue(False)
+        else:
+            returnValue(True)
+
+
     def doWork(self):
         """
         Subclasses must implement this to actually perform the queued work.
@@ -836,6 +855,122 @@ class WorkItem(Record):
         will be taken care of by the job queuing machinery.
         """
         raise NotImplementedError
+
+
+    def afterWork(self):
+        """
+        A hook that gets called after the L{WorkItem} does its real work. This can be used
+        for common clean-up behaviors. The base implementation does nothing.
+        """
+        return succeed(None)
+
+
+    @classmethod
+    @inlineCallbacks
+    def reschedule(cls, transaction, seconds, **kwargs):
+        """
+        Reschedule this work.
+
+        @param seconds: optional seconds delay - if not present use the class value.
+        @type seconds: L{int} or L{None}
+        """
+        if seconds is not None and seconds >= 0:
+            notBefore = (
+                datetime.utcnow() +
+                timedelta(seconds=seconds)
+            )
+            log.info(
+                "Scheduling next {cls}: {when}",
+                cls=cls.__name__,
+                when=notBefore,
+            )
+            wp = yield transaction._queuer.enqueueWork(
+                transaction,
+                cls,
+                notBefore=notBefore,
+                **kwargs
+            )
+            returnValue(wp)
+        else:
+            returnValue(None)
+
+
+
+class SingletonWorkItem(WorkItem):
+    """
+    An L{WorkItem} that can only appear once no matter how many times an attempt is
+    made to create one. The L{allowOverride} class property determines whether the attempt
+    to create a new job is simply ignored, or whether the new job overrides any existing
+    one.
+    """
+
+    @classmethod
+    @inlineCallbacks
+    def makeJob(cls, transaction, **kwargs):
+        """
+        A new work item needs to be created. First we create a Job record, then
+        we create the actual work item related to the job.
+
+        @param transaction: the transaction to use
+        @type transaction: L{IAsyncTransaction}
+        """
+
+        all = yield cls.all(transaction)
+        if len(all):
+            # Silently ignore the creation of this work
+            returnValue(None)
+
+        result = yield super(SingletonWorkItem, cls).makeJob(transaction, **kwargs)
+        returnValue(result)
+
+
+    @inlineCallbacks
+    def beforeWork(self):
+        """
+        No need to lock - for safety just delete any others.
+        """
+
+        # Delete all other work items
+        yield self.deleteall(self.transaction)
+        returnValue(True)
+
+
+    @classmethod
+    @inlineCallbacks
+    def reschedule(cls, transaction, seconds, force=False, **kwargs):
+        """
+        Reschedule a singleton. If L{force} is set then delete any existing item before
+        creating the new one. This allows the caller to explicitly override an existing
+        singleton.
+        """
+        if force:
+            yield cls.deleteall(transaction)
+            all = yield cls.all(transaction)
+        result = yield super(SingletonWorkItem, cls).reschedule(transaction, seconds, **kwargs)
+        returnValue(result)
+
+
+
+class RegeneratingWorkItem(SingletonWorkItem):
+    """
+    An L{SingletonWorkItem} that regenerates itself when work is done.
+    """
+
+    def regenerateInterval(self):
+        """
+        Return the interval in seconds between regenerating instances.
+        """
+        return None
+
+
+    @inlineCallbacks
+    def afterWork(self):
+        """
+        A hook that gets called after the L{WorkItem} does its real work. This can be used
+        for common clean-up behaviors. The base implementation does nothing.
+        """
+        yield super(RegeneratingWorkItem, self).afterWork()
+        yield self.reschedule(self.transaction, self.regenerateInterval())
 
 
 
@@ -1217,11 +1352,18 @@ class ConnectionFromController(AMP):
     def __init__(self, transactionFactory, whenConnected,
                  boxReceiver=None, locator=None):
         super(ConnectionFromController, self).__init__(boxReceiver, locator)
-        self.transactionFactory = transactionFactory
+        self._txnFactory = transactionFactory
         self.whenConnected = whenConnected
         # FIXME: Glyph it appears WorkProposal expects this to have reactor...
         from twisted.internet import reactor
         self.reactor = reactor
+
+
+    @property
+    def transactionFactory(self):
+        txn = self._txnFactory
+        txn._queuer = self
+        return txn
 
 
     def startReceivingBoxes(self, sender):

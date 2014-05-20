@@ -319,6 +319,23 @@ class TestCRUD(TestCase):
 
 
     @inlineCallbacks
+    def test_deleteall(self):
+        """
+        L{Record.deleteall} will delete all instances of the record.
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+
+        yield TestRecord.deleteall(txn)
+        all = yield TestRecord.all(txn)
+        self.assertEqual(len(all), 0)
+
+
+    @inlineCallbacks
     def test_repr(self):
         """
         The C{repr} of a L{Record} presents all its values.

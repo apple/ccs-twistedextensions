@@ -417,6 +417,17 @@ class Record(object):
 
 
     @classmethod
+    def deleteall(cls, transaction):
+        """
+        Delete all rows from the table that corresponds to C{cls}.
+        """
+        return Delete(
+            From=cls.table,
+            Where=None,
+        ).on(transaction)
+
+
+    @classmethod
     @inlineCallbacks
     def _rowsFromQuery(cls, transaction, qry, rozrc):
         """

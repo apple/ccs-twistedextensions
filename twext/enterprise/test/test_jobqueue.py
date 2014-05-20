@@ -42,7 +42,7 @@ from twext.enterprise.jobqueue import (
     ConnectionFromPeerNode, LocalQueuer,
     _BaseQueuer, NonPerformingQueuer, JobItem,
     WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM,
-    JobDescriptor
+    JobDescriptor, SingletonWorkItem
 )
 import twext.enterprise.jobqueue
 
@@ -229,15 +229,15 @@ try:
         for table in ("DUMMY_WORK_ITEM",)
     ] + ["delete from job"]
 except SkipTest as e:
-    DummyWorkItem = object
+    DummyWorkItemTable = object
     skip = e
 else:
-    DummyWorkItem = fromTable(schema.DUMMY_WORK_ITEM)
+    DummyWorkItemTable = fromTable(schema.DUMMY_WORK_ITEM)
     skip = False
 
 
 
-class DummyWorkItem(WorkItem, DummyWorkItem):
+class DummyWorkItem(WorkItem, DummyWorkItemTable):
     """
     Sample L{WorkItem} subclass that adds two integers together and stores them
     in another table.
@@ -261,12 +261,28 @@ class DummyWorkItem(WorkItem, DummyWorkItem):
         a concurrent transaction, then commit it.
         """
         workItems = yield super(DummyWorkItem, cls).loadForJob(txn, *a)
-        if workItems[0].deleteOnLoad:
+        if len(workItems) and workItems[0].deleteOnLoad:
             otherTransaction = txn.store().newTransaction()
             otherSelf = yield super(DummyWorkItem, cls).loadForJob(txn, *a)
             yield otherSelf[0].delete()
             yield otherTransaction.commit()
         returnValue(workItems)
+
+
+
+class DummyWorkSingletonItem(SingletonWorkItem, DummyWorkItemTable):
+    """
+    Sample L{SingletonWorkItem} subclass that adds two integers together and stores them
+    in another table.
+    """
+
+    results = {}
+
+    def doWork(self):
+        if self.a == -1:
+            raise ValueError("Ooops")
+        self.results[self.jobID] = self.a + self.b
+        return succeed(None)
 
 
 
@@ -318,7 +334,7 @@ class WorkItemTests(TestCase):
 
 
     @inlineCallbacks
-    def _enqueue(self, dbpool, a, b, notBefore=None, priority=None, weight=None):
+    def _enqueue(self, dbpool, a, b, notBefore=None, priority=None, weight=None, cl=DummyWorkItem):
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
         if notBefore is None:
             notBefore = datetime.datetime(2012, 12, 13, 12, 12, 0)
@@ -339,13 +355,15 @@ class WorkItemTests(TestCase):
         @transactionally(dbpool.connection)
         def check(txn):
             return qpool.enqueueWork(
-                txn, DummyWorkItem,
+                txn, cl,
                 a=a, b=b, priority=priority, weight=weight,
                 notBefore=notBefore
             )
 
         proposal = yield check
         yield proposal.whenProposed()
+
+        returnValue(qpool)
 
 
     @inlineCallbacks
@@ -464,6 +482,83 @@ class WorkItemTests(TestCase):
         job, work = yield inTransaction(dbpool.connection, _next, priority=WORK_PRIORITY_HIGH)
         self.assertTrue(job is not None)
         self.assertTrue(work.a == 2)
+
+
+    @inlineCallbacks
+    def test_notsingleton(self):
+        """
+        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        """
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+
+        yield self._enqueue(dbpool, 1, 2, cl=DummyWorkItem)
+
+        def allJobs(txn):
+            return DummyWorkItem.all(txn)
+
+        jobs = yield inTransaction(dbpool.connection, allJobs)
+        self.assertTrue(len(jobs) == 1)
+
+        yield self._enqueue(dbpool, 2, 3)
+
+        jobs = yield inTransaction(dbpool.connection, allJobs)
+        self.assertTrue(len(jobs) == 2)
+
+
+    @inlineCallbacks
+    def test_singleton(self):
+        """
+        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        """
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+
+        yield self._enqueue(dbpool, 1, 2, cl=DummyWorkSingletonItem)
+
+        def allJobs(txn):
+            return DummyWorkSingletonItem.all(txn)
+
+        jobs = yield inTransaction(dbpool.connection, allJobs)
+        self.assertTrue(len(jobs) == 1)
+
+        yield self._enqueue(dbpool, 2, 3, cl=DummyWorkSingletonItem)
+
+        jobs = yield inTransaction(dbpool.connection, allJobs)
+        self.assertTrue(len(jobs) == 1)
+
+
+    @inlineCallbacks
+    def test_singleton_reschedule(self):
+        """
+        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        """
+        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+
+        qpool = yield self._enqueue(dbpool, 1, 2, cl=DummyWorkSingletonItem, notBefore=datetime.datetime(2014, 5, 17, 12, 0, 0))
+
+        @inlineCallbacks
+        def allWork(txn):
+            jobs = yield JobItem.all(txn)
+            work = [((yield job.workItem()), job) for job in jobs]
+            returnValue(filter(lambda x: x[0], work))
+
+        work = yield inTransaction(dbpool.connection, allWork)
+        self.assertTrue(len(work) == 1)
+        self.assertTrue(work[0][1].notBefore == datetime.datetime(2014, 5, 17, 12, 0, 0))
+
+        def _reschedule_force(txn, force):
+            txn._queuer = qpool
+            return DummyWorkSingletonItem.reschedule(txn, 60, force=force)
+        yield inTransaction(dbpool.connection, _reschedule_force, force=False)
+
+        work = yield inTransaction(dbpool.connection, allWork)
+        self.assertTrue(len(work) == 1)
+        self.assertTrue(work[0][1].notBefore == datetime.datetime(2014, 5, 17, 12, 0, 0))
+
+        yield inTransaction(dbpool.connection, _reschedule_force, force=True)
+
+        work = yield inTransaction(dbpool.connection, allWork)
+        self.assertTrue(len(work) == 1)
+        self.assertTrue(work[0][1].notBefore != datetime.datetime(2014, 5, 17, 12, 0, 0))
 
 
 
@@ -627,7 +722,7 @@ class PeerConnectionPoolUnitTests(TestCase):
             return dummy
 
         peer.choosePerformer = chooseDummy
-        performed = local.performJob(JobDescriptor(7384, 1))
+        performed = local.performJob(JobDescriptor(7384, 1, "ABC"))
         performResult = []
         performed.addCallback(performResult.append)
 
@@ -802,12 +897,12 @@ class PeerConnectionPoolUnitTests(TestCase):
         worker2, _ignore_trans2 = peer()
 
         # Ask the worker to do something.
-        worker1.performJob(JobDescriptor(1, 1))
+        worker1.performJob(JobDescriptor(1, 1, "ABC"))
         self.assertEquals(worker1.currentLoad, 1)
         self.assertEquals(worker2.currentLoad, 0)
 
         # Now ask the pool to do something
-        peerPool.workerPool.performJob(JobDescriptor(2, 1))
+        peerPool.workerPool.performJob(JobDescriptor(2, 1, "ABC"))
         self.assertEquals(worker1.currentLoad, 1)
         self.assertEquals(worker2.currentLoad, 1)
 
