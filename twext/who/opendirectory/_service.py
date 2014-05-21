@@ -586,20 +586,20 @@ class DirectoryService(BaseDirectoryService):
         # Record-type specific indicators...
         recType = details.get(ODAttribute.recordType.value, (u"",))[0]
 
-        # ...users with UniqueID <= 500
+        # ...users with UniqueID <= 500 (and is not 99)
         if recType == ODRecordType.user.value:
             uniqueId = int(
                 details.get(ODAttribute.uniqueId.value, (u"0",))[0]
             )
-            if uniqueId <= 500:
+            if uniqueId <= 500 and uniqueId != 99:
                 return True
 
-        # ...groups with PrimaryGroupID <= 500
+        # ...groups with PrimaryGroupID <= 500 (and is not 99)
         elif recType == ODRecordType.group.value:
             primaryGroupId = int(
                 details.get(ODAttribute.primaryGroupId.value, (u"0",))[0]
             )
-            if primaryGroupId <= 500:
+            if primaryGroupId <= 500 and primaryGroupId != 99:
                 return True
 
         # RecordName matches specific prefixes; if *all* RecordName values for
