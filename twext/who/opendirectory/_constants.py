@@ -32,6 +32,21 @@ from ..expression import MatchType
 # idirectory constants
 #
 
+class RecordType(Names):
+
+    user = NamedConstant()
+    user.description = u"user"
+
+    group = NamedConstant()
+    group.description = u"group"
+
+    location = NamedConstant()
+    location.description = u"location"
+
+    resource = NamedConstant()
+    resource.description = u"resource"
+
+
 class FieldName(Names):
     searchPath = NamedConstant()
     searchPath.description = u"search path"
@@ -71,6 +86,12 @@ class ODRecordType(Values):
     group = ValueConstant(u"dsRecTypeStandard:Groups")
     group.recordType = BaseRecordType.group
 
+    location = ValueConstant(u"dsRecTypeStandard:Locations")
+    location.recordType = RecordType.location
+
+    resource = ValueConstant(u"dsRecTypeStandard:Resources")
+    resource.recordType = RecordType.resource
+
     # accessControl = ValueConstant(u"dsRecTypeStandard:AccessControls")
     # afpServer = ValueConstant(u"dsRecTypeStandard:AFPServer")
     # userAlias = ValueConstant(u"dsRecTypeStandard:AFPUserAliases")
@@ -92,7 +113,6 @@ class ODRecordType(Values):
     # hostServices = ValueConstant(u"dsRecTypeStandard:HostServices")
     # host = ValueConstant(u"dsRecTypeStandard:Hosts")
     # ldapServer = ValueConstant(u"dsRecTypeStandard:LDAPServer")
-    # location = ValueConstant(u"dsRecTypeStandard:Locations")
     # machine = ValueConstant(u"dsRecTypeStandard:Machines")
     # map = ValueConstant(u"dsRecTypeStandard:Maps")
     # meta = ValueConstant(u"dsRecTypeStandard:AppleMetaRecord")
@@ -115,7 +135,6 @@ class ODRecordType(Values):
     # printer = ValueConstant(u"dsRecTypeStandard:Printers")
     # protocol = ValueConstant(u"dsRecTypeStandard:Protocols")
     # qtsServer = ValueConstant(u"dsRecTypeStandard:QTSServer")
-    # resource = ValueConstant(u"dsRecTypeStandard:Resources")
     # rpc = ValueConstant(u"dsRecTypeStandard:RPC")
     # smbServer = ValueConstant(u"dsRecTypeStandard:SMBServer")
     # server = ValueConstant(u"dsRecTypeStandard:Server")

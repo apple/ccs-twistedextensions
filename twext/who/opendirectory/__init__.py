@@ -25,6 +25,7 @@ __all__ = [
     "OpenDirectoryDataError",
     "DirectoryService",
     "NoQOPDigestCredentialFactory",
+    "RecordType",
 ]
 
 
@@ -34,3 +35,4 @@ from ._service import (
     DirectoryService,
     NoQOPDigestCredentialFactory,
 )
+from ._constants import RecordType

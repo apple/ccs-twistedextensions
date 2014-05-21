@@ -495,6 +495,8 @@ class DirectoryService(BaseDirectoryService):
 
                         for value in values:
                             subNode = XMLElement(tag)
+                            if isinstance(value, UUID):
+                                value = str(value)
                             subNode.text = value
                             recordNode.append(subNode)
 

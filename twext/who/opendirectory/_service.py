@@ -400,9 +400,9 @@ class DirectoryService(BaseDirectoryService):
         """
 
         if local:
-            node = self.node
-        else:
             node = self.localNode
+        else:
+            node = self.node
 
         queryString, recordTypes = (
             self._queryStringAndRecordTypesFromExpression(expression)
@@ -526,9 +526,9 @@ class DirectoryService(BaseDirectoryService):
                 queryValue = unicode(expression.fieldValue)
 
         if local:
-            node = self.node
-        else:
             node = self.localNode
+        else:
+            node = self.node
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,

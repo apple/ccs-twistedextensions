@@ -78,7 +78,14 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
             self.assertEquals(
                 recordTypes,
-                set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+                set(
+                    [
+                        u"dsRecTypeStandard:Users",
+                        u"dsRecTypeStandard:Groups",
+                        u"dsRecTypeStandard:Locations",
+                        u"dsRecTypeStandard:Resources",
+                    ]
+                )
             )
             self.assertEquals(
                 queryString,
@@ -101,7 +108,14 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
-            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+            set(
+                [
+                    u"dsRecTypeStandard:Users",
+                    u"dsRecTypeStandard:Groups",
+                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Resources",
+                ]
+            )
         )
         self.assertEquals(
             queryString,
@@ -125,7 +139,14 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
-            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+            set(
+                [
+                    u"dsRecTypeStandard:Users",
+                    u"dsRecTypeStandard:Groups",
+                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Resources",
+                ]
+            )
         )
         self.assertEquals(
             queryString,
@@ -152,7 +173,12 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
-            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+            set(
+                [
+                    u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users",
+                    u"dsRecTypeStandard:Locations", u"dsRecTypeStandard:Resources",
+                ]
+            )
         )
         self.assertEquals(
             queryString,
@@ -199,7 +225,14 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
-            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+            set(
+                [
+                    u"dsRecTypeStandard:Users",
+                    u"dsRecTypeStandard:Groups",
+                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Resources",
+                ]
+            )
         )
         self.assertEquals(
             queryString,
@@ -233,7 +266,14 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
-            set([u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users"])
+            set(
+                [
+                    u"dsRecTypeStandard:Users",
+                    u"dsRecTypeStandard:Groups",
+                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Resources",
+                ]
+            )
         )
         self.assertEquals(
             queryString,
@@ -338,7 +378,16 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             Operand.OR
         )
         queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
-        self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups"]))
+        self.assertEquals(
+            set(recordTypes),
+            set(
+                [
+                    u"dsRecTypeStandard:Groups",
+                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Resources",
+                ]
+            )
+        )
         self.assertEquals(
             queryString,
             u"("
