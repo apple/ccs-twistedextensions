@@ -297,8 +297,8 @@ class DirectoryService(BaseDirectoryService):
         @param recordTypes: allowed OD record type strings
         @type recordTypes: set(C{unicode})
 
-        @return: tuple(OD query string, list(query's OD record type strings))
-        @rtype: (C{unicode}, list(C{unicode}))
+        @return: tuple(OD query string, set(query's OD record type strings))
+        @rtype: (C{unicode}, set(C{unicode}))
         """
         if recordTypes is None:
             recordTypes = set([t.value for t in ODRecordType.iterconstants()])
@@ -346,13 +346,13 @@ class DirectoryService(BaseDirectoryService):
                 queryTokens[:0] = (u"(")
                 queryTokens.append(u")")
 
-        return (u"".join(queryTokens), list(recordTypes))
+        return (u"".join(queryTokens), recordTypes)
 
 
     def _queryStringAndRecordTypesFromExpression(
         self,
         expression,
-        recordTypes=[t.value for t in ODRecordType.iterconstants()]
+        recordTypes=set([t.value for t in ODRecordType.iterconstants()])
     ):
         """
         Converts either a MatchExpression or a CompoundExpression into an LDAP
@@ -364,8 +364,8 @@ class DirectoryService(BaseDirectoryService):
         @param recordTypes: allowed OD record type strings
         @type recordTypes: set(C{unicode})
 
-        @return: tuple(OD query string, list(query's OD record type strings))
-        @rtype: (C{unicode}, list(C{unicode}))
+        @return: tuple(OD query string, set(query's OD record type strings))
+        @rtype: (C{unicode}, set(C{unicode}))
         """
 
         if isinstance(expression, MatchExpression):
@@ -420,7 +420,7 @@ class DirectoryService(BaseDirectoryService):
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,
-            recordTypes,
+            list(recordTypes),
             None,
             matchType,
             queryString,
@@ -496,7 +496,7 @@ class DirectoryService(BaseDirectoryService):
                 expression.fieldValue
             ).value
             if MatchFlags.NOT in flags:
-                recordTypes = (
+                recordTypes = list(
                     set([t.value for t in ODRecordType.iterconstants()]) -
                     recordTypes
                 )
