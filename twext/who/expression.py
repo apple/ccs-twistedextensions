@@ -62,7 +62,7 @@ class CompoundExpression(object):
     """
 
     def __init__(self, expressions, operand):
-        self.expressions = expressions
+        self.expressions = tuple(expressions)
         self.operand = operand
 
 
