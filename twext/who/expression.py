@@ -74,6 +74,16 @@ class CompoundExpression(object):
         )
 
 
+    def __eq__(self, other):
+        if isinstance(other, CompoundExpression):
+            return (
+                (self.operand is other.operand) and
+                (self.expressions == other.expressions)
+            )
+        else:
+            return NotImplemented
+
+
 
 #
 # Match expression
@@ -259,6 +269,18 @@ class MatchExpression(object):
                 flags=flags,
             )
         )
+
+
+    def __eq__(self, other):
+        if isinstance(other, MatchExpression):
+            return (
+                (self.fieldName is other.fieldName) and
+                (self.matchType is other.matchType) and
+                (set(self.flags) == set(other.flags)) and
+                (self.fieldValue == other.fieldValue)
+            )
+        else:
+            return NotImplemented
 
 
     def match(self, value):
