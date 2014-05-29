@@ -373,23 +373,28 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         def _overtm(nb):
             return "{:.0f}".format(1000 * (t - astimestamp(nb)))
 
-        log.debug("JobItem: {jobid} starting to run".format(jobid=jobID))
+        log.debug("JobItem: {jobid} starting to run", jobid=jobID)
         txn = txnFactory(label="ultimatelyPerform: {}".format(jobID))
         try:
             job = yield cls.load(txn, jobID)
             if hasattr(txn, "_label"):
                 txn._label = "{} <{}>".format(txn._label, job.workType)
-            log.debug("JobItem: {jobid} loaded {work} t={tm}".format(
+            log.debug(
+                "JobItem: {jobid} loaded {work} t={tm}",
                 jobid=jobID,
                 work=job.workType,
-                tm=_tm())
+                tm=_tm(),
             )
             yield job.run()
 
         except NoSuchRecord:
             # The record has already been removed
             yield txn.commit()
-            log.debug("JobItem: {jobid} already removed t={tm}".format(jobid=jobID, tm=_tm()))
+            log.debug(
+                "JobItem: {jobid} already removed t={tm}",
+                jobid=jobID,
+                tm=_tm(),
+            )
 
         except JobFailedError:
             # Job failed: abort with cleanup, but pretend this method succeeded
@@ -397,35 +402,43 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 @inlineCallbacks
                 def _cleanUp2(txn2):
                     job = yield cls.load(txn2, jobID)
-                    log.debug("JobItem: {jobid} marking as failed {count} t={tm}".format(jobid=jobID, count=job.failed + 1, tm=_tm()))
+                    log.debug(
+                        "JobItem: {jobid} marking as failed {count} t={tm}",
+                        jobid=jobID,
+                        count=job.failed + 1,
+                        tm=_tm(),
+                    )
                     yield job.failedToRun()
                 return inTransaction(txnFactory, _cleanUp2, "ultimatelyPerform._cleanUp")
             txn.postAbort(_cleanUp)
             yield txn.abort()
-            log.debug("JobItem: {jobid} failed {work} t={tm}".format(
+            log.debug(
+                "JobItem: {jobid} failed {work} t={tm}",
                 jobid=jobID,
                 work=job.workType,
-                tm=_tm()
-            ))
+                tm=_tm(),
+            )
 
         except:
             f = Failure()
-            log.error("JobItem: {jobid} unknown exception t={tm} {exc}".format(
+            log.error(
+                "JobItem: {jobid} unknown exception t={tm} {exc}",
                 jobid=jobID,
                 tm=_tm(),
                 exc=f,
-            ))
+            )
             yield txn.abort()
             returnValue(f)
 
         else:
             yield txn.commit()
-            log.debug("JobItem: {jobid} completed {work} t={tm} over={over}".format(
+            log.debug(
+                "JobItem: {jobid} completed {work} t={tm} over={over}",
                 jobid=jobID,
                 work=job.workType,
                 tm=_tm(),
-                over=_overtm(job.notBefore)
-            ))
+                over=_overtm(job.notBefore),
+            )
 
         returnValue(None)
 
@@ -519,11 +532,12 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                     yield workItem.doWork()
                     yield workItem.afterWork()
             except Exception as e:
-                log.error("JobItem: {jobid}, WorkItem: {workid} failed: {exc}".format(
+                log.error(
+                    "JobItem: {jobid}, WorkItem: {workid} failed: {exc}",
                     jobid=self.jobID,
                     workid=workItem.workID,
                     exc=e,
-                ))
+                )
                 raise JobFailedError(e)
 
         try:
@@ -826,11 +840,12 @@ class WorkItem(Record):
             try:
                 yield NamedLock.acquire(self.transaction, self.group)
             except Exception as e:
-                log.error("JobItem: {jobid}, WorkItem: {workid} lock failed: {exc}".format(
+                log.error(
+                    "JobItem: {jobid}, WorkItem: {workid} lock failed: {exc}",
                     jobid=self.jobID,
                     workid=self.workID,
                     exc=e,
-                ))
+                )
                 raise JobFailedError(e)
 
         try:
@@ -1825,7 +1840,10 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             else:
                 minPriority = WORK_PRIORITY_LOW
             if self._lastMinPriority != minPriority:
-                log.debug("workCheck: jobqueue priority limit change: {}".format(minPriority))
+                log.debug(
+                    "workCheck: jobqueue priority limit change: {limit}",
+                    limit=minPriority,
+                )
             self._lastMinPriority = minPriority
 
             # Determine what the timestamp cutoff
@@ -1868,7 +1886,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     log.error("Failed to perform job for jobid={jobid}, {exc}", jobid=nextJob.jobID, exc=e)
 
         if loopCounter:
-            log.debug("workCheck: processed {} jobs in one loop".format(loopCounter))
+            log.debug("workCheck: processed {ctr} jobs in one loop", ctr=loopCounter)
 
     _currentWorkDeferred = None
     _workCheckCall = None
