@@ -32,21 +32,6 @@ from ..expression import MatchType
 # idirectory constants
 #
 
-class RecordType(Names):
-
-    user = NamedConstant()
-    user.description = u"user"
-
-    group = NamedConstant()
-    group.description = u"group"
-
-    location = NamedConstant()
-    location.description = u"location"
-
-    resource = NamedConstant()
-    resource.description = u"resource"
-
-
 class FieldName(Names):
     searchPath = NamedConstant()
     searchPath.description = u"search path"
@@ -87,10 +72,8 @@ class ODRecordType(Values):
     group.recordType = BaseRecordType.group
 
     location = ValueConstant(u"dsRecTypeStandard:Locations")
-    location.recordType = RecordType.location
 
     resource = ValueConstant(u"dsRecTypeStandard:Resources")
-    resource.recordType = RecordType.resource
 
     # accessControl = ValueConstant(u"dsRecTypeStandard:AccessControls")
     # afpServer = ValueConstant(u"dsRecTypeStandard:AFPServer")

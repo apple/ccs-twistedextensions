@@ -35,4 +35,3 @@ from ._service import (
     DirectoryService,
     NoQOPDigestCredentialFactory,
 )
-from ._constants import RecordType

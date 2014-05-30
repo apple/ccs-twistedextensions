@@ -93,6 +93,12 @@ class OpenDirectoryDataError(OpenDirectoryError):
     """
 
 
+class UnsupportedRecordTypeError(OpenDirectoryError):
+    """
+    Record type not supported by service.
+    """
+
+
 
 #
 # Directory Service
@@ -492,9 +498,9 @@ class DirectoryService(BaseDirectoryService):
                     "recordType argument does not match expression"
                 )
 
-            recordTypes = ODRecordType.fromRecordType(
-                expression.fieldValue
-            ).value
+            recordTypes = [
+                ODRecordType.fromRecordType(expression.fieldValue).value
+            ]
             if MatchFlags.NOT in flags:
                 recordTypes = list(
                     set([t.value for t in ODRecordType.iterconstants()]) -
@@ -512,7 +518,7 @@ class DirectoryService(BaseDirectoryService):
             if recordType is None:
                 recordTypes = [t.value for t in ODRecordType.iterconstants()]
             else:
-                recordTypes = ODRecordType.fromRecordType(recordType).value
+                recordTypes = [ODRecordType.fromRecordType(recordType).value]
 
             queryAttribute = ODAttribute.fromFieldName(
                 expression.fieldName
@@ -530,9 +536,22 @@ class DirectoryService(BaseDirectoryService):
         else:
             node = self.node
 
+        # Scrub unsupported recordTypes
+        supportedODRecordTypes = [
+            ODRecordType.fromRecordType(rt).value for rt in self.recordTypes()
+        ]
+        scrubbedRecordTypes = []
+        for recordType in recordTypes:
+            if recordType in supportedODRecordTypes:
+                scrubbedRecordTypes.append(recordType)
+
+        if not scrubbedRecordTypes:
+            # None of the requested recordTypes are supported.
+            raise UnsupportedRecordTypeError(u",".join(recordTypes))
+
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,
-            recordTypes,
+            scrubbedRecordTypes,
             queryAttribute,
             matchType | caseInsensitive,
             queryValue,
@@ -676,6 +695,9 @@ class DirectoryService(BaseDirectoryService):
             except QueryNotSupportedError:
                 pass  # Let the superclass try
 
+            except UnsupportedRecordTypeError:
+                return succeed([])
+
         return BaseDirectoryService.recordsFromNonCompoundExpression(
             self, expression
         )
@@ -740,9 +762,12 @@ class DirectoryService(BaseDirectoryService):
                 )
 
             elif isinstance(subExpression, MatchExpression):
-                subQuery = yield self._queryFromMatchExpression(
-                    subExpression, local=True
-                )
+                try:
+                    subQuery = yield self._queryFromMatchExpression(
+                        subExpression, local=True
+                    )
+                except UnsupportedRecordTypeError:
+                    continue
                 subRecords = yield self._recordsFromQuery(subQuery)
 
             else:
@@ -832,6 +857,8 @@ class DirectoryService(BaseDirectoryService):
             returnValue((yield BaseDirectoryService.recordWithShortName(
                 self, recordType, shortName)))
 
+        except UnsupportedRecordTypeError:
+            returnValue(None)
 
 
 @implementer(IPlaintextPasswordVerifier, IHTTPDigestVerifier)
