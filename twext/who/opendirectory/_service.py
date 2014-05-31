@@ -719,8 +719,10 @@ class DirectoryService(BaseDirectoryService):
 
         except QueryNotSupportedError:
             returnValue(
-                BaseDirectoryService.recordsFromCompoundExpression(
-                    self, expression
+                (
+                    yield BaseDirectoryService.recordsFromCompoundExpression(
+                        self, expression
+                    )
                 )
             )
 
