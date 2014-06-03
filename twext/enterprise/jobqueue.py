@@ -1486,13 +1486,6 @@ class WorkerFactory(Factory, object):
 
 
 
-class TransactionFailed(Exception):
-    """
-    A transaction failed.
-    """
-
-
-
 def _cloneDeferred(d):
     """
     Make a new Deferred, adding callbacks to C{d}.
@@ -1532,7 +1525,6 @@ class WorkProposal(object):
         self.txn = txn
         self.workItemType = workItemType
         self.kw = kw
-        self._whenCommitted = Deferred()
         self.workItem = None
 
 
@@ -1543,47 +1535,7 @@ class WorkProposal(object):
         waiting for the transaction where that addition was completed to
         commit, and asking the local node controller process to do the work.
         """
-        try:
-            created = yield self.workItemType.makeJob(self.txn, **self.kw)
-        except Exception:
-            self._whenCommitted.errback(TransactionFailed)
-            raise
-        else:
-            self.workItem = created
-
-            @self.txn.postCommit
-            def whenDone():
-                self._whenCommitted.callback(self)
-
-            @self.txn.postAbort
-            def whenFailed():
-                self._whenCommitted.errback(TransactionFailed)
-
-
-    def whenProposed(self):
-        """
-        Let the caller know when the work has been proposed; i.e. when the work
-        is first transmitted to the database.
-
-        @return: a L{Deferred} that fires with this L{WorkProposal} when the
-            relevant commands have been sent to the database to create the
-            L{WorkItem}, and fails if those commands do not succeed for some
-            reason.
-        """
-        return succeed(self)
-
-
-    def whenCommitted(self):
-        """
-        Let the caller know when the work has been committed to; i.e. when the
-        transaction where the work was proposed has been committed to the
-        database.
-
-        @return: a L{Deferred} that fires with this L{WorkProposal} when the
-            relevant transaction has been committed, or fails if the
-            transaction is not committed for any reason.
-        """
-        return _cloneDeferred(self._whenCommitted)
+        self.workItem = yield self.workItemType.makeJob(self.txn, **self.kw)
 
 
 
@@ -1922,10 +1874,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         Register ourselves with the database and establish all outgoing
         connections to other servers in the cluster.
-
-        @param waitForService: an optional L{Deferred} that will be called back when
-            the service startup is done.
-        @type waitForService: L{Deferred} or L{None}
         """
         @inlineCallbacks
         def startup(txn):

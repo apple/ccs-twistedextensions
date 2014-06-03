@@ -39,7 +39,7 @@ from twext.enterprise.fixtures import SteppablePoolHelper
 from twext.enterprise.jobqueue import (
     inTransaction, PeerConnectionPool, astimestamp,
     LocalPerformer, _IJobPerformer, WorkItem, WorkerConnectionPool,
-    ConnectionFromPeerNode, LocalQueuer,
+    ConnectionFromPeerNode,
     _BaseQueuer, NonPerformingQueuer, JobItem,
     WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM,
     JobDescriptor, SingletonWorkItem
@@ -360,8 +360,7 @@ class WorkItemTests(TestCase):
                 notBefore=notBefore
             )
 
-        proposal = yield check
-        yield proposal.whenProposed()
+        yield check
 
         returnValue(qpool)
 
@@ -568,41 +567,6 @@ class WorkerConnectionPoolTests(TestCase):
     controller (master) process, the collection of worker (slave) processes
     that are capable of executing queue work.
     """
-
-
-
-class WorkProposalTests(TestCase):
-    """
-    Tests for L{WorkProposal}.
-    """
-
-    @inlineCallbacks
-    def test_whenProposedSuccess(self):
-        """
-        The L{Deferred} returned by L{WorkProposal.whenProposed} fires when the
-        SQL sent to the database has completed.
-        """
-        cph = SteppablePoolHelper(nodeSchema + jobSchema + schemaText)
-        cph.setUp(test=self)
-        lq = LocalQueuer(cph.createTransaction)
-        enqTxn = cph.createTransaction()
-        wp = yield lq.enqueueWork(enqTxn, DummyWorkItem, a=3, b=4)
-        r = yield wp.whenProposed()
-        self.assertEquals(r, wp)
-
-
-    def test_whenProposedFailure(self):
-        """
-        The L{Deferred} returned by L{WorkProposal.whenProposed} fails with an
-        errback when the SQL executed to create the WorkItem row fails.
-        """
-        cph = SteppablePoolHelper(nodeSchema + jobSchema + schemaText)
-        cph.setUp(self)
-        enqTxn = cph.createTransaction()
-        lq = LocalQueuer(cph.createTransaction)
-        self.failUnlessFailure(lq.enqueueWork(enqTxn, DummyWorkItem, a=3, b=4, bogus=3), TypeError)
-        enqTxn.abort()
-        self.flushLoggedErrors()
 
 
 
@@ -825,8 +789,7 @@ class PeerConnectionPoolUnitTests(TestCase):
                 notBefore=datetime.datetime(2012, 12, 12, 12, 12, 20)
             )
 
-        proposal = yield check
-        yield proposal.whenProposed()
+        yield check
 
         # This is going to schedule the work to happen with some asynchronous
         # I/O in the middle; this is a problem because how do we know when it's
@@ -863,8 +826,7 @@ class PeerConnectionPoolUnitTests(TestCase):
                 notBefore=datetime.datetime(2012, 12, 12, 12, 12, 0)
             )
 
-        proposal = yield check
-        yield proposal.whenProposed()
+        yield check
 
         clock.advance(1000)
         # Advance far beyond the given timestamp.
