@@ -519,6 +519,7 @@ class PeerConnectionPoolUnitTests(TestCase):
                 txn, a=10, b=20, notBefore=fakeNow + datetime.timedelta(1000)
             )
         yield setup
+        qpool.running = True
         yield qpool._periodicLostWorkCheck()
 
         @transactionally(dbpool.connection)
