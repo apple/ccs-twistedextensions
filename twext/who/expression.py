@@ -129,6 +129,8 @@ class MatchFlags(Flags):
     caseInsensitive = FlagConstant()
     caseInsensitive.description = u"case insensitive"
 
+    none = None
+
 
     @staticmethod
     def _setMatchFunctions(flags):
