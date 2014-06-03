@@ -1310,6 +1310,9 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     yield peer.performWork(overdueItem.table,
                                            overdueItem.workID)
 
+        if not self.running:
+            return succeed(None)
+
         return inTransaction(self.transactionFactory, workCheck)
 
     _currentWorkDeferred = None

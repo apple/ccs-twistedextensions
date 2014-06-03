@@ -26,7 +26,8 @@ from twisted.internet import reactor
 from twisted.trial.unittest import TestCase, SkipTest
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.internet.defer import \
-    Deferred, inlineCallbacks, gatherResults, passthru, returnValue, succeed
+    Deferred, inlineCallbacks, gatherResults, passthru, returnValue, succeed, \
+    CancelledError
 from twisted.internet.task import Clock as _Clock
 from twisted.protocols.amp import Command, AMP, Integer
 from twisted.application.service import Service, MultiService
@@ -1116,7 +1117,12 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         self.node1.setServiceParent(ms)
         self.node2.setServiceParent(ms)
         ms.startService()
-        self.addCleanup(ms.stopService)
+        @inlineCallbacks
+        def _clean():
+            yield ms.stopService()
+            self.flushLoggedErrors(CancelledError)
+
+        self.addCleanup(_clean)
         yield gatherResults([d1, d2])
         self.store.queuer = self.node1
 
