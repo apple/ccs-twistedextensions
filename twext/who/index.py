@@ -358,6 +358,11 @@ class DirectoryRecord(BaseDirectoryRecord):
         returnValue(members)
 
 
+    def setMembers(self, memberRecords):
+        self.memberUIDs = set([r.uid for r in memberRecords])
+        return succeed(None)
+
+
     def groups(self):
         return self.service.recordsWithFieldValue(
             FieldName.memberUIDs, self.uid
