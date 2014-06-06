@@ -416,6 +416,22 @@ class DirectoryService(BaseDirectoryService):
         if not recordTypes:
             return None
 
+        # Scrub unsupported recordTypes
+        supportedODRecordTypes = []
+        for rt in self.recordTypes():
+            odRecordType = ODRecordType.fromRecordType(rt)
+            if odRecordType is not None:
+                supportedODRecordTypes.append(odRecordType.value)
+        scrubbedRecordTypes = []
+        for recordType in recordTypes:
+            if recordType in supportedODRecordTypes:
+                scrubbedRecordTypes.append(recordType)
+
+        if not scrubbedRecordTypes:
+            # None of the requested recordTypes are supported.
+            return None
+
+
         if queryString:
             matchType = ODMatchType.compound.value
         else:
@@ -426,7 +442,7 @@ class DirectoryService(BaseDirectoryService):
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,
-            list(recordTypes),
+            scrubbedRecordTypes,
             None,
             matchType,
             queryString,
@@ -537,9 +553,11 @@ class DirectoryService(BaseDirectoryService):
             node = self.node
 
         # Scrub unsupported recordTypes
-        supportedODRecordTypes = [
-            ODRecordType.fromRecordType(rt).value for rt in self.recordTypes()
-        ]
+        supportedODRecordTypes = []
+        for rt in self.recordTypes():
+            odRecordType = ODRecordType.fromRecordType(rt)
+            if odRecordType is not None:
+                supportedODRecordTypes.append(odRecordType.value)
         scrubbedRecordTypes = []
         for recordType in recordTypes:
             if recordType in supportedODRecordTypes:
@@ -643,7 +661,7 @@ class DirectoryService(BaseDirectoryService):
         @type query: L{ODQuery}
 
         @return: The records produced by executing the query.
-        @rtype: iterable of L{DirectoryRecord}
+        @rtype: list of L{DirectoryRecord}
         """
 
         # FIXME: This is blocking.
@@ -651,7 +669,7 @@ class DirectoryService(BaseDirectoryService):
         # its delegate...
 
         if query is None:
-            return succeed(tuple())
+            return succeed([])
 
         odRecords, error = query.resultsAllowingPartial_error_(False, None)
 
@@ -765,7 +783,7 @@ class DirectoryService(BaseDirectoryService):
 
             elif isinstance(subExpression, MatchExpression):
                 try:
-                    subQuery = yield self._queryFromMatchExpression(
+                    subQuery = self._queryFromMatchExpression(
                         subExpression, local=True
                     )
                 except UnsupportedRecordTypeError:
