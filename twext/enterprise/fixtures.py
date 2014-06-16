@@ -59,7 +59,7 @@ def buildConnectionPool(testCase, schemaText="", dialect=SQLITE_DIALECT):
     seqs = {}
 
     def connectionFactory(label=testCase.id()):
-        conn = sqlite3.connect(sqlitename)
+        conn = sqlite3.connect(sqlitename, isolation_level=None)
 
         def nextval(seq):
             result = seqs[seq] = seqs.get(seq, 0) + 1
@@ -326,7 +326,7 @@ def synchronousConnectionFactory(test):
     tmpdb = test.mktemp()
 
     def connect():
-        return sqlite3.connect(tmpdb)
+        return sqlite3.connect(tmpdb, isolation_level=None)
 
     return connect
 

@@ -415,3 +415,47 @@ class TestCRUD(TestCase):
             Record.namingConvention(u"LIKE_THIS_ID"),
             "likeThisID"
         )
+
+
+    @inlineCallbacks
+    def test_lock(self):
+        """
+        A L{Record} may be locked, with L{Record.lock}.
+        """
+        txn = self.pool.connection()
+        for beta, gamma in [
+            (123, u"one"),
+            (234, u"two"),
+            (345, u"three"),
+            (356, u"three"),
+            (456, u"four"),
+        ]:
+            yield txn.execSQL(
+                "insert into ALPHA values (:1, :2)", [beta, gamma]
+            )
+
+        rec = yield TestRecord.load(txn, 234)
+        yield rec.lock()
+        self.assertEqual(rec.gamma, u'two')
+
+
+    @inlineCallbacks
+    def test_trylock(self):
+        """
+        A L{Record} may be locked, with L{Record.trylock}.
+        """
+        txn = self.pool.connection()
+        for beta, gamma in [
+            (123, u"one"),
+            (234, u"two"),
+            (345, u"three"),
+            (356, u"three"),
+            (456, u"four"),
+        ]:
+            yield txn.execSQL(
+                "insert into ALPHA values (:1, :2)", [beta, gamma]
+            )
+
+        rec = yield TestRecord.load(txn, 234)
+        result = yield rec.trylock()
+        self.assertTrue(result)

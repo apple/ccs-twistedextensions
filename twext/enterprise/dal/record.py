@@ -31,7 +31,7 @@ __all__ = [
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twext.enterprise.dal.syntax import (
-    Select, Tuple, Constant, ColumnSyntax, Insert, Update, Delete
+    Select, Tuple, Constant, ColumnSyntax, Insert, Update, Delete, SavepointAction
 )
 from twext.enterprise.util import parseSQLTimestamp
 # from twext.enterprise.dal.syntax import ExpressionSyntax
@@ -328,6 +328,65 @@ class Record(object):
         ).on(self.transaction)
 
         self.__dict__.update(kw)
+
+
+    @inlineCallbacks
+    def lock(self, where=None):
+        """
+        Lock with a select for update.
+
+        @param where: SQL expression used to match the rows to lock, by default this is just an expression
+            that matches the primary key of this L{Record}, but it can be used to lock multiple L{Records}
+            matching the expression in one go. If it is an L{str}, then all rows will be matched.
+        @type where: L{SQLExpression} or L{None}
+        @return: a L{Deferred} that fires when the lock has been acquired.
+        """
+        if where is None:
+            where = self._primaryKeyComparison(self._primaryKeyValue())
+        elif isinstance(where, str):
+            where = None
+        yield Select(
+            list(self.table),
+            From=self.table,
+            Where=where,
+            ForUpdate=True,
+        ).on(self.transaction)
+
+
+    @inlineCallbacks
+    def trylock(self, where=None):
+        """
+        Try to lock with a select for update no wait. If it fails, rollback to
+        a savepoint and return L{False}, else return L{True}.
+
+        @param where: SQL expression used to match the rows to lock, by default this is just an expression
+            that matches the primary key of this L{Record}, but it can be used to lock multiple L{Records}
+            matching the expression in one go. If it is an L{str}, then all rows will be matched.
+        @type where: L{SQLExpression} or L{None}
+        @return: a L{Deferred} that fires when the updates have been sent to
+            the database.
+        """
+
+        if where is None:
+            where = self._primaryKeyComparison(self._primaryKeyValue())
+        elif isinstance(where, str):
+            where = None
+        savepoint = SavepointAction("Record_trylock_{}".format(self.__class__.__name__))
+        yield savepoint.acquire(self.transaction)
+        try:
+            yield Select(
+                list(self.table),
+                From=self.table,
+                Where=where,
+                ForUpdate=True,
+                NoWait=True,
+            ).on(self.transaction)
+        except:
+            yield savepoint.rollback(self.transaction)
+            returnValue(False)
+        else:
+            yield savepoint.release(self.transaction)
+            returnValue(True)
 
 
     @classmethod

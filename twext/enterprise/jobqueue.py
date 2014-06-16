@@ -136,7 +136,6 @@ from twext.enterprise.dal.model import Table, Schema, SQLType, Constraint
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twext.enterprise.ienterprise import IQueuer
 from zope.interface.interface import Interface
-from twext.enterprise.locking import NamedLock
 
 import collections
 import time
@@ -219,6 +218,7 @@ def makeJobSchema(inSchema):
     JobTable.addColumn("WEIGHT", SQLType("integer", 0), default=0)
     JobTable.addColumn("NOT_BEFORE", SQLType("timestamp", None), notNull=True)
     JobTable.addColumn("ASSIGNED", SQLType("timestamp", None), default=None)
+    JobTable.addColumn("OVERDUE", SQLType("timestamp", None), default=None)
     JobTable.addColumn("FAILED", SQLType("integer", 0), default=0)
 
     return inSchema
@@ -309,43 +309,97 @@ class JobFailedError(Exception):
 
 
 
+class JobRunningError(Exception):
+    """
+    A job is already running.
+    """
+    pass
+
+
+
 class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     """
     An item in the job table. This is typically not directly used by code
     creating work items, but rather is used for internal book keeping of jobs
     associated with work items.
+
+    The JOB table has some important columns that determine how a job is being scheduled:
+
+    NOT_BEFORE - this is a timestamp indicating when the job is expected to run. It will not
+    run before this time, but may run quite some time after (if the service is busy).
+
+    ASSIGNED - this is a timestamp that is initially NULL but set when the job processing loop
+    assigns the job to a child process to be executed. Thus, if the value is not NULL, then the
+    job is (probably) being executed. The child process is supposed to delete the L{JobItem}
+    when it is done, however if the child dies without executing the job, then the job
+    processing loop needs to detect it.
+
+    OVERDUE - this is a timestamp initially set when an L{JobItem} is assigned. It represents
+    a point in the future when the job is expected to be finished. The job processing loop skips
+    jobs that have a non-NULL ASSIGNED value and whose OVERDUE value has not been passed. If
+    OVERDUE is in the past, then the job processing loop checks to see if the job is still
+    running - which is determined by whether a row lock exists on the work item (see
+    L{isRunning}. If the job is still running then OVERDUE is bumped up to a new point in the
+    future, if it is not still running the job is marked as failed - which will reschedule it.
+
+    FAILED - a count of the number of times a job has failed or had its overdue count bumped.
+
+    The above behavior depends on some important locking behavior: when an L{JobItem} is run,
+    it locks the L{WorkItem} row corresponding to the job (it may lock other associated
+    rows - e.g., other L{WorkItem}'s in the same group). It does not lock the L{JobItem}
+    row corresponding to the job because the job processing loop may need to update the
+    OVERDUE value of that row if the work takes a long time to complete.
     """
 
     _workTypes = None
     _workTypeMap = None
 
+    failureRescheduleInterval = 60  # When a job fails, reschedule it this number of seconds in the future
+    lockRescheduleInterval = 5      # When a job is locked, reschedule it this number of seconds in the future
+
     def descriptor(self):
         return JobDescriptor(self.jobID, self.weight, self.workType)
 
 
-    def assign(self, now):
+    def assign(self, when, overdue):
         """
         Mark this job as assigned to a worker by setting the assigned column to the current,
-        or provided, timestamp.
+        or provided, timestamp. Also set the overdue value to help determine if a job is orphaned.
 
-        @param now: current timestamp
-        @type now: L{datetime.datetime}
-        @param when: explicitly set the assigned time - typically only used in tests
-        @type when: L{datetime.datetime} or L{None}
+        @param when: current timestamp
+        @type when: L{datetime.datetime}
+        @param overdue: number of seconds after assignment that the job will be considered overdue
+        @type overdue: L{int}
         """
-        return self.update(assigned=now)
+        return self.update(assigned=when, overdue=when + timedelta(seconds=overdue))
 
 
-    def failedToRun(self):
+    def bumpOverdue(self, bump):
+        """
+        Increment the overdue value by the specified number of seconds. Used when an overdue job
+        is still running in a child process but the job processing loop has detected it as overdue.
+
+        @param bump: number of seconds to increment overdue by
+        @type bump: L{int}
+        """
+        return self.update(overdue=self.overdue + timedelta(seconds=bump))
+
+
+    def failedToRun(self, delay=None):
         """
         The attempt to run the job failed. Leave it in the queue, but mark it
         as unassigned, bump the failure count and set to run at some point in
         the future.
+
+        @param delay: the number of seconds in the future at which to reschedule the
+            next execution of the job. If L{None} use the default class property value.
+        @type delay: L{int}
         """
         return self.update(
             assigned=None,
+            overdue=None,
             failed=self.failed + 1,
-            notBefore=datetime.utcnow() + timedelta(seconds=60)
+            notBefore=datetime.utcnow() + timedelta(seconds=self.failureRescheduleInterval if delay is None else delay)
         )
 
 
@@ -354,15 +408,15 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     def ultimatelyPerform(cls, txnFactory, jobID):
         """
         Eventually, after routing the job to the appropriate place, somebody
-        actually has to I{do} it.
+        actually has to I{do} it. This method basically calls L{JobItem.run}
+        but it does a bunch of "booking" to track the transaction and log failures
+        and timing information.
 
         @param txnFactory: a 0- or 1-argument callable that creates an
             L{IAsyncTransaction}
         @type txnFactory: L{callable}
-
         @param jobID: the ID of the job to be performed
         @type jobID: L{int}
-
         @return: a L{Deferred} which fires with C{None} when the job has been
             performed, or fails if the job can't be performed.
         """
@@ -396,8 +450,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 tm=_tm(),
             )
 
-        except JobFailedError:
+        except (JobFailedError, JobRunningError) as e:
             # Job failed: abort with cleanup, but pretend this method succeeded
+            delay = job.lockRescheduleInterval if isinstance(e, JobRunningError) else job.failureRescheduleInterval
             def _cleanUp():
                 @inlineCallbacks
                 def _cleanUp2(txn2):
@@ -408,16 +463,17 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                         count=job.failed + 1,
                         tm=_tm(),
                     )
-                    yield job.failedToRun()
+                    yield job.failedToRun(delay=delay)
                 return inTransaction(txnFactory, _cleanUp2, "ultimatelyPerform._cleanUp")
-            txn.postAbort(_cleanUp)
-            yield txn.abort()
             log.debug(
-                "JobItem: {jobid} failed {work} t={tm}",
+                "JobItem: {jobid} {desc} {work} t={tm}",
                 jobid=jobID,
+                desc="failed" if isinstance(e, JobFailedError) else "locked",
                 work=job.workType,
                 tm=_tm(),
             )
+            txn.postAbort(_cleanUp)
+            yield txn.abort()
 
         except:
             f = Failure()
@@ -445,27 +501,25 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
-    def nextjob(cls, txn, now, minPriority, overdue):
+    def nextjob(cls, txn, now, minPriority):
         """
         Find the next available job based on priority, also return any that are overdue. This
-        method relies on there being a nextjob() SQL stored procedure to enable skipping over
-        items which are row locked to help avoid contention when multiple nodes are operating
-        on the job queue simultaneously.
+        method uses an SQL query to find the matching jobs, and sorts based on the NOT_BEFORE
+        value and priority..
 
         @param txn: the transaction to use
         @type txn: L{IAsyncTransaction}
-        @param now: current timestamp
+        @param now: current timestamp - needed for unit tests that might use their
+            own clock.
         @type now: L{datetime.datetime}
         @param minPriority: lowest priority level to query for
         @type minPriority: L{int}
-        @param overdue: how long before an assigned item is considered overdue
-        @type overdue: L{datetime.datetime}
 
         @return: the job record
         @rtype: L{JobItem}
         """
 
-        jobs = yield cls.nextjobs(txn, now, minPriority, overdue, limit=1)
+        jobs = yield cls.nextjobs(txn, now, minPriority, limit=1)
 
         # Must only be one or zero
         if jobs and len(jobs) > 1:
@@ -476,7 +530,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
-    def nextjobs(cls, txn, now, minPriority, overdue, limit=1):
+    def nextjobs(cls, txn, now, minPriority, limit=1):
         """
         Find the next available job based on priority, also return any that are overdue. This
         method relies on there being a nextjob() SQL stored procedure to enable skipping over
@@ -489,8 +543,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @type now: L{datetime.datetime}
         @param minPriority: lowest priority level to query for
         @type minPriority: L{int}
-        @param overdue: how long before an assigned item is considered overdue
-        @type overdue: L{datetime.datetime}
         @param limit: limit on number of jobs to return
         @type limit: L{int}
 
@@ -501,7 +553,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         jobs = yield cls.query(
             txn,
             (cls.notBefore <= now).And
-            (((cls.priority >= minPriority).And(cls.assigned == None)).Or(cls.assigned < overdue)),
+            (((cls.priority >= minPriority).And(cls.assigned == None)).Or(cls.overdue < now)),
             order=(cls.assigned, cls.priority),
             ascending=False,
             forUpdate=True,
@@ -516,17 +568,20 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     def run(self):
         """
         Run this job item by finding the appropriate work item class and
-        running that.
+        running that, with appropriate locking.
         """
 
-        # TODO: Move group into the JOB table.
-        # Do a select * where group = X for update nowait to lock
-        # all rows in the group - on exception raise JobFailed
-        # with a rollback to allow the job to be re-assigned to a later
-        # date.
         workItem = yield self.workItem()
         if workItem is not None:
+
+            # First we lock the L{WorkItem}
+            locked = yield workItem.runlock()
+            if not locked:
+                raise JobRunningError()
+
             try:
+                # Run in three steps, allowing for before/after hooks that sub-classes
+                # may override
                 okToGo = yield workItem.beforeWork()
                 if okToGo:
                     yield workItem.doWork()
@@ -541,7 +596,8 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 raise JobFailedError(e)
 
         try:
-            # Once the work is done we delete ourselves
+            # Once the work is done we delete ourselves - NB this must be the last thing done
+            # to ensure the L{JobItem} row is not locked for very long.
             yield self.delete()
         except NoSuchRecord:
             # The record has already been removed
@@ -549,7 +605,23 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
 
     @inlineCallbacks
+    def isRunning(self):
+        """
+        Return L{True} if the job is currently running (its L{WorkItem} is locked).
+        """
+        workItem = yield self.workItem()
+        if workItem is not None:
+            locked = yield workItem.trylock()
+            returnValue(not locked)
+        else:
+            returnValue(False)
+
+
+    @inlineCallbacks
     def workItem(self):
+        """
+        Return the L{WorkItem} corresponding to this L{JobItem}.
+        """
         workItemClass = self.workItemForType(self.workType)
         workItems = yield workItemClass.loadForJob(
             self.transaction, self.jobID
@@ -559,6 +631,12 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     def workItemForType(cls, workType):
+        """
+        Return the class of the L{WorkItem} associated with this L{JobItem}.
+
+        @param workType: the name of the L{WorkItem}'s table
+        @type workType: L{str}
+        """
         if cls._workTypeMap is None:
             cls.workTypes()
         return cls._workTypeMap[workType]
@@ -567,6 +645,8 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     @classmethod
     def workTypes(cls):
         """
+        Map all L{WorkItem} sub-classes table names to the class type.
+
         @return: All of the work item types.
         @rtype: iterable of L{WorkItem} subclasses
         """
@@ -651,7 +731,7 @@ JobDescriptor = namedtuple("JobDescriptor", ["jobID", "weight", "type"])
 
 class JobDescriptorArg(Argument):
     """
-    Comma-separated.
+    Comma-separated representation of an L{JobDescriptor} for AMP-serialization.
     """
     def toString(self, inObject):
         return ",".join(map(str, inObject))
@@ -826,6 +906,30 @@ class WorkItem(Record):
 
 
     @inlineCallbacks
+    def runlock(self):
+        """
+        Used to lock an L{WorkItem} before it is run. The L{WorkItem}'s row MUST be
+        locked via SELECT FOR UPDATE to ensure the job queue knows it is being worked
+        on so that it can detect when an overdue job needs to be restarted or not.
+
+        Note that the locking used here may cause deadlocks if not done in the correct
+        order. In particular anything that might cause locks across multiple LWorkItem}s,
+        such as group locks, multi-row locks, etc, MUST be done first.
+
+        @return: an L{Deferred} that fires with L{True} if the L{WorkItem} was locked,
+            L{False} if not.
+        @rtype: L{Deferred}
+        """
+
+        # Do the group lock first since this can impact multiple rows and thus could
+        # cause deadlocks if done in the wrong order
+
+        # Row level lock on this item
+        locked = yield self.trylock(self.group)
+        returnValue(locked)
+
+
+    @inlineCallbacks
     def beforeWork(self):
         """
         A hook that gets called before the L{WorkItem} does its real work. This can be used
@@ -836,18 +940,6 @@ class WorkItem(Record):
             should continue, L{False} if it should be skipped without error.
         @rtype: L{Deferred}
         """
-        if self.group is not None:
-            try:
-                yield NamedLock.acquire(self.transaction, self.group)
-            except Exception as e:
-                log.error(
-                    "JobItem: {jobid}, WorkItem: {workid} lock failed: {exc}",
-                    jobid=self.jobID,
-                    workid=self.workID,
-                    exc=e,
-                )
-                raise JobFailedError(e)
-
         try:
             # Work item is deleted before doing work - but someone else may have
             # done it whilst we waited on the lock so handle that by simply
@@ -942,7 +1034,7 @@ class SingletonWorkItem(WorkItem):
     @inlineCallbacks
     def beforeWork(self):
         """
-        No need to lock - for safety just delete any others.
+        For safety just delete any others.
         """
 
         # Delete all other work items
@@ -1629,7 +1721,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
     getpid = staticmethod(getpid)
 
     queuePollInterval = 0.1             # How often to poll for new work
-    queueOrphanTimeout = 5.0 * 60.0     # How long before assigned work is possibly orphaned
+    queueOverdueTimeout = 5.0 * 60.0    # How long before assigned work is possibly overdue
 
     overloadLevel = 95          # Percentage load level above which job queue processing stops
     highPriorityLevel = 80      # Percentage load level above which only high priority jobs are processed
@@ -1802,21 +1894,39 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             # TODO: here is where we should iterate over the unlocked items
             # that are due, ordered by priority, notBefore etc
             nowTime = datetime.utcfromtimestamp(self.reactor.seconds())
-            orphanTime = nowTime - timedelta(seconds=self.queueOrphanTimeout)
 
             txn = self.transactionFactory(label="jobqueue.workCheck")
             try:
-                nextJob = yield JobItem.nextjob(txn, nowTime, minPriority, orphanTime)
+                nextJob = yield JobItem.nextjob(txn, nowTime, minPriority)
                 if nextJob is None:
                     break
 
-                # If it is now assigned but not earlier than the orphan time, ignore as this may have
-                # been returned after another txn just assigned it
-                if nextJob.assigned is not None and nextJob.assigned > orphanTime:
-                    continue
+                if nextJob.assigned is not None:
+                    if nextJob.overdue > nowTime:
+                        # If it is now assigned but not overdue, ignore as this may have
+                        # been returned after another txn just assigned it
+                        continue
+                    else:
+                        # It is overdue - check to see whether the work item is currently locked - if so no
+                        # need to re-assign
+                        running = yield nextJob.isRunning()
+                        if running:
+                            # Change the overdue to further in the future whilst we wait for
+                            # the running job to complete
+                            yield nextJob.bumpOverdue(self.queueOverdueTimeout)
+                            log.debug(
+                                "workCheck: bumped overdue timeout on jobid={jobid}",
+                                jobid=nextJob.jobID,
+                            )
+                            continue
+                        else:
+                            log.debug(
+                                "workCheck: overdue re-assignment for jobid={jobid}",
+                                jobid=nextJob.jobID,
+                            )
 
                 # Always assign as a new job even when it is an orphan
-                yield nextJob.assign(nowTime)
+                yield nextJob.assign(nowTime, self.queueOverdueTimeout)
                 loopCounter += 1
 
             except Exception as e:

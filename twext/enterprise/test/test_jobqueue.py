@@ -32,7 +32,7 @@ from twisted.internet.task import Clock as _Clock
 from twisted.protocols.amp import Command, AMP, Integer
 from twisted.application.service import Service, MultiService
 
-from twext.enterprise.dal.syntax import SchemaSyntax
+from twext.enterprise.dal.syntax import SchemaSyntax, Delete
 from twext.enterprise.dal.record import fromTable
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
@@ -206,6 +206,7 @@ jobSchema = SQL(
       WEIGHT      integer default 0,
       NOT_BEFORE  timestamp not null,
       ASSIGNED    timestamp default null,
+      OVERDUE     timestamp default null,
       FAILED      integer default 0
     );
     """
@@ -219,6 +220,24 @@ schemaText = SQL(
       A integer, B integer,
       DELETE_ON_LOAD integer default 0
     );
+    create table DUMMY_WORK_SINGLETON_ITEM (
+      WORK_ID integer primary key,
+      JOB_ID integer references JOB,
+      A integer, B integer,
+      DELETE_ON_LOAD integer default 0
+    );
+    create table DUMMY_WORK_PAUSE_ITEM (
+      WORK_ID integer primary key,
+      JOB_ID integer references JOB,
+      A integer, B integer,
+      DELETE_ON_LOAD integer default 0
+    );
+    create table AGGREGATOR_WORK_ITEM (
+      WORK_ID integer primary key,
+      JOB_ID integer references JOB,
+      A integer, B integer,
+      DELETE_ON_LOAD integer default 0
+    );
     """
 )
 
@@ -227,13 +246,24 @@ try:
 
     dropSQL = [
         "drop table {name} cascade".format(name=table)
-        for table in ("DUMMY_WORK_ITEM",)
+        for table in (
+            "DUMMY_WORK_ITEM",
+            "DUMMY_WORK_SINGLETON_ITEM",
+            "DUMMY_WORK_PAUSE_ITEM",
+            "AGGREGATOR_WORK_ITEM"
+        )
     ] + ["delete from job"]
 except SkipTest as e:
     DummyWorkItemTable = object
+    DummyWorkSingletonItemTable = object
+    DummyWorkPauseItemTable = object
+    AggregatorWorkItemTable = object
     skip = e
 else:
     DummyWorkItemTable = fromTable(schema.DUMMY_WORK_ITEM)
+    DummyWorkSingletonItemTable = fromTable(schema.DUMMY_WORK_SINGLETON_ITEM)
+    DummyWorkPauseItemTable = fromTable(schema.DUMMY_WORK_PAUSE_ITEM)
+    AggregatorWorkItemTable = fromTable(schema.AGGREGATOR_WORK_ITEM)
     skip = False
 
 
@@ -271,7 +301,7 @@ class DummyWorkItem(WorkItem, DummyWorkItemTable):
 
 
 
-class DummyWorkSingletonItem(SingletonWorkItem, DummyWorkItemTable):
+class DummyWorkSingletonItem(SingletonWorkItem, DummyWorkSingletonItemTable):
     """
     Sample L{SingletonWorkItem} subclass that adds two integers together and stores them
     in another table.
@@ -284,6 +314,42 @@ class DummyWorkSingletonItem(SingletonWorkItem, DummyWorkItemTable):
             raise ValueError("Ooops")
         self.results[self.jobID] = self.a + self.b
         return succeed(None)
+
+
+
+class DummyWorkPauseItem(WorkItem, DummyWorkPauseItemTable):
+    """
+    Sample L{WorkItem} subclass that pauses until a Deferred is fired.
+    """
+
+    workStarted = None
+    unpauseWork = None
+
+    def doWork(self):
+        self.workStarted.callback(None)
+        return self.unpauseWork
+
+
+
+class AggregatorWorkItem(WorkItem, AggregatorWorkItemTable):
+    """
+    Sample L{WorkItem} subclass that deletes others with the same
+    value and than pauses for a bit.
+    """
+
+    group = property(lambda self: (self.table.B == self.b))
+
+    @inlineCallbacks
+    def doWork(self):
+        # Delete the work items we match
+        yield Delete(
+            From=self.table,
+            Where=(self.table.A == self.a)
+        ).on(self.transaction)
+
+        d = Deferred()
+        reactor.callLater(2.0, lambda: d.callback(None))
+        yield d
 
 
 
@@ -396,7 +462,7 @@ class WorkItemTests(TestCase):
     @inlineCallbacks
     def test_assign(self):
         """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        L{JobItem.assign} will mark a job as assigned.
         """
         dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
         yield self._enqueue(dbpool, 1, 2)
@@ -412,7 +478,7 @@ class WorkItemTests(TestCase):
         @inlineCallbacks
         def assignJob(txn):
             job = yield JobItem.load(txn, jobs[0].jobID)
-            yield job.assign(datetime.datetime.utcnow())
+            yield job.assign(datetime.datetime.utcnow(), PeerConnectionPool.queueOverdueTimeout)
         yield inTransaction(dbpool.connection, assignJob)
 
         jobs = yield inTransaction(dbpool.connection, checkJob)
@@ -423,7 +489,7 @@ class WorkItemTests(TestCase):
     @inlineCallbacks
     def test_nextjob(self):
         """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        L{JobItem.nextjob} returns the correct job based on priority.
         """
 
         dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
@@ -432,7 +498,7 @@ class WorkItemTests(TestCase):
         # Empty job queue
         @inlineCallbacks
         def _next(txn, priority=WORK_PRIORITY_LOW):
-            job = yield JobItem.nextjob(txn, now, priority, now - datetime.timedelta(seconds=PeerConnectionPool.queueOrphanTimeout))
+            job = yield JobItem.nextjob(txn, now, priority)
             if job is not None:
                 work = yield job.workItem()
             else:
@@ -459,7 +525,7 @@ class WorkItemTests(TestCase):
         @inlineCallbacks
         def assignJob(txn, when=None):
             assignee = yield JobItem.load(txn, assignID)
-            yield assignee.assign(now if when is None else when)
+            yield assignee.assign(now if when is None else when, PeerConnectionPool.queueOverdueTimeout)
         yield inTransaction(dbpool.connection, assignJob)
         job, work = yield inTransaction(dbpool.connection, _next)
         self.assertTrue(job is None)
@@ -1182,6 +1248,200 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
 
         self.assertEquals(DummyWorkItem.results, {})
+
+
+    @inlineCallbacks
+    def test_locked(self):
+        """
+        L{JobItem.run} locks the work item.
+        """
+
+        DummyWorkPauseItem.workStarted = Deferred()
+        DummyWorkPauseItem.unpauseWork = Deferred()
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue(txn):
+            return txn.enqueue(
+                DummyWorkPauseItem, a=30, b=40, workID=1
+            )
+        yield _enqueue
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+
+        yield DummyWorkPauseItem.workStarted
+
+        @transactionally(self.store.newTransaction)
+        def _trylock(txn):
+            job = yield JobItem.load(txn, jobs[0].jobID)
+            work = yield job.workItem()
+            locked = yield work.trylock()
+            self.assertFalse(locked)
+        yield _trylock
+
+        DummyWorkPauseItem.unpauseWork.callback(None)
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 0)
+
+
+    @inlineCallbacks
+    def test_overdue(self):
+        """
+        L{JobItem.run} locks the work item.
+        """
+
+        # Patch JobItem.assign and JobItem.bumpOverdue to track how many times
+        # they are called.
+        assigned = [0]
+        _oldAssign = JobItem.assign
+        def _newAssign(self, when, overdue):
+            assigned[0] += 1
+            return _oldAssign(self, when, 1)
+        self.patch(JobItem, "assign", _newAssign)
+
+        bumped = [0]
+        _oldBumped = JobItem.bumpOverdue
+        def _newBump(self, bump):
+            bumped[0] += 1
+            return _oldBumped(self, 100)
+        self.patch(JobItem, "bumpOverdue", _newBump)
+
+        DummyWorkPauseItem.workStarted = Deferred()
+        DummyWorkPauseItem.unpauseWork = Deferred()
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue(txn):
+            return txn.enqueue(
+                DummyWorkPauseItem, a=30, b=40, workID=1
+            )
+        yield _enqueue
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(assigned[0] == 0)
+        self.assertTrue(bumped[0] == 0)
+
+        yield DummyWorkPauseItem.workStarted
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(assigned[0] == 1)
+        self.assertTrue(bumped[0] == 0)
+
+        d = Deferred()
+        reactor.callLater(2, lambda: d.callback(None))
+        yield d
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(assigned[0] == 1)
+        if bumped[0] != 1:
+            pass
+        self.assertTrue(bumped[0] == 1)
+
+        DummyWorkPauseItem.unpauseWork.callback(None)
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 0)
+        self.assertTrue(assigned[0] == 1)
+        self.assertTrue(bumped[0] == 1)
+
+
+    @inlineCallbacks
+    def test_aggregator_lock(self):
+        """
+        L{JobItem.run} fails an aggregated work item and then ignores it.
+        """
+
+        # Patch JobItem.assign and JobItem.bumpOverdue to track how many times
+        # they are called.
+        failed = [0]
+        _oldFailed = JobItem.failedToRun
+        def _newFailed(self, delay):
+            failed[0] += 1
+            return _oldFailed(self, delay)
+        self.patch(JobItem, "failedToRun", _newFailed)
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue1(txn):
+            return txn.enqueue(
+                AggregatorWorkItem, a=1, b=1, workID=1
+            )
+        yield _enqueue1
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue2(txn):
+            return txn.enqueue(
+                AggregatorWorkItem, a=1, b=2, workID=2
+            )
+        yield _enqueue2
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 2)
+
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertEqual(len(jobs), 0)
+        self.assertEqual(failed[0], 1)
+
+
+    @inlineCallbacks
+    def test_aggregator_no_deadlock(self):
+        """
+        L{JobItem.run} fails an aggregated work item and then ignores it.
+        """
+
+        # Patch JobItem.assign and JobItem.bumpOverdue to track how many times
+        # they are called.
+        failed = [0]
+        _oldFailed = JobItem.failedToRun
+        def _newFailed(self, delay):
+            failed[0] += 1
+            return _oldFailed(self, delay)
+        self.patch(JobItem, "failedToRun", _newFailed)
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue1(txn):
+            return txn.enqueue(
+                AggregatorWorkItem, a=1, b=1, workID=1
+            )
+        yield _enqueue1
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue2(txn):
+            return txn.enqueue(
+                AggregatorWorkItem, a=1, b=1, workID=2
+            )
+        yield _enqueue2
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 2)
+
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 0)
+        self.assertEqual(failed[0], 1)
 
 
 
