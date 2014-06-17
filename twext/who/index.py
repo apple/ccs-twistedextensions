@@ -226,7 +226,9 @@ class DirectoryService(BaseDirectoryService):
         self._index = index
 
 
-    def indexedRecordsFromMatchExpression(self, expression, records=None):
+    def indexedRecordsFromMatchExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         """
         Finds records in the internal indexes matching a single expression.
 
@@ -286,10 +288,17 @@ class DirectoryService(BaseDirectoryService):
         # if records is not None:
         #     matchingRecords &= records
 
+        if recordTypes is not None:
+            for record in list(matchingRecords):
+                if record.recordType not in recordTypes:
+                    matchingRecords.remove(record)
+
         return succeed(matchingRecords)
 
 
-    def unIndexedRecordsFromMatchExpression(self, expression, records=None):
+    def unIndexedRecordsFromMatchExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         """
         Finds records not in the internal indexes matching a single expression.
 
@@ -312,6 +321,11 @@ class DirectoryService(BaseDirectoryService):
             )
 
         for record in records:
+
+            if recordTypes is not None:
+                if record.recordType not in recordTypes:
+                    continue
+
             fieldValues = record.fields.get(expression.fieldName, None)
 
             if fieldValues is None:
@@ -324,7 +338,9 @@ class DirectoryService(BaseDirectoryService):
         return succeed(result)
 
 
-    def recordsFromNonCompoundExpression(self, expression, records=None):
+    def recordsFromNonCompoundExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         """
         This implementation can handle L{MatchExpression} expressions; other
         expressions are passed up to the superclass.
@@ -332,15 +348,15 @@ class DirectoryService(BaseDirectoryService):
         if isinstance(expression, MatchExpression):
             if expression.fieldName in self.indexedFields:
                 return self.indexedRecordsFromMatchExpression(
-                    expression, records=records
+                    expression, recordTypes=recordTypes, records=records
                 )
             else:
                 return self.unIndexedRecordsFromMatchExpression(
-                    expression, records=records
+                    expression, recordTypes=recordTypes, records=records
                 )
         else:
             return BaseDirectoryService.recordsFromNonCompoundExpression(
-                self, expression, records=records
+                self, expression, recordTypes=recordTypes, records=records
             )
 
 

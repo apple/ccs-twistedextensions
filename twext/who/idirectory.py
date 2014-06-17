@@ -278,12 +278,16 @@ class IDirectoryService(Interface):
         """
 
 
-    def recordsFromExpression(expression):
+    def recordsFromExpression(expression, recordTypes=None):
         """
         Find records matching an expression.
 
         @param expression: an expression to apply
         @type expression: L{object}
+
+        @param recordTypes: the record types to match
+        @type recordTypes: an iterable of L{NamedConstant}, or None for no
+            filtering
 
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s

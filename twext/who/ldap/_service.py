@@ -408,7 +408,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
-    def _recordsFromQueryString(self, queryString):
+    def _recordsFromQueryString(self, queryString, recordTypes=None):
         connection = yield self._connect()
 
         self.log.info("Performing LDAP query: {query}", query=queryString)
@@ -428,7 +428,7 @@ class DirectoryService(BaseDirectoryService):
             )
             raise LDAPQueryError("Unable to perform query", e)
 
-        records = yield self._recordsFromReply(reply)
+        records = yield self._recordsFromReply(reply, recordTypes=recordTypes)
         returnValue(records)
 
 
@@ -455,7 +455,7 @@ class DirectoryService(BaseDirectoryService):
             returnValue(None)
 
 
-    def _recordsFromReply(self, reply):
+    def _recordsFromReply(self, reply, recordTypes=None):
         records = []
 
         for dn, recordData in reply:
@@ -472,6 +472,9 @@ class DirectoryService(BaseDirectoryService):
                     "type: {recordData!r}",
                     recordData=recordData,
                 )
+                continue
+
+            if recordTypes is not None and recordType not in recordTypes:
                 continue
 
             # Populate a fields dictionary
@@ -527,20 +530,26 @@ class DirectoryService(BaseDirectoryService):
         return records
 
 
-    def recordsFromNonCompoundExpression(self, expression, records=None):
+    def recordsFromNonCompoundExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         if isinstance(expression, MatchExpression):
             queryString = ldapQueryStringFromMatchExpression(
                 expression,
                 self._fieldNameToAttributesMap, self._recordTypeSchemas
             )
-            return self._recordsFromQueryString(queryString)
+            return self._recordsFromQueryString(
+                queryString, recordTypes=recordTypes
+            )
 
         return BaseDirectoryService.recordsFromNonCompoundExpression(
             self, expression, records=records
         )
 
 
-    def recordsFromCompoundExpression(self, expression, records=None):
+    def recordsFromCompoundExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         if not expression.expressions:
             return succeed(())
 
@@ -548,7 +557,9 @@ class DirectoryService(BaseDirectoryService):
             expression,
             self._fieldNameToAttributesMap, self._recordTypeSchemas
         )
-        return self._recordsFromQueryString(queryString)
+        return self._recordsFromQueryString(
+            queryString, recordTypes=recordTypes
+        )
 
 
     # def updateRecords(self, records, create=False):
