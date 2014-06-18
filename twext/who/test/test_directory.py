@@ -62,15 +62,17 @@ class StubDirectoryService(TestDirectoryService):
         self.seenExpressions = []
 
 
-    def recordsFromExpression(self, expression, records=None):
+    def recordsFromExpression(self, expression, recordTypes=None, records=None):
         self.seenExpressions.append(expression)
         return (
             super(StubDirectoryService, self)
-            .recordsFromExpression(expression)
+            .recordsFromExpression(expression, recordTypes=recordTypes)
         )
 
 
-    def recordsFromNonCompoundExpression(self, expression, records=None):
+    def recordsFromNonCompoundExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         """
         This implementation handles three expressions:
 
@@ -94,7 +96,9 @@ class StubDirectoryService(TestDirectoryService):
 
         return (
             super(StubDirectoryService, self)
-            .recordsFromNonCompoundExpression(expression, records=records)
+            .recordsFromNonCompoundExpression(
+                expression, recordTypes=recordTypes, records=records
+            )
         )
 
 
@@ -1149,6 +1153,22 @@ class RecordStorage(object):
             ],
         )
 
+        self.addGroup(
+            shortNames=[u"calendar-dev"],
+            fullNames=[u"Calendar Developers"],
+            emailAddresses=[
+                u"calendar-dev@example.com",
+            ],
+        )
+
+        self.addGroup(
+            shortNames=[u"developers"],
+            fullNames=[u"Developers"],
+            emailAddresses=[
+                u"developers@example.com",
+            ],
+        )
+
 
     def addUser(self, shortNames, fullNames, emailAddresses=[]):
         """
@@ -1173,6 +1193,32 @@ class RecordStorage(object):
             fieldName.shortNames: shortNames,
             fieldName.fullNames: fullNames,
             fieldName.password: u"".join(reversed(shortNames[0])),
+            fieldName.emailAddresses: emailAddresses,
+        }))
+
+
+    def addGroup(self, shortNames, fullNames, emailAddresses=[]):
+        """
+        Add a group record with the given field information.
+
+        @param shortNames: Record short names.
+        @type shortNames: L{list} of L{unicode}s
+
+        @param fullNames: Record full names.
+        @type fullNames: L{list} of L{unicode}s
+
+        @param emailAddresses: Record email addresses.
+        @type emailAddresses: L{list} of L{unicode}s
+        """
+        service = self.service
+        fieldName = service.fieldName
+        recordType = service.recordType
+
+        self.records.append(self.recordClass(self.service, {
+            fieldName.recordType: recordType.group,
+            fieldName.uid: u"__{0}__".format(shortNames[0]),
+            fieldName.shortNames: shortNames,
+            fieldName.fullNames: fullNames,
             fieldName.emailAddresses: emailAddresses,
         }))
 

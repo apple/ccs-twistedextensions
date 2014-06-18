@@ -557,6 +557,27 @@ class DirectoryServiceQueryTestMixIn(object):
         self.assertRecords(records, (u"__wsanchez__",))
 
 
+    @inlineCallbacks
+    def test_queryWithRecordTypes(self):
+        """
+        Verify that results are limited to the requested recordTypes
+        """
+        service = self.service()
+        records = yield service.recordsFromExpression(
+            service.query(
+                u"fullNames", u"e",
+                matchType=MatchType.contains,
+            ),
+            recordTypes=(service.recordType.group,)
+        )
+        # Note: only contains groups; the users that would normally match
+        # have been filtered out
+        self.assertRecords(
+            records,
+            (u"__calendar-dev__", u"__developers__", u"__twisted__")
+        )
+
+
 
 class DirectoryServiceMutableTestMixIn(object):
     @inlineCallbacks
