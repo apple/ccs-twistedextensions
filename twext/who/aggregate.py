@@ -108,9 +108,10 @@ class DirectoryService(BaseDirectoryService):
         return d
 
 
-    def recordsFromExpression(self, expression, records=None):
+    def recordsFromExpression(self, expression, recordTypes=None, records=None):
         return self._gatherFromSubServices(
-            "recordsFromExpression", expression, records=None
+            "recordsFromExpression", expression, recordTypes=recordTypes,
+            records=None
         )
 
 

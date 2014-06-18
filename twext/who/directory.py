@@ -122,7 +122,9 @@ class DirectoryService(object):
         return self.recordType.iterconstants()
 
 
-    def recordsFromNonCompoundExpression(self, expression, records=None):
+    def recordsFromNonCompoundExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         """
         Finds records matching a non-compound expression.
 
@@ -138,6 +140,10 @@ class DirectoryService(object):
 
         @param expression: an expression to apply
         @type expression: L{object}
+
+        @param recordTypes: the record types to match
+        @type recordTypes: an iterable of L{NamedConstant}, or None for no
+            filtering
 
         @param records: a set of records to limit the search to. C{None} if
             the whole directory should be searched.
@@ -165,7 +171,9 @@ class DirectoryService(object):
 
 
     @inlineCallbacks
-    def recordsFromCompoundExpression(self, expression, records=None):
+    def recordsFromCompoundExpression(
+        self, expression, recordTypes=None, records=None
+    ):
         """
         Finds records matching a compound expression.
 
@@ -177,6 +185,10 @@ class DirectoryService(object):
 
         @param expression: an expression to apply
         @type expression: L{CompoundExpression}
+
+        @param recordTypes: the record types to match
+        @type recordTypes: an iterable of L{NamedConstant}, or None for no
+            filtering
 
         @param records: a set of records to limit the search to. C{None} if
             the whole directory should be searched.
@@ -201,7 +213,9 @@ class DirectoryService(object):
             returnValue(())
 
         results = set((
-            yield self.recordsFromExpression(subExpression, records=records)
+            yield self.recordsFromExpression(
+                subExpression, recordTypes=recordTypes, records=records
+            )
         ))
 
         for subExpression in subExpressions:
@@ -216,7 +230,7 @@ class DirectoryService(object):
 
             recordsMatchingExpression = frozenset((
                 yield self.recordsFromExpression(
-                    subExpression, records=records
+                    subExpression, recordTypes=recordTypes, records=records
                 )
             ))
 
@@ -232,16 +246,20 @@ class DirectoryService(object):
         returnValue(results)
 
 
-    def recordsFromExpression(self, expression, records=None):
+    def recordsFromExpression(self, expression, recordTypes=None, records=None):
         """
         @note: This interface is the same as
             L{IDirectoryService.recordsFromExpression}, except for the
             additional C{records} argument.
         """
         if isinstance(expression, CompoundExpression):
-            return self.recordsFromCompoundExpression(expression)
+            return self.recordsFromCompoundExpression(
+                expression, recordTypes=recordTypes
+            )
         else:
-            return self.recordsFromNonCompoundExpression(expression)
+            return self.recordsFromNonCompoundExpression(
+                expression, recordTypes=recordTypes
+            )
 
 
     def recordsWithFieldValue(self, fieldName, value):

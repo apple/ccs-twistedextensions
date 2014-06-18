@@ -149,6 +149,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
     @inlineCallbacks
     def _test_indexedRecordsFromMatchExpression(
         self, inOut, matchType, fieldName=BaseFieldName.shortNames,
+        recordTypes=None
     ):
         service = self.noLoadServicePopulated()
 
@@ -157,7 +158,8 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                 MatchExpression(
                     fieldName, subString,
                     matchType
-                )
+                ),
+                recordTypes=recordTypes,
             )
             self.assertEquals(
                 set((record.uid for record in records)),
@@ -238,9 +240,25 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         self.assertFailure(result, NotImplementedError)
 
 
+    def test_indexedRecordsFromMatchExpression_recordTypes(self):
+        """
+        L{DirectoryService.indexedRecordsFromMatchExpression} with recordTypes
+        """
+        return self._test_indexedRecordsFromMatchExpression(
+            (
+                (u"c", (u"__calendar-dev__",)),  # only groups
+                (u"d", (u"__developers__",)),
+                (u"j", ()),
+            ),
+            MatchType.startsWith,
+            recordTypes=(BaseRecordType.group,)
+        )
+
+
     @inlineCallbacks
     def _test_unIndexedRecordsFromMatchExpression(
         self, inOut, matchType, fieldName=BaseFieldName.fullNames,
+        recordTypes=None
     ):
         service = self.noLoadServicePopulated()
 
@@ -249,7 +267,8 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                 MatchExpression(
                     fieldName, subString,
                     matchType
-                )
+                ),
+                recordTypes=recordTypes
             )
             self.assertEquals(
                 set((record.uid for record in records)),
