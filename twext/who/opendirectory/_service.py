@@ -390,7 +390,7 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def _queryFromCompoundExpression(self, expression, local=False):
+    def _queryFromCompoundExpression(self, expression, recordTypes=None, local=False):
         """
         Form an OpenDirectory query from a compound expression.
 
@@ -410,22 +410,24 @@ class DirectoryService(BaseDirectoryService):
         else:
             node = self.node
 
-        queryString, recordTypes = (
+        queryString, expressionRecordTypes = (
             self._queryStringAndRecordTypesFromExpression(expression)
         )
-        if not recordTypes:
-            return None
 
         # Scrub unsupported recordTypes
         supportedODRecordTypes = []
-        for rt in self.recordTypes():
-            odRecordType = ODRecordType.fromRecordType(rt)
+        for recordType in self.recordTypes():
+            odRecordType = ODRecordType.fromRecordType(recordType)
             if odRecordType is not None:
                 supportedODRecordTypes.append(odRecordType.value)
-        scrubbedRecordTypes = []
-        for recordType in recordTypes:
-            if recordType in supportedODRecordTypes:
-                scrubbedRecordTypes.append(recordType)
+        if recordTypes is not None:
+            scrubbedRecordTypes = []
+            for recordType in recordTypes:
+                recordType = ODRecordType.fromRecordType(recordType).value
+                if recordType in supportedODRecordTypes:
+                    scrubbedRecordTypes.append(recordType)
+        else:
+            scrubbedRecordTypes = supportedODRecordTypes
 
         if not scrubbedRecordTypes:
             # None of the requested recordTypes are supported.
@@ -464,7 +466,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _queryFromMatchExpression(
-        self, expression, recordType=None, local=False
+        self, expression, recordTypes=None, local=False
     ):
         """
         Form an OpenDirectory query from a match expression.
@@ -472,8 +474,8 @@ class DirectoryService(BaseDirectoryService):
         @param expression: A match expression.
         @type expression: L{MatchExpression}
 
-        @param recordType: A record type to insert into the query.
-        @type recordType: L{NamedConstant}
+        @param recordTypes: Record types to insert into the query; None for no filtering.
+        @type recordTypes: iterable of L{NamedConstant}, or None
 
         @param local: Whether to restrict the query to the local node
         @type local: C{Boolean}
@@ -506,46 +508,26 @@ class DirectoryService(BaseDirectoryService):
             expression.fieldName = self.fieldName.guid
 
         if expression.fieldName is self.fieldName.recordType:
-            if (
-                recordType is not None and
-                expression.fieldValue is not recordType
-            ):
-                raise ValueError(
-                    "recordType argument does not match expression"
-                )
+            raise QueryNotSupportedError("RecordType match not supported")
 
-            recordTypes = [
-                ODRecordType.fromRecordType(expression.fieldValue).value
-            ]
-            if MatchFlags.NOT in flags:
-                recordTypes = list(
-                    set([t.value for t in ODRecordType.iterconstants()]) -
-                    recordTypes
-                )
+        if MatchFlags.NOT in flags:
+            raise NotImplementedError()
 
-            matchType = ODMatchType.any.value
-            queryAttribute = None
-            queryValue = None
-
+        if recordTypes is None:
+            odRecordTypes = [t.value for t in ODRecordType.iterconstants()]
         else:
-            if MatchFlags.NOT in flags:
-                raise NotImplementedError()
+            odRecordTypes = [ODRecordType.fromRecordType(r).value for r in recordTypes]
 
-            if recordType is None:
-                recordTypes = [t.value for t in ODRecordType.iterconstants()]
-            else:
-                recordTypes = [ODRecordType.fromRecordType(recordType).value]
+        queryAttribute = ODAttribute.fromFieldName(
+            expression.fieldName
+        ).value
 
-            queryAttribute = ODAttribute.fromFieldName(
-                expression.fieldName
-            ).value
-
-            # TODO: Add support other value types:
-            valueType = self.fieldName.valueType(expression.fieldName)
-            if valueType == UUID:
-                queryValue = unicode(expression.fieldValue).upper()
-            else:
-                queryValue = unicode(expression.fieldValue)
+        # TODO: Add support other value types:
+        valueType = self.fieldName.valueType(expression.fieldName)
+        if valueType == UUID:
+            queryValue = unicode(expression.fieldValue).upper()
+        else:
+            queryValue = unicode(expression.fieldValue)
 
         if local:
             node = self.localNode
@@ -559,9 +541,9 @@ class DirectoryService(BaseDirectoryService):
             if odRecordType is not None:
                 supportedODRecordTypes.append(odRecordType.value)
         scrubbedRecordTypes = []
-        for recordType in recordTypes:
-            if recordType in supportedODRecordTypes:
-                scrubbedRecordTypes.append(recordType)
+        for odRecordType in odRecordTypes:
+            if odRecordType in supportedODRecordTypes:
+                scrubbedRecordTypes.append(odRecordType)
 
         if not scrubbedRecordTypes:
             # None of the requested recordTypes are supported.
@@ -704,10 +686,10 @@ class DirectoryService(BaseDirectoryService):
         return succeed(result)
 
 
-    def recordsFromNonCompoundExpression(self, expression, records=None):
+    def recordsFromNonCompoundExpression(self, expression, recordTypes=None, records=None):
         if isinstance(expression, MatchExpression):
             try:
-                query = self._queryFromMatchExpression(expression)
+                query = self._queryFromMatchExpression(expression, recordTypes=recordTypes)
                 return self._recordsFromQuery(query)
 
             except QueryNotSupportedError:
@@ -722,7 +704,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
-    def recordsFromCompoundExpression(self, expression, records=None):
+    def recordsFromCompoundExpression(self, expression, recordTypes=None, records=None):
         """
         Returns records matching the CompoundExpression.  Because the
         local node doesn't perform Compound queries in a case insensitive
@@ -733,13 +715,13 @@ class DirectoryService(BaseDirectoryService):
         """
 
         try:
-            query = self._queryFromCompoundExpression(expression)
+            query = self._queryFromCompoundExpression(expression, recordTypes=recordTypes)
 
         except QueryNotSupportedError:
             returnValue(
                 (
                     yield BaseDirectoryService.recordsFromCompoundExpression(
-                        self, expression
+                        self, expression, recordTypes=recordTypes
                     )
                 )
             )
@@ -749,7 +731,7 @@ class DirectoryService(BaseDirectoryService):
         if self.localNode is not None:
 
             localRecords = yield self.localRecordsFromCompoundExpression(
-                expression
+                expression, recordTypes=recordTypes
             )
             for localRecord in localRecords:
                 if localRecord not in results:
@@ -760,7 +742,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
-    def localRecordsFromCompoundExpression(self, expression):
+    def localRecordsFromCompoundExpression(self, expression, recordTypes=None):
         """
         Takes a CompoundExpression, and recursively goes through each
         MatchExpression, passing those specifically to the local node, and
@@ -778,13 +760,13 @@ class DirectoryService(BaseDirectoryService):
 
             if isinstance(subExpression, CompoundExpression):
                 subRecords = yield self.localRecordsFromCompoundExpression(
-                    subExpression
+                    subExpression, recordTypes=recordTypes
                 )
 
             elif isinstance(subExpression, MatchExpression):
                 try:
                     subQuery = self._queryFromMatchExpression(
-                        subExpression, local=True
+                        subExpression, recordTypes=recordTypes, local=True
                     )
                 except UnsupportedRecordTypeError:
                     continue
@@ -857,7 +839,7 @@ class DirectoryService(BaseDirectoryService):
         try:
             query = self._queryFromMatchExpression(
                 MatchExpression(self.fieldName.shortNames, shortName),
-                recordType=recordType
+                recordTypes=(recordType,)
             )
             results = yield self._recordsFromQuery(query)
 
