@@ -547,7 +547,7 @@ class DirectoryService(BaseDirectoryService):
 
         if not scrubbedRecordTypes:
             # None of the requested recordTypes are supported.
-            raise UnsupportedRecordTypeError(u",".join(recordTypes))
+            raise UnsupportedRecordTypeError(u",".join(r.name for r in recordTypes))
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,
