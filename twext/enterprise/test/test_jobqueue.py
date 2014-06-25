@@ -1364,13 +1364,12 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         L{JobItem.run} fails an aggregated work item and then ignores it.
         """
 
-        # Patch JobItem.assign and JobItem.bumpOverdue to track how many times
-        # they are called.
+        # Patch JobItem.failedToRun to track how many times it is called.
         failed = [0]
         _oldFailed = JobItem.failedToRun
-        def _newFailed(self, delay):
+        def _newFailed(self, locked=False, delay=None):
             failed[0] += 1
-            return _oldFailed(self, delay)
+            return _oldFailed(self, locked, 5)
         self.patch(JobItem, "failedToRun", _newFailed)
 
         @transactionally(self.store.newTransaction)
@@ -1378,13 +1377,14 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             return txn.enqueue(
                 AggregatorWorkItem, a=1, b=1, workID=1
             )
-        yield _enqueue1
 
         @transactionally(self.store.newTransaction)
         def _enqueue2(txn):
             return txn.enqueue(
                 AggregatorWorkItem, a=1, b=2, workID=2
             )
+
+        yield _enqueue1
         yield _enqueue2
 
         # Make sure we have one JOB and one DUMMY_WORK_ITEM
@@ -1411,9 +1411,9 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         # they are called.
         failed = [0]
         _oldFailed = JobItem.failedToRun
-        def _newFailed(self, delay):
+        def _newFailed(self, locked=False, delay=None):
             failed[0] += 1
-            return _oldFailed(self, delay)
+            return _oldFailed(self, locked, 5)
         self.patch(JobItem, "failedToRun", _newFailed)
 
         @transactionally(self.store.newTransaction)
@@ -1421,13 +1421,14 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             return txn.enqueue(
                 AggregatorWorkItem, a=1, b=1, workID=1
             )
-        yield _enqueue1
 
         @transactionally(self.store.newTransaction)
         def _enqueue2(txn):
             return txn.enqueue(
                 AggregatorWorkItem, a=1, b=1, workID=2
             )
+
+        yield _enqueue1
         yield _enqueue2
 
         # Make sure we have one JOB and one DUMMY_WORK_ITEM
