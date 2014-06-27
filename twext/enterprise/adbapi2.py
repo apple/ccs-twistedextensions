@@ -306,6 +306,8 @@ class _ConnectedTxn(object):
 
 
     def execSQL(self, *args, **kw):
+        if self._completed:
+            raise RuntimeError("Attempt to use {} transaction.".format(self._completed))
         result = self._holder.submit(
             lambda: self._reallyExecSQL(*args, **kw)
         )
@@ -322,12 +324,14 @@ class _ConnectedTxn(object):
         return result
 
 
-    def _end(self, really):
+    def _end(self, really, terminate=False):
         """
         Common logic for commit or abort.  Executed in the main reactor thread.
 
         @param really: the callable to execute in the cursor thread to actually
             do the commit or rollback.
+        @param terminate: abort and prevent any new SQL from being executed even
+            after a reset().
 
         @return: a L{Deferred} which fires when the database logic has
             completed.
@@ -336,7 +340,7 @@ class _ConnectedTxn(object):
             committed or aborted.
         """
         if not self._completed:
-            self._completed = "ended"
+            self._completed = "terminated" if terminate else "ended"
 
             def reallySomething():
                 """
@@ -346,7 +350,6 @@ class _ConnectedTxn(object):
                 if self._cursor is None or self._first:
                     return
                 really()
-                self._first = True
 
             result = self._holder.submit(reallySomething)
             self._pool._repoolAfter(self, result)
@@ -363,6 +366,10 @@ class _ConnectedTxn(object):
         return self._end(self._connection.rollback).addErrback(log.err)
 
 
+    def terminate(self):
+        return self._end(self._connection.rollback, terminate=True).addErrback(log.err)
+
+
     def reset(self):
         """
         Call this when placing this transaction back into the pool.
@@ -372,7 +379,9 @@ class _ConnectedTxn(object):
         """
         if not self._completed:
             raise RuntimeError("Attempt to re-set active transaction.")
-        self._completed = False
+        if self._completed != "terminated":
+            self._completed = False
+        self._first = True
 
 
     def _releaseConnection(self):
@@ -919,6 +928,9 @@ class _ConnectingPseudoTxn(object):
         return d
 
 
+    def terminate(self):
+        return self.abort()
+
 
 def _fork(x):
     """
@@ -1034,10 +1046,11 @@ class ConnectionPool(Service, object):
         while self._finishing:
             yield _fork(self._finishing[0][1])
 
-        # Phase 3: All of the busy transactions must be aborted first.  As each
-        # one is aborted, it will remove itself from the list.
+        # Phase 3: All of the busy transactions must be terminated first.  As each
+        # one is terminated, it will remove itself from the list. Note we terminate
+        # and not abort the transaction to ensure they cannot be re-used.
         while self._busy:
-            yield self._busy[0].abort()
+            yield self._busy[0].terminate()
 
         # Phase 4: All transactions should now be in the free list, since
         # "abort()" will have put them there.  Shut down all the associated

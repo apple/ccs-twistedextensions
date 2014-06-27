@@ -458,6 +458,8 @@ class FakeCursor(Child):
 
 
     def execute(self, sql, args=()):
+        if self.connection.closed:
+            raise FakeConnectionError
         self.connection.executions += 1
         if self.connection._executeFailQueue:
             raise self.connection._executeFailQueue.pop(0)()

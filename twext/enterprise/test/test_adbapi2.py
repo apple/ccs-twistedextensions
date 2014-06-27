@@ -463,6 +463,25 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(self.factory.connections[1].closed, True)
 
 
+    def test_partialTxnFailsDuringStopService(self):
+        """
+        Using the logic in L{ConnectionPool.stopService}, make sure that an
+        L{_ConnectedTxn} cannot continue to process SQL after L{_ConnectedTxn.abort}
+        is called and before L{_ConnectedTxn.reset} is called.
+        """
+        txn = self.createTransaction()
+        if hasattr(txn, "_baseTxn"):
+            # Send initial statement
+            txn.execSQL("maybe change something!")
+
+            # Make it look like the service is stopping
+            txn._baseTxn._connection.close()
+            txn._baseTxn.terminate()
+
+            # Try to send more SQL - must fail
+            self.failUnlessRaises(RuntimeError, txn.execSQL, "maybe change something else!")
+
+
     def test_abortRecycledTransaction(self):
         """
         L{ConnectionPool.stopService} will shut down if a recycled transaction
