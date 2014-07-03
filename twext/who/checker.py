@@ -121,7 +121,7 @@ class HTTPDigestCredentialChecker(BaseCredentialChecker):
                 "Not an IHTTPDigestVerifier: {0!r}".format(record)
             )
 
-        if record.verifyHTTPDigest(
+        result = yield record.verifyHTTPDigest(
             credentials.username,
             credentials.fields.get("realm"),
             credentials.fields.get("uri"),
@@ -132,7 +132,8 @@ class HTTPDigestCredentialChecker(BaseCredentialChecker):
             credentials.fields.get("qop", "auth"),
             credentials.fields.get("response"),
             credentials.method,
-        ):
+        )
+        if result:
             returnValue(record)
 
         raise UnauthorizedLogin("Incorrect password")

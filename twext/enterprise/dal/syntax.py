@@ -1737,16 +1737,17 @@ class Insert(_DMLStatement):
         return self._returningClause(queryGenerator, stmt, allTables)
 
 
+    @inlineCallbacks
     def on(self, txn, *a, **kw):
         """
         Override to provide extra logic for L{Insert}s that return values on
         databases that don't provide return values as part of their C{INSERT}
         behavior.
         """
-        result = super(_DMLStatement, self).on(txn, *a, **kw)
+        result = yield super(_DMLStatement, self).on(txn, *a, **kw)
         if self.Return is not None and txn.dialect == SQLITE_DIALECT:
             table = self._returnAsList()[0].model.table
-            return Select(
+            result = yield Select(
                 self._returnAsList(),
                 # TODO: error reporting when "return" includes columns
                 # foreign to the primary table.
@@ -1757,7 +1758,7 @@ class Insert(_DMLStatement):
                     ) == _sqliteLastInsertRowID()
                 )
             ).on(txn, *a, **kw)
-        return result
+        returnValue(result)
 
 
 
