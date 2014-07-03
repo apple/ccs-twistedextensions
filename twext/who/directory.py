@@ -262,9 +262,10 @@ class DirectoryService(object):
             )
 
 
-    def recordsWithFieldValue(self, fieldName, value):
+    def recordsWithFieldValue(self, fieldName, value, recordTypes=None):
         return self.recordsFromExpression(
-            MatchExpression(fieldName, value)
+            MatchExpression(fieldName, value),
+            recordTypes=recordTypes
         )
 
 
@@ -292,17 +293,10 @@ class DirectoryService(object):
             uniqueResult(
                 (
                     yield self.recordsFromExpression(
-                        CompoundExpression(
-                            (
-                                MatchExpression(
-                                    FieldName.recordType, recordType
-                                ),
-                                MatchExpression(
-                                    FieldName.shortNames, shortName
-                                ),
-                            ),
-                            operand=Operand.AND
-                        )
+                        MatchExpression(
+                            FieldName.shortNames, shortName
+                        ),
+                        recordTypes=[recordType]
                     )
                 )
             )

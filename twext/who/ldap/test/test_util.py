@@ -216,7 +216,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         expected = u"({attribute}={expected})".format(
             attribute=u"fullNames",
             expected=(
-                u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
+                u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29* "
                 "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
             )
         )

@@ -240,7 +240,8 @@ LDAP_QUOTING_TABLE = {
 
     ord(u"("): u"\\28",
     ord(u")"): u"\\29",
-    ord(u"*"): u"\\2A",
+    # Question: shouldn't we not be quoting * because that's how you specify wildcards?
+    # ord(u"*"): u"\\2A",
 
     ord(u"<"): u"\\3C",
     ord(u"="): u"\\3D",

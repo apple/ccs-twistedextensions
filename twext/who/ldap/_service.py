@@ -288,6 +288,12 @@ class DirectoryService(BaseDirectoryService):
         )
         self._recordTypeSchemas = recordTypeSchemas
 
+        attributesToFetch = set()
+        for attributes in fieldNameToAttributesMap.values():
+            for attribute in attributes:
+                attributesToFetch.add(attribute.encode("utf-8"))
+        self._attributesToFetch = list(attributesToFetch)
+
 
     @property
     def realmName(self):
@@ -409,26 +415,48 @@ class DirectoryService(BaseDirectoryService):
 
     @inlineCallbacks
     def _recordsFromQueryString(self, queryString, recordTypes=None):
+        records = []
+
         connection = yield self._connect()
 
-        self.log.info("Performing LDAP query: {query}", query=queryString)
+        if recordTypes is None:
+            recordTypes = self.recordTypes()
 
-        try:
-            reply = yield deferToThread(
-                connection.search_s,
-                self._baseDN,
-                ldap.SCOPE_SUBTREE,
-                queryString  # FIXME: attrs
+        for recordType in recordTypes:
+            rdn = self._recordTypeSchemas[recordType].relativeDN
+            rdn = (
+                ldap.dn.str2dn(rdn.lower()) +
+                ldap.dn.str2dn(self._baseDN.lower())
             )
-
-        except ldap.FILTER_ERROR as e:
-            self.log.error(
-                "Unable to perform query {0!r}: {1}"
-                .format(queryString, e)
+            self.log.info(
+                "Performing LDAP query: {rdn} {query} {recordType}",
+                rdn=rdn,
+                query=queryString,
+                recordType=recordType
             )
-            raise LDAPQueryError("Unable to perform query", e)
+            try:
+                reply = yield deferToThread(
+                    connection.search_s,
+                    ldap.dn.dn2str(rdn),
+                    ldap.SCOPE_SUBTREE,
+                    queryString,
+                    attrlist=self._attributesToFetch
+                )
 
-        records = yield self._recordsFromReply(reply, recordTypes=recordTypes)
+            except ldap.FILTER_ERROR as e:
+                self.log.error(
+                    "Unable to perform query {0!r}: {1}"
+                    .format(queryString, e)
+                )
+                raise LDAPQueryError("Unable to perform query", e)
+
+            except ldap.NO_SUCH_OBJECT as e:
+                self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
+                continue
+
+            records.extend(
+                (yield self._recordsFromReply(reply, recordType=recordType))
+            )
         returnValue(records)
 
 
@@ -446,7 +474,8 @@ class DirectoryService(BaseDirectoryService):
             connection.search_s,
             dn,
             ldap.SCOPE_SUBTREE,
-            "(objectClass=*)"  # FIXME: attrs
+            "(objectClass=*)",
+            attrlist=self._attributesToFetch
         )
         records = self._recordsFromReply(reply)
         if len(records):
@@ -455,16 +484,23 @@ class DirectoryService(BaseDirectoryService):
             returnValue(None)
 
 
-    def _recordsFromReply(self, reply, recordTypes=None):
+    def _recordsFromReply(self, reply, recordType=None):
         records = []
+
 
         for dn, recordData in reply:
 
             # Determine the record type
 
-            recordType = recordTypeForRecordData(
-                self._recordTypeSchemas, recordData
-            )
+            if recordType is None:
+                recordType = recordTypeForDN(
+                    self._baseDN, self._recordTypeSchemas, dn
+                )
+
+            if recordType is None:
+                recordType = recordTypeForRecordData(
+                    self._recordTypeSchemas, recordData
+                )
 
             if recordType is None:
                 self.log.debug(
@@ -472,9 +508,6 @@ class DirectoryService(BaseDirectoryService):
                     "type: {recordData!r}",
                     recordData=recordData,
                 )
-                continue
-
-            if recordTypes is not None and recordType not in recordTypes:
                 continue
 
             # Populate a fields dictionary
@@ -499,7 +532,18 @@ class DirectoryService(BaseDirectoryService):
                         if not isinstance(values, list):
                             values = [values]
 
-                        newValues = [valueType(v) for v in values]
+                        if valueType is unicode:
+                            newValues = []
+                            for v in values:
+                                if isinstance(v, unicode):
+                                    # because the ldap unit test produces
+                                    # unicode values (?)
+                                    newValues.append(v)
+                                else:
+                                    newValues.append(unicode(v, "utf-8"))
+                            # newValues = [unicode(v, "utf-8") for v in values]
+                        else:
+                            newValues = [valueType(v) for v in values]
 
                         if self.fieldName.isMultiValue(fieldName):
                             fields[fieldName] = newValues
@@ -525,7 +569,7 @@ class DirectoryService(BaseDirectoryService):
             record = DirectoryRecord(self, fields)
             records.append(record)
 
-        self.log.debug("LDAP results: {records}", records=records)
+        # self.log.debug("LDAP results: {records}", records=records)
 
         return records
 
@@ -559,6 +603,12 @@ class DirectoryService(BaseDirectoryService):
         )
         return self._recordsFromQueryString(
             queryString, recordTypes=recordTypes
+        )
+
+
+    def recordsWithRecordType(self, recordType):
+        return self.recordsWithFieldValue(
+            BaseFieldName.uid, u"*", recordTypes=[recordType]
         )
 
 
@@ -617,6 +667,39 @@ def reverseDict(source):
             new.setdefault(value, []).append(key)
 
     return new
+
+
+def recordTypeForDN(baseDnStr, recordTypeSchemas, dnStr):
+    """
+    Examine a DN to determine which recordType it belongs to
+
+    @param baseDnStr: The base DN
+    @type baseDnStr: string
+
+    @param recordTypeSchemas: Schema information for record types.
+    @type recordTypeSchemas: mapping from L{NamedConstant} to
+        L{RecordTypeSchema}
+
+    @param dnStr: DN to compare
+    @type dnStr: string
+
+    @return: recordType string, or None if no match
+    """
+    dn = ldap.dn.str2dn(dnStr.lower())
+    baseDN = ldap.dn.str2dn(baseDnStr.lower())
+
+    for recordType, schema in recordTypeSchemas.iteritems():
+        combined = ldap.dn.str2dn(schema.relativeDN.lower()) + baseDN
+        if dnContainedIn(dn, combined):
+            return recordType
+    return None
+
+
+def dnContainedIn(child, parent):
+    """
+    Return True if child dn is contained within parent dn, otherwise False.
+    """
+    return child[-len(parent):] == parent
 
 
 def recordTypeForRecordData(recordTypeSchemas, recordData):
