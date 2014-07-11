@@ -1445,6 +1445,52 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         self.assertEqual(failed[0], 1)
 
 
+    @inlineCallbacks
+    def test_pollingBackoff(self):
+        """
+        Check that an idle queue backs off its polling and goes back to rapid polling
+        when a worker enqueues a job.
+        """
+
+        # Speed up the backoff process
+        self.patch(PeerConnectionPool, "queuePollingBackoff", ((1.0, 60.0),))
+
+        # Wait for backoff
+        while self.node1._actualPollInterval == self.node1.queuePollInterval:
+            d = Deferred()
+            reactor.callLater(1.0, lambda : d.callback(None))
+            yield d
+
+        self.assertEqual(self.node1._actualPollInterval, 60.0)
+
+        # TODO: this exact test should run against LocalQueuer as well.
+        def operation(txn):
+            # TODO: how does "enqueue" get associated with the transaction?
+            # This is not the fact with a raw t.w.enterprise transaction.
+            # Should probably do something with components.
+            return txn.enqueue(DummyWorkItem, a=3, b=4, jobID=100, workID=1,
+                               notBefore=datetime.datetime.utcnow())
+        yield inTransaction(self.store.newTransaction, operation)
+
+        # Backoff terminated
+        while self.node1._actualPollInterval != self.node1.queuePollInterval:
+            d = Deferred()
+            reactor.callLater(0.1, lambda : d.callback(None))
+            yield d
+        self.assertEqual(self.node1._actualPollInterval, self.node1.queuePollInterval)
+
+        # Wait for it to be executed.  Hopefully this does not time out :-\.
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        # Wait for backoff
+        while self.node1._actualPollInterval == self.node1.queuePollInterval:
+            d = Deferred()
+            reactor.callLater(1.0, lambda : d.callback(None))
+            yield d
+
+        self.assertEqual(self.node1._actualPollInterval, 60.0)
+
+
 
 class DummyProposal(object):
 
