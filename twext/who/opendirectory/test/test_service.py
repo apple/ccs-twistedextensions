@@ -82,7 +82,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                     [
                         u"dsRecTypeStandard:Users",
                         u"dsRecTypeStandard:Groups",
-                        u"dsRecTypeStandard:Locations",
+                        u"dsRecTypeStandard:Places",
                         u"dsRecTypeStandard:Resources",
                     ]
                 )
@@ -112,7 +112,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 [
                     u"dsRecTypeStandard:Users",
                     u"dsRecTypeStandard:Groups",
-                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Places",
                     u"dsRecTypeStandard:Resources",
                 ]
             )
@@ -143,7 +143,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 [
                     u"dsRecTypeStandard:Users",
                     u"dsRecTypeStandard:Groups",
-                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Places",
                     u"dsRecTypeStandard:Resources",
                 ]
             )
@@ -176,7 +176,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             set(
                 [
                     u"dsRecTypeStandard:Groups", u"dsRecTypeStandard:Users",
-                    u"dsRecTypeStandard:Locations", u"dsRecTypeStandard:Resources",
+                    u"dsRecTypeStandard:Places", u"dsRecTypeStandard:Resources",
                 ]
             )
         )
@@ -229,7 +229,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 [
                     u"dsRecTypeStandard:Users",
                     u"dsRecTypeStandard:Groups",
-                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Places",
                     u"dsRecTypeStandard:Resources",
                 ]
             )
@@ -270,7 +270,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 [
                     u"dsRecTypeStandard:Users",
                     u"dsRecTypeStandard:Groups",
-                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Places",
                     u"dsRecTypeStandard:Resources",
                 ]
             )
@@ -383,7 +383,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             set(
                 [
                     u"dsRecTypeStandard:Groups",
-                    u"dsRecTypeStandard:Locations",
+                    u"dsRecTypeStandard:Places",
                     u"dsRecTypeStandard:Resources",
                 ]
             )

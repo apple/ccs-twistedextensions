@@ -23,6 +23,7 @@ __all__ = [
     "DirectoryService",
 ]
 
+import collections
 from itertools import chain
 
 from twisted.internet.defer import (
@@ -162,10 +163,16 @@ class DirectoryService(BaseDirectoryService):
 
     @inlineCallbacks
     def updateRecords(self, records, create=False):
+
+        # When migrating there may be lots of new records so batch this by each service record type
+        recordsByType = collections.defaultdict(list)
         for record in records:
+            recordsByType[record.recordType].append(record)
+
+        for recordType, recordList in recordsByType.items():
             for service in self.services:
-                if record.recordType in service.recordTypes():
-                    yield service.updateRecords([record], create=create)
+                if recordType in service.recordTypes():
+                    yield service.updateRecords(recordList, create=create)
 
 
     @inlineCallbacks

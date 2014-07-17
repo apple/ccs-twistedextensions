@@ -508,26 +508,32 @@ class DirectoryService(BaseDirectoryService):
             expression.fieldName = self.fieldName.guid
 
         if expression.fieldName is self.fieldName.recordType:
-            raise QueryNotSupportedError("RecordType match not supported")
 
-        if MatchFlags.NOT in flags:
-            raise NotImplementedError()
+            queryAttribute = None
+            queryValue = None
+            matchType = ODMatchType.any.value
+            caseInsensitive = 0x0
 
-        if recordTypes is None:
-            odRecordTypes = [t.value for t in ODRecordType.iterconstants()]
+            odRecordTypes = [ODRecordType.fromRecordType(expression.fieldValue).value, ]
         else:
-            odRecordTypes = [ODRecordType.fromRecordType(r).value for r in recordTypes]
+            if MatchFlags.NOT in flags:
+                raise NotImplementedError()
 
-        queryAttribute = ODAttribute.fromFieldName(
-            expression.fieldName
-        ).value
+            if recordTypes is None:
+                odRecordTypes = [t.value for t in ODRecordType.iterconstants()]
+            else:
+                odRecordTypes = [ODRecordType.fromRecordType(r).value for r in recordTypes]
 
-        # TODO: Add support other value types:
-        valueType = self.fieldName.valueType(expression.fieldName)
-        if valueType == UUID:
-            queryValue = unicode(expression.fieldValue).upper()
-        else:
-            queryValue = unicode(expression.fieldValue)
+            queryAttribute = ODAttribute.fromFieldName(
+                expression.fieldName
+            ).value
+
+            # TODO: Add support other value types:
+            valueType = self.fieldName.valueType(expression.fieldName)
+            if valueType == UUID:
+                queryValue = unicode(expression.fieldValue).upper()
+            else:
+                queryValue = unicode(expression.fieldValue)
 
         if local:
             node = self.localNode

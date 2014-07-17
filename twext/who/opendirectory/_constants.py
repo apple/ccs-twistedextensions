@@ -71,7 +71,8 @@ class ODRecordType(Values):
     group = ValueConstant(u"dsRecTypeStandard:Groups")
     group.recordType = BaseRecordType.group
 
-    location = ValueConstant(u"dsRecTypeStandard:Locations")
+    #location = ValueConstant(u"dsRecTypeStandard:Locations")
+    place = ValueConstant(u"dsRecTypeStandard:Places")
 
     resource = ValueConstant(u"dsRecTypeStandard:Resources")
 
@@ -107,7 +108,6 @@ class ODRecordType(Values):
     # network = ValueConstant(u"dsRecTypeStandard:Networks")
     # passwordServer = ValueConstant(u"dsRecTypeStandard:PasswordServer")
     # person = ValueConstant(u"dsRecTypeStandard:People")
-    # place = ValueConstant(u"dsRecTypeStandard:Places")
     # presetComputer = ValueConstant(u"dsRecTypeStandard:PresetComputers")
     # presetComputerGroup = ValueConstant(u"dsRecTypeStandard:PresetComputerGroups")
     # presetComputerList = ValueConstant(u"dsRecTypeStandard:PresetComputerLists")

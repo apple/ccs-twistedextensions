@@ -472,6 +472,7 @@ class DirectoryService(BaseDirectoryService):
         directoryNode = self._directoryNodeForEditing()
 
         def fillRecordNode(recordNode, record):
+            subNode = None
             for (name, value) in record.fields.items():
                 if name == self.fieldName.recordType:
                     if value in recordTypes:
@@ -498,12 +499,18 @@ class DirectoryService(BaseDirectoryService):
                             if isinstance(value, UUID):
                                 value = str(value)
                             subNode.text = value
+                            subNode.tail = "\n    "
                             recordNode.append(subNode)
 
                     else:
                         raise AssertionError(
                             "Unknown field name: {0!r}".format(name)
                         )
+
+            if subNode is not None:
+                subNode.tail = "\n"
+            recordNode.text = "\n    "
+            recordNode.tail = "\n"
 
         # Walk through the record nodes in the XML tree and apply
         # updates.
