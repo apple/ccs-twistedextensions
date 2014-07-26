@@ -129,7 +129,7 @@ class HTTPDigestCredentialChecker(BaseCredentialChecker):
             credentials.fields.get("cnonce"),
             credentials.fields.get("algorithm", "md5"),
             credentials.fields.get("nc"),
-            credentials.fields.get("qop", "auth"),
+            credentials.fields.get("qop"),
             credentials.fields.get("response"),
             credentials.method,
         )
