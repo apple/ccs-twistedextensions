@@ -1041,16 +1041,18 @@ class ConnectionPool(Service, object):
             waiting = self._waiting[0]
             waiting._stopWaiting()
 
-        # Phase 2: Wait for all the Deferreds from the L{_ConnectedTxn}s that
-        # have *already* been stopped.
-        while self._finishing:
-            yield _fork(self._finishing[0][1])
-
-        # Phase 3: All of the busy transactions must be terminated first.  As each
+        # Phase 2: All of the busy transactions must be terminated first.  As each
         # one is terminated, it will remove itself from the list. Note we terminate
         # and not abort the transaction to ensure they cannot be re-used.
         while self._busy:
             yield self._busy[0].terminate()
+
+        # Phase 3: Wait for all the Deferreds from the L{_ConnectedTxn}s that
+        # have *already* been stopped. Note we do this AFTER clearing out
+        # self._busy, to make sure any that were busy have properly finished
+        # (been added to self._free) before we clear out the free ones.
+        while self._finishing:
+            yield _fork(self._finishing[0][1])
 
         # Phase 4: All transactions should now be in the free list, since
         # "abort()" will have put them there.  Shut down all the associated
@@ -1183,7 +1185,11 @@ class ConnectionPool(Service, object):
             self._busy.append(txn)
             waiting._unspoolOnto(txn)
         else:
-            self._free.append(txn)
+            # If we are stopping, never add to the free list - release it
+            if self._stopping:
+                txn._releaseConnection()
+            else:
+                self._free.append(txn)
 
 
 
