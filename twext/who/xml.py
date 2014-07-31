@@ -80,7 +80,7 @@ class Element(Values):
     # Schema hierarchy
 
     directory = ValueConstant(u"directory")
-    record    = ValueConstant(u"record")
+    record = ValueConstant(u"record")
 
     # Field names
 
@@ -112,7 +112,7 @@ class Attribute(Values):
     XML attribute names.
     """
 
-    realm      = ValueConstant(u"realm")
+    realm = ValueConstant(u"realm")
     recordType = ValueConstant(u"type")
 
 
@@ -144,8 +144,8 @@ class DirectoryService(BaseDirectoryService):
     )
 
     # XML schema constants
-    element         = Element
-    attribute       = Attribute
+    element = Element
+    attribute = Attribute
     recordTypeValue = RecordTypeValue
 
 
@@ -438,7 +438,6 @@ class DirectoryService(BaseDirectoryService):
                 "Unknown child element {0} of element {1}."
                 .format(child.tag, node.tag)
             )
-
 
 
     def flush(self):

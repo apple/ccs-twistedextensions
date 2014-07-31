@@ -50,8 +50,6 @@ if __name__ == '__main__':
     os._exit(0)
 
 
-import sys
-
 from zope.interface import implements
 
 from twisted.internet.interfaces import ITransport, IPushProducer, IConsumer
@@ -257,6 +255,3 @@ class SpawnerService(Service, object):
                 bridge.eventuallyStop()
             return self._stopAllDeferred
         return succeed(None)
-
-
-

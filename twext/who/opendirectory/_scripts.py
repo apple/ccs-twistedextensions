@@ -91,6 +91,7 @@ def calcHA1(
     return HA1.encode("hex")
 
 
+
 # DigestCalcResponse
 def calcResponse(
     HA1,
@@ -129,6 +130,7 @@ def calcResponse(
     return respHash
 
 
+
 @inlineCallbacks
 def authUsernamePassword(username, password):
     # Authenticate using simple password
@@ -148,14 +150,14 @@ def authUsernamePassword(username, password):
     # Authenticate using Digest
 
     algorithm = "md5"  # "md5-sess"
-    cnonce    = "/rrD6TqPA3lHRmg+fw/vyU6oWoQgzK7h9yWrsCmv/lE="
-    entity    = "00000000000000000000000000000000"
-    method    = "GET"
-    nc        = "00000001"
-    nonce     = "128446648710842461101646794502"
-    qop       = None
-    realm     = "host.example.com"
-    uri       = "http://host.example.com"
+    cnonce = "/rrD6TqPA3lHRmg+fw/vyU6oWoQgzK7h9yWrsCmv/lE="
+    entity = "00000000000000000000000000000000"
+    method = "GET"
+    nc = "00000001"
+    nonce = "128446648710842461101646794502"
+    qop = None
+    realm = "host.example.com"
+    uri = "http://host.example.com"
 
     responseHash = calcResponse(
         calcHA1(
@@ -185,6 +187,7 @@ def authUsernamePassword(username, password):
         print("   {name}".format(name=id.fullNames))
     except UnauthorizedLogin:
         print("Via DigestedCredentials, could not authenticate")
+
 
 
 @inlineCallbacks
@@ -236,12 +239,14 @@ def lookup(shortNames):
             print(record.description())
 
 
+
 def run_auth():
     username = raw_input("Username: ")
     if username:
         password = getpass()
         if password:
             authUsernamePassword(username, password)
+
 
 
 def run_lookup():

@@ -81,22 +81,22 @@ Such an application might be implemented with this queuing system like so::
 More details:
 
     Terminology:
-    
+
         node: a host in a multi-host setup. Each node will contain a
             "controller" process and a set of "worker" processes.
             Nodes communicate with each other to allow load balancing
             of jobs across the entire cluster.
-        
+
         controller: a process running in a node that is in charge of
             managing "workers" as well as connections to other nodes. The
             controller polls the job queue and dispatches outstanding jobs
             to its "workers".
-        
+
         worker: a process running in a node that is responsible for
             executing jobs sent to it by the "controller". It also
             handles enqueuing of jobs as dictated by operations it
             is doing.
-                
+
     A controller has a:
 
     L{WorkerConnectionPool}: this maintains a list of worker processes that
@@ -1499,7 +1499,7 @@ class ConnectionFromWorker(AMP):
         """
         A worker enqueued a job and is letting us know. We need to "ping" the
         L{PeerConnectionPool} to ensure it is polling the job queue at its
-        normal "fast" rate, as opposed to slower idle rates. 
+        normal "fast" rate, as opposed to slower idle rates.
         """
 
         self.peerPool.enqueuedJob()
@@ -2180,8 +2180,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         the same peer.
         """
         # if (host, port) in self.mappedPeers:
-            # TODO: think about this for race conditions
-            # self.mappedPeers.pop((host, port)).transport.loseConnection()
+        #     TODO: think about this for race conditions
+        #     self.mappedPeers.pop((host, port)).transport.loseConnection()
         self.mappedPeers[(host, port)] = peer
 
     _connectingToPeer = []

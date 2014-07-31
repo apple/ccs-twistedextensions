@@ -351,8 +351,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         self.assertEquals(
             queryString,
             u"("
-                u"|(dsAttrTypeStandard:RecordName=xxxxx)"
-                u"(dsAttrTypeStandard:RecordName=yyyyy)"
+            u"|(dsAttrTypeStandard:RecordName=xxxxx)"
+            u"(dsAttrTypeStandard:RecordName=yyyyy)"
             u")"
         )
         # NOR expression
@@ -391,8 +391,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         self.assertEquals(
             queryString,
             u"("
-                u"|(dsAttrTypeStandard:RecordName=xxxxx)"
-                u"(dsAttrTypeStandard:RecordName=yyyyy)"
+            u"|(dsAttrTypeStandard:RecordName=xxxxx)"
+            u"(dsAttrTypeStandard:RecordName=yyyyy)"
             u")"
         )
 

@@ -45,12 +45,14 @@ class Tools(Names):
         return False
 
 
+
 class MoreTools(Names):
     saw = NamedConstant()
     saw.description = u"z maker"
 
     mallet = NamedConstant()
     mallet.description = u"soft pounder"
+
 
 
 class Instruments(Names):
@@ -225,7 +227,6 @@ class ConstantsContainerTest(unittest.TestCase):
         )
 
 
-
     def test_lookupByName(self):
         """
         Constants are assessible via L{ConstantsContainer.lookupByName}.
@@ -303,6 +304,7 @@ class UtilTest(unittest.TestCase):
         self.assertEquals(u"blue", describe(Switches.b))
         self.assertEquals(u"red|green", describe(Switches.r | Switches.g))
         self.assertEquals(u"blue|black", describe(Switches.b | Switches.black))
+
 
     def test_describeObject(self):
         """

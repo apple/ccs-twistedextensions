@@ -70,6 +70,7 @@ def noLoadDirectoryService(superClass):
     return NoLoadDirectoryService
 
 
+
 class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
     """
     Tests for indexed directory services.
@@ -85,6 +86,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         service.records = records
 
         return service
+
 
     def test_indexRecords_positive(self):
         """
@@ -508,9 +510,9 @@ def emptyIndex(index):
     if not index:
         return True
 
-    for fieldName, fieldIndex in index.iteritems():
-        for fieldValue, records in fieldIndex.iteritems():
-            for record in records:
+    for _ignore_fieldName, fieldIndex in index.iteritems():
+        for _ignore_fieldValue, records in fieldIndex.iteritems():
+            for _ignore_record in records:
                 return False
 
     return True

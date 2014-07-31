@@ -89,6 +89,3 @@ class Parallelizer(object):
         """
         return (DeferredList(self.activeDeferreds)
                 .addCallback(lambda ignored: None))
-
-
-

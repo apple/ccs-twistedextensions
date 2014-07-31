@@ -973,13 +973,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
-                Where=(
-                    (
+                Where=((
                     self.schema.FOO.BAZ == Parameter("P1")
                 ).Or(
-                        self.schema.FOO.BAR.In(Parameter("names", len(items))
-                ).And(
-                    self.schema.FOO.BAZ == Parameter("P2")
+                    self.schema.FOO.BAR.In(Parameter("names", len(items))).And(
+                        self.schema.FOO.BAZ == Parameter("P2")
                     )
                 ))
             ).toSQL().bind(P1="P1", P2="P2", names=items),

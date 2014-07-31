@@ -93,6 +93,7 @@ class OpenDirectoryDataError(OpenDirectoryError):
     """
 
 
+
 class UnsupportedRecordTypeError(OpenDirectoryError):
     """
     Record type not supported by service.
@@ -142,7 +143,6 @@ class DirectoryService(BaseDirectoryService):
     @property
     def realmName(self):
         return u"OpenDirectory Node {self.nodeName!r}".format(self=self)
-
 
 
     @property
@@ -410,7 +410,7 @@ class DirectoryService(BaseDirectoryService):
         else:
             node = self.node
 
-        queryString, expressionRecordTypes = (
+        queryString, _ignore_expressionRecordTypes = (
             self._queryStringAndRecordTypesFromExpression(expression)
         )
 
@@ -746,7 +746,6 @@ class DirectoryService(BaseDirectoryService):
         returnValue(results)
 
 
-
     @inlineCallbacks
     def localRecordsFromCompoundExpression(self, expression, recordTypes=None):
         """
@@ -867,6 +866,7 @@ class DirectoryService(BaseDirectoryService):
 
         except UnsupportedRecordTypeError:
             returnValue(None)
+
 
 
 @implementer(IPlaintextPasswordVerifier, IHTTPDigestVerifier)
@@ -1016,7 +1016,7 @@ class DirectoryRecord(BaseDirectoryRecord):
             response=response
         )
 
-        result, m1, m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
+        result, _ignore_m1, _ignore_m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
             ODAuthMethod.digestMD5.value,
             [username, challenge, responseArg, method],
             None, None, None

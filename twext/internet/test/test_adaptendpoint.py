@@ -33,6 +33,7 @@ class names(object):
         self.__dict__.update(kw)
 
 
+
 class RecordingProtocol(Protocol, object):
     def __init__(self):
         super(RecordingProtocol, self).__init__()
@@ -82,7 +83,7 @@ class RecordingClientFactory(ClientFactory):
 
 
     def buildProtocol(self, addr):
-        b =  RecordingProtocol()
+        b = RecordingProtocol()
         self.built.append(names(protocol=b, addr=addr))
         return b
 
@@ -98,6 +99,7 @@ class RecordingEndpoint(object):
         d = Deferred()
         self.attempts.append(names(deferred=d, factory=factory))
         return d
+
 
 
 class RecordingTransport(object):
@@ -256,6 +258,3 @@ class AdaptEndpointTests(TestCase):
         """
         self.connectionFails(Failure(ZeroDivisionError()))
         self.assertRaises(RuntimeError, self.connector.stopConnecting)
-
-
-

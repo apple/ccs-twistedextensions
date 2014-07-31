@@ -118,6 +118,3 @@ class ThreadHolder(object):
         self._state = _STATE_STOPPING
         self._q.put(_DONE)
         return s
-
-
-

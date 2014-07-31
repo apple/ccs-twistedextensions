@@ -49,6 +49,7 @@ def ldapQueryStringFromQueryStrings(operand, queryStrings):
         return u""
 
 
+
 def ldapQueryStringFromMatchExpression(
     expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
@@ -153,6 +154,7 @@ def ldapQueryStringFromMatchExpression(
     raise AssertionError("We shouldn't be here.")
 
 
+
 def ldapQueryStringFromCompoundExpression(
     expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
@@ -192,6 +194,7 @@ def ldapQueryStringFromCompoundExpression(
     ]
 
     return ldapQueryStringFromQueryStrings(operand, queryStrings)
+
 
 
 def ldapQueryStringFromExpression(

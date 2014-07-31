@@ -163,4 +163,3 @@ def connect(endpoint, clientFactory):
     wrap.noisy = clientFactory.noisy # relay the noisy attribute to the wrapper
     wrap.connect()
     return wrap
-

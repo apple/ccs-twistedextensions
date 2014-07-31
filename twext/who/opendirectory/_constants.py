@@ -54,6 +54,7 @@ class FieldName(Names):
     nestedGroupsUIDs.multiValue = True
 
 
+
 #
 # OD constants
 #
@@ -71,7 +72,7 @@ class ODRecordType(Values):
     group = ValueConstant(u"dsRecTypeStandard:Groups")
     group.recordType = BaseRecordType.group
 
-    #location = ValueConstant(u"dsRecTypeStandard:Locations")
+    # location = ValueConstant(u"dsRecTypeStandard:Locations")
     place = ValueConstant(u"dsRecTypeStandard:Places")
 
     resource = ValueConstant(u"dsRecTypeStandard:Resources")

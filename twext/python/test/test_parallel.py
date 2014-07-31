@@ -59,5 +59,3 @@ class ParallelizerTests(TestCase):
         d1.callback(4)
         self.assertEqual(done, [None, None, None, None])
         self.assertEqual(allDone, [None])
-
-

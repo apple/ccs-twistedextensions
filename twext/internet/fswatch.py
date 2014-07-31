@@ -34,6 +34,7 @@ except ImportError:
     kqueueSupported = False
 
 
+
 class IDirectoryChangeListenee(Interface):
     """
     A delegate of DirectoryChangeListener
@@ -60,7 +61,7 @@ class IDirectoryChangeListenee(Interface):
         """
 
 
-#TODO: better way to tell if reactor is kqueue or not
+# TODO: better way to tell if reactor is kqueue or not
 if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
 
 
@@ -76,7 +77,6 @@ if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
         reactor._doWriteOrRead = _doWriteOrReadOrVNodeEvent
 
     patchReactor(reactor)
-
 
 
     class DirectoryChangeListener(Logger, object):

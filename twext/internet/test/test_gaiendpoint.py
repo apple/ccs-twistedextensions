@@ -78,7 +78,7 @@ class GAIEndpointTestCase(TestCase):
         A call to L{getaddrinfo} has succeeded; invoke the L{Deferred} waiting
         on it.
         """
-        d, f, a, k = self.inThreads.pop(0)
+        d, _ignore_f, _ignore_a, _ignore_k = self.inThreads.pop(0)
         d.callback([(family, socktype, proto, canonname, sockaddr)])
 
 
@@ -109,4 +109,3 @@ class GAIEndpointTestCase(TestCase):
         attempt = self.fakeRealEndpoints[0]._attempt
         attempt.callback(self.fakeRealEndpoints[0]._factory.buildProtocol(None))
         self.assertEqual(len(protos), 1)
-

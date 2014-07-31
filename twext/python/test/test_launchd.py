@@ -18,7 +18,11 @@
 Tests for L{twext.python.launchd}.
 """
 
-import sys, os, plistlib, socket, json
+import json
+import os
+import plistlib
+import socket
+import sys
 
 if __name__ == '__main__':
     # This module is loaded as a launchd job by test-cases below; the following
@@ -151,9 +155,10 @@ class DictionaryTests(TestCase):
         L{plainPython} will convert a L{_LaunchDictionary} into a Python
         dictionary.
         """
-        self.assertEquals({b"alpha": b"alpha-value", b"beta": b"beta-value",
-                           b"gamma": 3},
-                           plainPython(_LaunchDictionary(self.testDict)))
+        self.assertEquals(
+            {b"alpha": b"alpha-value", b"beta": b"beta-value", b"gamma": 3},
+            plainPython(_LaunchDictionary(self.testDict))
+        )
 
 
     def test_plainPythonNested(self):
@@ -165,9 +170,12 @@ class DictionaryTests(TestCase):
         lib.launch_data_dict_insert(otherDict,
                                     lib.launch_data_new_string("bar"), "foo")
         lib.launch_data_dict_insert(self.testDict, otherDict, "delta")
-        self.assertEquals({b"alpha": b"alpha-value", b"beta": b"beta-value",
-                           b"gamma": 3, b"delta": {b"foo": b"bar"}},
-                           plainPython(_LaunchDictionary(self.testDict)))
+        self.assertEquals(
+            {b"alpha": b"alpha-value", b"beta": b"beta-value",
+             b"gamma": 3, b"delta": {b"foo": b"bar"}},
+            plainPython(_LaunchDictionary(self.testDict))
+        )
+
 
 
 class ArrayTests(TestCase):
@@ -393,5 +401,3 @@ class CheckInTests(TestCase):
         err = self.stderr.getContent()
         if 'Traceback' in err:
             self.fail(err)
-
-

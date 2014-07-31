@@ -90,9 +90,9 @@ def memoizedKey(keyArgument, memoAttribute, deferredResult=True):
         if argname in kw:
             return kw[argname]
         else:
-            raise TypeError("could not find key argument %r in %r/%r (%r)" %
-                (argname, args, kw, argpos)
-            )
+            raise TypeError("could not find key argument %r in %r/%r (%r)" % (
+                argname, args, kw, argpos
+            ))
 
 
     def decorate(thunk):

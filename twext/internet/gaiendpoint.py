@@ -94,7 +94,7 @@ class GAIEndpoint(object):
                                   AF_UNSPEC, SOCK_STREAM)
         @dgai.addCallback
         def gaiToEndpoints(gairesult):
-            for family, socktype, proto, canonname, sockaddr in gairesult:
+            for family, _ignore_socktype, _ignore_proto, _ignore_canonname, sockaddr in gairesult:
                 if family in [AF_INET6, AF_INET]:
                     yield self.subEndpoint(self.reactor, sockaddr[0],
                                            sockaddr[1], self.contextFactory)
@@ -162,7 +162,9 @@ if __name__ == '__main__':
         host = "localhost"
         port = 22
     gaie = GAIEndpoint(reactor, host, port)
+
     from twisted.internet.protocol import Factory, Protocol
+
     class HelloGoobye(Protocol, object):
         def connectionMade(self):
             print('Hello!')
@@ -171,12 +173,16 @@ if __name__ == '__main__':
         def connectionLost(self, reason):
             print('Goodbye')
 
+
     class MyFactory(Factory, object):
         def buildProtocol(self, addr):
             print('Building protocol for:', addr)
             return HelloGoobye()
+
+
     def bye(what):
         print('bye', what)
         reactor.stop()
+
     gaie.connect(MyFactory()).addBoth(bye)
     reactor.run()

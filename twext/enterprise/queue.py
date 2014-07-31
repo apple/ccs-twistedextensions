@@ -1437,8 +1437,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         the same peer.
         """
         # if (host, port) in self.mappedPeers:
-            # TODO: think about this for race conditions
-            # self.mappedPeers.pop((host, port)).transport.loseConnection()
+        #     TODO: think about this for race conditions
+        #     self.mappedPeers.pop((host, port)).transport.loseConnection()
         self.mappedPeers[(host, port)] = peer
 
     _connectingToPeer = []

@@ -892,6 +892,7 @@ class DirectoryRecordTest(
             )
         )
 
+
     @inlineCallbacks
     def test_memberships(self):
         service = self.service()

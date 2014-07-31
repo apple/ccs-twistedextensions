@@ -89,7 +89,7 @@ class MasterOptions(Options):
         except TypeError:
             raise UsageError("Not a protocol: {0}".format(protocol))
 
-        #### FIXME: port should be a strport
+        # FIXME: port should be a strport
 
         # Validate port number
         try:

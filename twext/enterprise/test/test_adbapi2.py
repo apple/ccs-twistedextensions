@@ -352,7 +352,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         stopResult = self.resultOf(self.pool.stopService())
         self.assertEquals(stopResult, [])
         self.flushHolders()
-        #self.assertEquals(abortResult, [None])
+        # self.assertEquals(abortResult, [None])
         self.assertResultList(stopResult, None)
 
 

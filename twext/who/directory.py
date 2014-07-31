@@ -160,7 +160,7 @@ class DirectoryService(object):
             supported by this directory service.
         """
         if records is not None:
-            for record in records:
+            for _ignore_record in records:
                 break
             else:
                 return succeed(())
@@ -311,13 +311,13 @@ class DirectoryService(object):
 
 
     def updateRecords(self, records, create=False):
-        for record in records:
+        for _ignore_record in records:
             return fail(NotAllowedError("Record updates not allowed."))
         return succeed(None)
 
 
     def removeRecords(self, uids):
-        for uid in uids:
+        for _ignore_uid in uids:
             return fail(NotAllowedError("Record removal not allowed."))
         return succeed(None)
 

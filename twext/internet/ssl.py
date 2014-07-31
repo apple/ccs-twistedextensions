@@ -44,6 +44,7 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
             sslmethod=sslmethod
         )
 
+
     def cacheContext(self):
         # Unfortunate code duplication.
         ctx = SSLContext(self.sslmethod)

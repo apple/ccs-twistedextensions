@@ -46,7 +46,7 @@ from twisted.cred.credentials import UsernamePassword
 from twisted.trial import unittest
 from twisted.trial.unittest import SkipTest
 
-from ...idirectory import QueryNotSupportedError, FieldName as BaseFieldName
+from ...idirectory import FieldName as BaseFieldName
 from .._service import (
     DEFAULT_FIELDNAME_ATTRIBUTE_MAP, DEFAULT_RECORDTYPE_SCHEMAS,
     LDAPBindAuthError,
@@ -62,7 +62,6 @@ from ...test.test_xml import (
     DirectoryServiceRealmTestMixIn,
     DirectoryServiceQueryTestMixIn as BaseDirectoryServiceQueryTestMixIn,
     DirectoryServiceMutableTestMixIn as BaseDirectoryServiceMutableTestMixIn,
-    UnknownConstant,
 )
 
 
@@ -166,6 +165,7 @@ class DirectoryServiceConvenienceTestMixIn(
         #     service.recordsWithRecordType, UnknownConstant.unknown
         # )
     test_recordsWithRecordType_unknown.todo = "After this test runs, other tests fail, need to investigate"
+
 
 
 class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
@@ -390,6 +390,7 @@ def mockDirectoryDataFromXMLService(service):
 
         return unicode(obj)
 
+
     def tuplify(record, fieldName):
         fieldValue = record.fields[fieldName]
 
@@ -441,6 +442,7 @@ class WildcardExpression(object):
     last = None
 
 
+
 def mockldap_parse(self):
     match = self.TEST_RE.match(self.content)
 
@@ -456,6 +458,7 @@ def mockldap_parse(self):
         raise MockLDAPUnsupportedOp(
             u"Operation %r is not supported" % (self.op,)
         )
+
 
     def unescape(value):
         return self.UNESCAPE_RE.sub(lambda m: chr(int(m.group(1), 16)), value)
@@ -479,6 +482,7 @@ def mockldap_parse(self):
 
     else:
         self.value = unescape(valueExpression)
+
 
 
 def mockldap_matches(self, dn, attrs):

@@ -71,7 +71,8 @@ class EINVALTestCase(TestCase):
         observe exceptions raised by the replacement.  This verifies that the
         test patching done here is actually testing something.
         """
-        class CustomException(Exception): "Just for testing."
+        class CustomException(Exception):
+            "Just for testing."
         def blowUp(dirname):
             raise CustomException()
         self.cfp._listdir = blowUp
@@ -93,9 +94,10 @@ class EINVALTestCase(TestCase):
         self.cfp._listdir = raiseEINVAL
         self.assertEquals(self.cfp.listdir(), ['a', 'b', 'c'])
         self.assertEquals(self.cfp.children(), [
-                CachingFilePath(pathjoin(self.cfp.path, 'a')),
-                CachingFilePath(pathjoin(self.cfp.path, 'b')),
-                CachingFilePath(pathjoin(self.cfp.path, 'c')),])
+            CachingFilePath(pathjoin(self.cfp.path, 'a')),
+            CachingFilePath(pathjoin(self.cfp.path, 'b')),
+            CachingFilePath(pathjoin(self.cfp.path, 'c')),
+        ])
 
 
     def requireTimePassed(self, filenames):
@@ -128,9 +130,12 @@ class EINVALTestCase(TestCase):
                 current += value
                 yield current
 
-        self.assertEquals(self.calls,
-                          list(cumulative(
-                    [0.0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0, 5.0])))
+        self.assertEquals(
+            self.calls,
+            list(cumulative(
+                [0.0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 5.0, 5.0]
+            ))
+        )
 
 
     def test_backoff(self):
@@ -148,7 +153,7 @@ class EINVALTestCase(TestCase):
         terms of L{FilePath.listdir}, so we need to verify that it will also
         retry.
         """
-        filenames = [self.cfp.basename()+'.a',
+        filenames = [self.cfp.basename() + '.a',
                      self.cfp.basename() + '.b',
                      self.cfp.basename() + '.c']
         siblings = map(self.cfp.sibling, filenames)

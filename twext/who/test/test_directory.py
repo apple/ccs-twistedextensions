@@ -660,7 +660,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         L{DirectoryRecord} initialization sets service and fields.
         """
-        service  = self.service()
+        service = self.service()
         wsanchez = self.makeRecord(self.fields_wsanchez, service=service)
 
         self.assertEquals(wsanchez.service, service)
@@ -758,7 +758,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         """
         Verify a value of None is allowed
         """
-        service  = self.service()
+        service = self.service()
         record = self.makeRecord(self.fields_none_password, service=service)
 
         self.assertEquals(record.password, None)
@@ -888,10 +888,10 @@ class BaseDirectoryRecordTest(ServiceMixIn):
 
         plugh = self.serviceClass(u"plugh")
 
-        wsanchez    = self.makeRecord(self.fields_wsanchez)
+        wsanchez = self.makeRecord(self.fields_wsanchez)
         wsanchezmod = self.makeRecord(self.fields_wsanchez, service=plugh)
-        glyph       = self.makeRecord(self.fields_glyph)
-        glyphmod    = self.makeRecord(fields_glyphmod)
+        glyph = self.makeRecord(self.fields_glyph)
+        glyphmod = self.makeRecord(fields_glyphmod)
 
         self.assertEquals(wsanchez, wsanchez)
         self.assertNotEqual(wsanchez, glyph)

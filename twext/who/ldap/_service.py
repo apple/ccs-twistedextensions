@@ -412,7 +412,6 @@ class DirectoryService(BaseDirectoryService):
             returnValue(False)
 
 
-
     @inlineCallbacks
     def _recordsFromQueryString(self, queryString, recordTypes=None):
         records = []
@@ -669,6 +668,7 @@ def reverseDict(source):
     return new
 
 
+
 def recordTypeForDN(baseDnStr, recordTypeSchemas, dnStr):
     """
     Examine a DN to determine which recordType it belongs to
@@ -695,11 +695,13 @@ def recordTypeForDN(baseDnStr, recordTypeSchemas, dnStr):
     return None
 
 
+
 def dnContainedIn(child, parent):
     """
     Return True if child dn is contained within parent dn, otherwise False.
     """
     return child[-len(parent):] == parent
+
 
 
 def recordTypeForRecordData(recordTypeSchemas, recordData):

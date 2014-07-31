@@ -255,7 +255,7 @@ class DirectoryService(BaseDirectoryService):
             )
 
         matchValue = normalize(expression.fieldValue)
-        matchType  = expression.matchType
+        matchType = expression.matchType
 
         if matchType == MatchType.startsWith:
             indexKeys = (

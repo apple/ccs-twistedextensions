@@ -62,7 +62,7 @@ __all__ = [
     "LogLevelFilterPredicate",
     "LegacyLogObserver",
     "replaceTwistedLoggers",
-    #"StandardIOObserver",
+    # "StandardIOObserver",
 ]
 
 
@@ -81,7 +81,6 @@ from twisted.python.reflect import safe_str, safe_repr
 import twisted.python.log
 from twisted.python.log import msg as twistedLogMessage
 from twisted.python.log import addObserver, removeObserver
-from twisted.python.log import ILogObserver as ILegacyLogObserver
 
 
 
@@ -349,7 +348,7 @@ class Logger(object):
                 invalidLevel=level,
                 logger=self,
             )
-            #level = LogLevel.error
+            # level = LogLevel.error
             # FIXME: continue to emit?
             return
 
@@ -603,7 +602,7 @@ class FilteringLogObserver(object):
         @param predicates: an ordered iterable of predicates to apply
             to events before forwarding to the wrapped observer.
         """
-        self.observer   = observer
+        self.observer = observer
         self.predicates = list(predicates)
 
 
@@ -701,7 +700,7 @@ class LogLevelFilterPredicate(object):
 
 
     def __call__(self, event):
-        level     = event.get("log_level", None)
+        level = event.get("log_level", None)
         namespace = event.get("log_namespace", None)
 
         if (
@@ -819,10 +818,11 @@ class DefaultLogPublisher(object):
     def __init__(self):
         self.legacyLogObserver = LegacyLogObserver(twistedLogMessage)
         self.filteredPublisher = LogPublisher(self.legacyLogObserver)
-        self.levels            = LogLevelFilterPredicate()
-        self.filters           = FilteringLogObserver(self.filteredPublisher,
-                                                      (self.levels,))
-        self.rootPublisher     = LogPublisher(self.filters)
+        self.levels = LogLevelFilterPredicate()
+        self.filters = FilteringLogObserver(
+            self.filteredPublisher, (self.levels,)
+        )
+        self.rootPublisher = LogPublisher(self.filters)
 
 
     def addObserver(self, observer, filtered=True):
@@ -982,8 +982,6 @@ def replaceTwistedLoggers():
 
 
 
-
-######################################################################
 # FIXME: This may not be needed; look into removing it.
 
 class StandardIOObserver(object):

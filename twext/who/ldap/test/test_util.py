@@ -375,6 +375,7 @@ class LDAPQueryTestCase(unittest.TestCase):
             MatchFlags.none, expected
         )
 
+
     def test_queryStringFromMatchExpression_multipleRecordType_not(self):
         """
         Match expression when the queried field name is the record type field,

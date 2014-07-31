@@ -32,9 +32,9 @@ from twext.python.log import (
 
 
 
-defaultLogLevel         = LogLevelFilterPredicate().defaultLogLevel
-clearLogLevels          = Logger.publisher.levels.clearLogLevels
-logLevelForNamespace    = Logger.publisher.levels.logLevelForNamespace
+defaultLogLevel = LogLevelFilterPredicate().defaultLogLevel
+clearLogLevels = Logger.publisher.levels.clearLogLevels
+logLevelForNamespace = Logger.publisher.levels.logLevelForNamespace
 setLogLevelForNamespace = Logger.publisher.levels.setLogLevelForNamespace
 
 
@@ -42,12 +42,12 @@ setLogLevelForNamespace = Logger.publisher.levels.setLogLevelForNamespace
 class TestLogger(Logger):
     def emit(self, level, format=None, **kwargs):
         if False:
-            print "*"*60
+            print "*" * 60
             print "level =", level
             print "format =", format
             for key, value in kwargs.items():
                 print key, "=", value
-            print "*"*60
+            print "*" * 60
 
         def observer(event):
             self.event = event
@@ -59,7 +59,7 @@ class TestLogger(Logger):
             twistedLogging.removeObserver(observer)
 
         self.emitted = {
-            "level":  level,
+            "level": level,
             "format": format,
             "kwargs": kwargs,
         }
@@ -281,7 +281,7 @@ class LoggingTests(SetUpTearDown, unittest.TestCase):
         """
         Formatting an event that's just plain out to get us.
         """
-        event = dict(log_format="{evil()}", evil=lambda: 1/0)
+        event = dict(log_format="{evil()}", evil=lambda: 1 / 0)
         result = formatEvent(event)
 
         self.assertIn("Unable to format event", result)
@@ -294,7 +294,7 @@ class LoggingTests(SetUpTearDown, unittest.TestCase):
         """
         event = {
             "log_format": "{evil()}",
-            "evil": lambda: 1/0,
+            "evil": lambda: 1 / 0,
             Unformattable(): "gurk",
         }
         result = formatEvent(event)
@@ -309,7 +309,7 @@ class LoggingTests(SetUpTearDown, unittest.TestCase):
         """
         event = dict(
             log_format="{evil()}",
-            evil=lambda: 1/0,
+            evil=lambda: 1 / 0,
             gurk=Unformattable(),
         )
         result = formatEvent(event)
@@ -324,7 +324,7 @@ class LoggingTests(SetUpTearDown, unittest.TestCase):
         """
         event = dict(
             log_format="{evil()}",
-            evil=lambda: 1/0,
+            evil=lambda: 1 / 0,
             recoverable="okay",
         )
         # Call formatUnformattableEvent() directly with a bogus exception.
@@ -723,7 +723,7 @@ class DefaultLogPublisherTests(SetUpTearDown, unittest.TestCase):
     def test_filteredObserverNoFilteringKeys(self):
         event_debug = dict(log_level=LogLevel.debug)
         event_error = dict(log_level=LogLevel.error)
-        event_none  = dict()
+        event_none = dict()
         events = []
 
         observer = lambda e: events.append(e)
@@ -1026,4 +1026,4 @@ class Unformattable(object):
     """
 
     def __repr__(self):
-        return str(1/0)
+        return str(1 / 0)
