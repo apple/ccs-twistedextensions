@@ -25,6 +25,7 @@ from uuid import UUID
 from zope.interface import implementer
 
 from twisted.internet.defer import succeed, fail, inlineCallbacks, returnValue
+from twisted.internet.threads import deferToThread
 from twisted.web.guard import DigestCredentialFactory
 
 from twext.python.log import Logger
@@ -52,6 +53,7 @@ from ._constants import (
     ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod,
 )
 
+DEFER_TO_THREAD = True
 
 
 #
@@ -641,6 +643,7 @@ class DirectoryService(BaseDirectoryService):
         return False
 
 
+    @inlineCallbacks
     def _recordsFromQuery(self, query):
         """
         Executes a query and generates directory records from it.
@@ -652,23 +655,35 @@ class DirectoryService(BaseDirectoryService):
         @rtype: list of L{DirectoryRecord}
         """
 
-        # FIXME: This is blocking.
         # We can call scheduleInRunLoop:forMode:, which will call back to
         # its delegate...
 
         if query is None:
-            return succeed([])
+            returnValue(None)
 
-        odRecords, error = query.resultsAllowingPartial_error_(False, None)
+        if DEFER_TO_THREAD:
+            odRecords, error = (
+                yield deferToThread(
+                    query.resultsAllowingPartial_error_,
+                    False,
+                    None
+                )
+            )
+        else:
+            odRecords, error = query.resultsAllowingPartial_error_(False, None)
 
         if error:
             self.log.error(
                 "Error while executing OpenDirectory query: {error}",
                 error=error
             )
-            return fail(OpenDirectoryQueryError(
-                "Unable to execute OpenDirectory query", error
-            ))
+            returnValue(
+                fail(
+                    OpenDirectoryQueryError(
+                        "Unable to execute OpenDirectory query", error
+                    )
+                )
+            )
 
         result = []
         for odRecord in odRecords:
@@ -689,7 +704,7 @@ class DirectoryService(BaseDirectoryService):
 
             result.append(record)
 
-        return succeed(result)
+        returnValue(result)
 
 
     def recordsFromNonCompoundExpression(self, expression, recordTypes=None, records=None):
@@ -974,15 +989,27 @@ class DirectoryRecord(BaseDirectoryRecord):
     # Verifiers for twext.who.checker stuff.
     #
 
+    @inlineCallbacks
     def verifyPlaintextPassword(self, password):
-        result, error = self._odRecord.verifyPassword_error_(password, None)
+
+        if DEFER_TO_THREAD:
+            result, error = (
+                yield deferToThread(
+                    self._odRecord.verifyPassword_error_,
+                    password,
+                    None
+                )
+            )
+        else:
+            result, error = self._odRecord.verifyPassword_error_(password, None)
 
         if error:
-            return succeed(False)
+            returnValue(False)
 
-        return succeed(result)
+        returnValue(result)
 
 
+    @inlineCallbacks
     def verifyHTTPDigest(
         self, username, realm, uri, nonce, cnonce,
         algorithm, nc, qop, response, method,
@@ -1016,16 +1043,26 @@ class DirectoryRecord(BaseDirectoryRecord):
             response=response
         )
 
-        result, _ignore_m1, _ignore_m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-            ODAuthMethod.digestMD5.value,
-            [username, challenge, responseArg, method],
-            None, None, None
-        )
+        if DEFER_TO_THREAD:
+            result, _ignore_m1, _ignore_m2, error = (
+                yield deferToThread(
+                    self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_,
+                    ODAuthMethod.digestMD5.value,
+                    [username, challenge, responseArg, method],
+                    None, None, None
+                )
+            )
+        else:
+            result, _ignore_m1, _ignore_m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
+                ODAuthMethod.digestMD5.value,
+                [username, challenge, responseArg, method],
+                None, None, None
+            )
 
         if error:
-            return succeed(False)
+            returnValue(False)
 
-        return succeed(result)
+        returnValue(result)
 
 
     @inlineCallbacks
