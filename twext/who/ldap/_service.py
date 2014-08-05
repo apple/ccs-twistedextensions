@@ -315,7 +315,7 @@ class DirectoryService(BaseDirectoryService):
         # a connection pool
 
         if not hasattr(self, "_connection"):
-            self.log.info("Connecting to LDAP at {log_source.url}")
+            self.log.debug("Connecting to LDAP at {log_source.url}")
             connection = ldap.initialize(self.url)
 
             # FIXME: Use trace_file option to wire up debug logging when
@@ -331,7 +331,7 @@ class DirectoryService(BaseDirectoryService):
                     connection.set_option(option, value)
 
             if self._useTLS:
-                self.log.info("Starting TLS for {log_source.url}")
+                self.log.debug("Starting TLS for {log_source.url}")
                 yield deferToThread(connection.start_tls_s)
 
             if self._credentials is not None:
@@ -342,7 +342,7 @@ class DirectoryService(BaseDirectoryService):
                             self._credentials.username,
                             self._credentials.password,
                         )
-                        self.log.info(
+                        self.log.debug(
                             "Bound to LDAP as {credentials.username}",
                             credentials=self._credentials
                         )
@@ -427,7 +427,7 @@ class DirectoryService(BaseDirectoryService):
                 ldap.dn.str2dn(rdn.lower()) +
                 ldap.dn.str2dn(self._baseDN.lower())
             )
-            self.log.info(
+            self.log.debug(
                 "Performing LDAP query: {rdn} {query} {recordType}",
                 rdn=rdn,
                 query=queryString,
@@ -467,7 +467,7 @@ class DirectoryService(BaseDirectoryService):
         """
         connection = yield self._connect()
 
-        self.log.info("Performing LDAP DN query: {dn}", dn=dn)
+        self.log.debug("Performing LDAP DN query: {dn}", dn=dn)
 
         reply = yield deferToThread(
             connection.search_s,
