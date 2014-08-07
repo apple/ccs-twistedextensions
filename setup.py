@@ -18,11 +18,12 @@
 
 from __future__ import print_function
 
-import sys
-import errno
 from os.path import dirname, abspath, join as joinpath
-import subprocess
 from setuptools import setup, find_packages as setuptools_find_packages
+import errno
+import os
+import subprocess
+import sys
 
 
 
@@ -35,7 +36,15 @@ def find_packages():
         "twisted.plugins",
     ]
 
-    return modules + setuptools_find_packages()
+    for pkg in filter(
+        lambda p: os.path.isdir(p) and os.path.isfile(os.path.join(p, "__init__.py")),
+        os.listdir(".")
+    ):
+        modules.extend([
+            "{}.{}".format(pkg, subpkg)
+            for subpkg in setuptools_find_packages(pkg)
+        ])
+    return modules
 
 
 
