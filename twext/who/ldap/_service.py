@@ -21,14 +21,19 @@ from __future__ import print_function
 LDAP directory service implementation.
 """
 
+from Queue import Queue, Empty
+from threading import RLock
 from uuid import UUID
 
+import collections
 import ldap
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
-from twisted.internet.threads import deferToThread
+from twisted.internet.threads import deferToThreadPool
 from twisted.cred.credentials import IUsernamePassword
+from twisted.python.threadpool import ThreadPool
+from twisted.internet import reactor
 
 from twext.python.log import Logger
 from twext.python.types import MappingProxyType
@@ -101,7 +106,7 @@ class LDAPQueryError(LDAPError):
 
 
 #
-# Data type extentions
+# Data type extensions
 #
 
 class FieldName(Names):
@@ -219,6 +224,9 @@ class DirectoryService(BaseDirectoryService):
         useTLS=False,
         fieldNameToAttributesMap=DEFAULT_FIELDNAME_ATTRIBUTE_MAP,
         recordTypeSchemas=DEFAULT_RECORDTYPE_SCHEMAS,
+        ownThreadpool=True,
+        threadPoolMax=10,
+        connectionMax=10,
         _debug=False,
     ):
         """
@@ -294,19 +302,133 @@ class DirectoryService(BaseDirectoryService):
                 attributesToFetch.add(attribute.encode("utf-8"))
         self._attributesToFetch = list(attributesToFetch)
 
+        # Threaded connection pool. The connection size limit here is the size for connections doing queries.
+        # There will also be one-off connections for authentications which also run in their own threads. Thus
+        # the threadpool max ought to be larger than the connection max to allow for both pooled query connections
+        # and one-off auth-only connections.
+
+        self.ownThreadpool = ownThreadpool
+        if self.ownThreadpool:
+            self.threadpool = ThreadPool(minthreads=1, maxthreads=threadPoolMax, name="LDAPDirectoryService")
+        else:
+            # Use the default threadpool but adjust its size to fit our needs
+            self.threadpool = reactor.getThreadPool()
+            self.threadpool.adjustPoolsize(
+                max(threadPoolMax, self.threadpool.max)
+            )
+        self.connectionMax = connectionMax
+        self.connectionCreateLock = RLock()
+        self.connections = []
+        self.connectionQueue = Queue()
+        self.poolStats = collections.defaultdict(int)
+        self.activeCount = 0
+
+        reactor.callWhenRunning(self.start)
+        reactor.addSystemEventTrigger('during', 'shutdown', self.stop)
+
+
+    def start(self):
+        """
+        Start up this service. Initialize the threadpool (if we own it).
+        """
+        if self.ownThreadpool:
+            self.threadpool.start()
+
+
+    def stop(self):
+        """
+        Stop the service. Stop the threadpool if we own it and do other clean-up.
+        """
+        if self.ownThreadpool:
+            self.threadpool.stop()
+
+        # FIXME: we should probably also close the pool of active connections too
+
 
     @property
     def realmName(self):
         return u"{self.url}".format(self=self)
 
 
-    @inlineCallbacks
+    class Connection(object):
+        """
+        ContextManager object for getting a connection from the pool. On exit the connection
+        will be put back in the pool if no exception was raised. Otherwise, the connection will be
+        removed from the active connection list, which will allow a new "clean" connection to
+        be created later if needed.
+        """
+
+        def __init__(self, ds):
+            self.ds = ds
+
+        def __enter__(self):
+            self.connection = self.ds._getConnection()
+            return self.connection
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if exc_type is None:
+                self.ds._returnConnection(self.connection)
+                return True
+            else:
+                self.ds._failedConnection(self.connection)
+                return False
+
+
+    def _getConnection(self):
+        """
+        Get a connection from the connection pool. This will retrieve a connection from the connection
+        pool L{Queue} object. If the L{Queue} is empty, it will check to see whether a new connection can
+        be created (based on the connection limit), and if so create that and use it. If no new
+        connections can be created, it will block on the L{Queue} until an existing, in-use, connection
+        is put back.
+        """
+        try:
+            connection = self.connectionQueue.get(block=False)
+        except Empty:
+            # Note we use a lock here to prevent a race condition in which multiple requests for a new connection
+            # could succeed even though the connection counts starts out one less than the maximum. This can happen
+            # because self._connect() can take a while.
+            self.connectionCreateLock.acquire()
+            if len(self.connections) < self.connectionMax:
+                connection = self._connect()
+                self.connections.append(connection)
+                self.connectionCreateLock.release()
+            else:
+                self.connectionCreateLock.release()
+                self.poolStats["connection-blocked"] += 1
+                connection = self.connectionQueue.get()
+
+        self.poolStats["connection-{}".format(self.connections.index(connection))] += 1
+        self.activeCount += 1
+        self.poolStats["connection-max"] = max(self.poolStats["connection-max"], self.activeCount)
+        return connection
+
+
+    def _returnConnection(self, connection):
+        """
+        A connection is no longer needed - return it to the pool.
+        """
+        self.activeCount -= 1
+        self.connectionQueue.put(connection)
+
+
+    def _failedConnection(self, connection):
+        """
+        A connection has failed - remove it from the list of active connections. A new
+        one will be created if needed.
+        """
+        self.activeCount -= 1
+        self.poolStats["connection-errors"] += 1
+        self.connections.remove(connection)
+
+
     def _connect(self):
         """
         Connect to the directory server.
+        This will always be called in a thread to prevent blocking.
 
-        @returns: A deferred connection object.
-        @rtype: deferred L{ldap.ldapobject.LDAPObject}
+        @returns: The connection object.
+        @rtype: L{ldap.ldapobject.LDAPObject}
 
         @raises: L{LDAPConnectionError} if unable to connect.
         """
@@ -314,75 +436,54 @@ class DirectoryService(BaseDirectoryService):
         # FIXME: ldap connection objects are not thread safe, so let's set up
         # a connection pool
 
-        if not hasattr(self, "_connection"):
-            self.log.debug("Connecting to LDAP at {log_source.url}")
-            connection = ldap.initialize(self.url)
+        self.log.debug("Connecting to LDAP at {log_source.url}")
+        connection = self._newConnection()
 
-            # FIXME: Use trace_file option to wire up debug logging when
-            # Twisted adopts the new logging stuff.
-
-            for option, value in (
-                (ldap.OPT_TIMEOUT, self._timeout),
-                (ldap.OPT_X_TLS_CACERTFILE, self._tlsCACertificateFile),
-                (ldap.OPT_X_TLS_CACERTDIR, self._tlsCACertificateDirectory),
-                (ldap.OPT_DEBUG_LEVEL, self._debug),
-            ):
-                if value is not None:
-                    connection.set_option(option, value)
-
-            if self._useTLS:
-                self.log.debug("Starting TLS for {log_source.url}")
-                yield deferToThread(connection.start_tls_s)
-
-            if self._credentials is not None:
-                if IUsernamePassword.providedBy(self._credentials):
-                    try:
-                        yield deferToThread(
-                            connection.simple_bind_s,
-                            self._credentials.username,
-                            self._credentials.password,
-                        )
-                        self.log.debug(
-                            "Bound to LDAP as {credentials.username}",
-                            credentials=self._credentials
-                        )
-                    except (
-                        ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
-                    ) as e:
-                        self.log.error(
-                            "Unable to bind to LDAP as {credentials.username}",
-                            credentials=self._credentials
-                        )
-                        raise LDAPBindAuthError(
-                            self._credentials.username, e
-                        )
-
-                else:
-                    raise LDAPConnectionError(
-                        "Unknown credentials type: {0}"
-                        .format(self._credentials)
+        if self._credentials is not None:
+            if IUsernamePassword.providedBy(self._credentials):
+                try:
+                    connection.simple_bind_s(
+                        self._credentials.username,
+                        self._credentials.password,
+                    )
+                    self.log.debug(
+                        "Bound to LDAP as {credentials.username}",
+                        credentials=self._credentials
+                    )
+                except (
+                    ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
+                ) as e:
+                    self.log.error(
+                        "Unable to bind to LDAP as {credentials.username}",
+                        credentials=self._credentials
+                    )
+                    raise LDAPBindAuthError(
+                        self._credentials.username, e
                     )
 
-            self._connection = connection
+            else:
+                raise LDAPConnectionError(
+                    "Unknown credentials type: {0}"
+                    .format(self._credentials)
+                )
 
-        returnValue(self._connection)
+        return connection
 
 
-    @inlineCallbacks
-    def _authenticateUsernamePassword(self, dn, password):
+    def _newConnection(self):
         """
-        Open a secondary connection to the LDAP server and try binding to it
-        with the given credentials
+        Create a new LDAP connection and initialize and start TLS if required.
+        This will always be called in a thread to prevent blocking.
 
-        @returns: True if the password is correct, False otherwise
-        @rtype: deferred C{bool}
+        @returns: The connection object.
+        @rtype: L{ldap.ldapobject.LDAPObject}
 
         @raises: L{LDAPConnectionError} if unable to connect.
         """
-        self.log.debug("Authenticating {dn}", dn=dn)
         connection = ldap.initialize(self.url)
 
-        # FIXME:  Use a separate connection pool perhaps
+        # FIXME: Use trace_file option to wire up debug logging when
+        # Twisted adopts the new logging stuff.
 
         for option, value in (
             (ldap.OPT_TIMEOUT, self._timeout),
@@ -395,102 +496,158 @@ class DirectoryService(BaseDirectoryService):
 
         if self._useTLS:
             self.log.debug("Starting TLS for {log_source.url}")
-            yield deferToThread(connection.start_tls_s)
+            connection.start_tls_s()
+
+        return connection
+
+
+    def _authenticateUsernamePassword(self, dn, password):
+        """
+        Open a secondary connection to the LDAP server and try binding to it
+        with the given credentials
+
+        @returns: True if the password is correct, False otherwise
+        @rtype: deferred C{bool}
+
+        @raises: L{LDAPConnectionError} if unable to connect.
+        """
+        return deferToThreadPool(
+            reactor, self.threadpool,
+            self._authenticateUsernamePassword_inThread, dn, password
+        )
+
+
+    def _authenticateUsernamePassword_inThread(self, dn, password):
+        """
+        Open a secondary connection to the LDAP server and try binding to it
+        with the given credentials.
+        This method is always called in a thread.
+
+        @returns: True if the password is correct, False otherwise
+        @rtype: C{bool}
+
+        @raises: L{LDAPConnectionError} if unable to connect.
+        """
+        self.log.debug("Authenticating {dn}", dn=dn)
+        connection = self._newConnection()
+
 
         try:
-            yield deferToThread(
-                connection.simple_bind_s,
-                dn,
-                password,
-            )
+            connection.simple_bind_s(dn, password)
             self.log.debug("Authenticated {dn}", dn=dn)
-            returnValue(True)
+            return True
         except (
             ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
         ):
             self.log.debug("Unable to authenticate {dn}", dn=dn)
-            returnValue(False)
+            return False
+        finally:
+            # TODO: should we explicitly "close" the connection in a finally
+            # clause rather than just let it go out of scope and be garbage collected
+            # at some indeterminate point in the future? Up side is that we won't hang
+            # on to the connection or other resources for longer than needed. Down side
+            # is we will take a little bit of extra time in this call to close it down.
+            # If we do decide to "close" then we probably have to use one of the "unbind"
+            # methods on the L{LDAPObject}.
+            connection = None
 
 
-    @inlineCallbacks
     def _recordsFromQueryString(self, queryString, recordTypes=None):
+        return deferToThreadPool(
+            reactor, self.threadpool,
+            self._recordsFromQueryString_inThread,
+            queryString,
+            recordTypes,
+        )
+
+
+    def _recordsFromQueryString_inThread(self, queryString, recordTypes=None):
+        """
+        This method is always called in a thread.
+        """
         records = []
 
-        connection = yield self._connect()
+        with DirectoryService.Connection(self) as connection:
 
-        if recordTypes is None:
-            recordTypes = self.recordTypes()
+            if recordTypes is None:
+                recordTypes = self.recordTypes()
 
-        for recordType in recordTypes:
-            rdn = self._recordTypeSchemas[recordType].relativeDN
-            rdn = (
-                ldap.dn.str2dn(rdn.lower()) +
-                ldap.dn.str2dn(self._baseDN.lower())
-            )
-            self.log.debug(
-                "Performing LDAP query: {rdn} {query} {recordType}",
-                rdn=rdn,
-                query=queryString,
-                recordType=recordType
-            )
-            try:
-                reply = yield deferToThread(
-                    connection.search_s,
-                    ldap.dn.dn2str(rdn),
-                    ldap.SCOPE_SUBTREE,
-                    queryString,
-                    attrlist=self._attributesToFetch
+            for recordType in recordTypes:
+                rdn = self._recordTypeSchemas[recordType].relativeDN
+                rdn = (
+                    ldap.dn.str2dn(rdn.lower()) +
+                    ldap.dn.str2dn(self._baseDN.lower())
+                )
+                self.log.debug(
+                    "Performing LDAP query: {rdn} {query} {recordType}",
+                    rdn=rdn,
+                    query=queryString,
+                    recordType=recordType
+                )
+                try:
+                    reply = connection.search_s(
+                        ldap.dn.dn2str(rdn),
+                        ldap.SCOPE_SUBTREE,
+                        queryString,
+                        attrlist=self._attributesToFetch
+                    )
+
+                except ldap.FILTER_ERROR as e:
+                    self.log.error(
+                        "Unable to perform query {0!r}: {1}"
+                        .format(queryString, e)
+                    )
+                    raise LDAPQueryError("Unable to perform query", e)
+
+                except ldap.NO_SUCH_OBJECT as e:
+                    self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
+                    continue
+
+                records.extend(
+                    self._recordsFromReply(reply, recordType=recordType)
                 )
 
-            except ldap.FILTER_ERROR as e:
-                self.log.error(
-                    "Unable to perform query {0!r}: {1}"
-                    .format(queryString, e)
-                )
-                raise LDAPQueryError("Unable to perform query", e)
-
-            except ldap.NO_SUCH_OBJECT as e:
-                self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
-                continue
-
-            records.extend(
-                (yield self._recordsFromReply(reply, recordType=recordType))
-            )
-        returnValue(records)
+        return records
 
 
-    @inlineCallbacks
     def _recordWithDN(self, dn):
+        return deferToThreadPool(
+            reactor, self.threadpool,
+            self._recordWithDN_inThread, dn
+        )
+
+
+    def _recordWithDN_inThread(self, dn):
         """
+        This method is always called in a thread.
+
         @param dn: The DN of the record to search for
         @type dn: C{str}
         """
-        connection = yield self._connect()
+        with DirectoryService.Connection(self) as connection:
 
-        self.log.debug("Performing LDAP DN query: {dn}", dn=dn)
+            self.log.debug("Performing LDAP DN query: {dn}", dn=dn)
 
-        reply = yield deferToThread(
-            connection.search_s,
-            dn,
-            ldap.SCOPE_SUBTREE,
-            "(objectClass=*)",
-            attrlist=self._attributesToFetch
-        )
-        records = self._recordsFromReply(reply)
+            reply = connection.search_s(
+                dn,
+                ldap.SCOPE_SUBTREE,
+                "(objectClass=*)",
+                attrlist=self._attributesToFetch
+            )
+            records = self._recordsFromReply(reply)
+
         if len(records):
-            returnValue(records[0])
+            return records[0]
         else:
-            returnValue(None)
+            return None
 
 
     def _recordsFromReply(self, reply, recordType=None):
         records = []
 
-
         for dn, recordData in reply:
 
             # Determine the record type
-
             if recordType is None:
                 recordType = recordTypeForDN(
                     self._baseDN, self._recordTypeSchemas, dn
@@ -510,7 +667,6 @@ class DirectoryService(BaseDirectoryService):
                 continue
 
             # Populate a fields dictionary
-
             fields = {}
 
             for attribute, values in recordData.iteritems():
