@@ -47,12 +47,14 @@ from ..directory import (
     DirectoryService as BaseDirectoryService,
     DirectoryRecord as BaseDirectoryRecord,
 )
-from ..expression import MatchExpression
+from ..expression import MatchExpression, ExistsExpression, BooleanExpression
 from ..util import ConstantsContainer
 from ._constants import LDAPAttribute, LDAPObjectClass
 from ._util import (
     ldapQueryStringFromMatchExpression,
     ldapQueryStringFromCompoundExpression,
+    ldapQueryStringFromBooleanExpression,
+    ldapQueryStringFromExistsExpression,
 )
 from zope.interface import implementer
 
@@ -573,7 +575,12 @@ class DirectoryService(BaseDirectoryService):
                 recordTypes = self.recordTypes()
 
             for recordType in recordTypes:
-                rdn = self._recordTypeSchemas[recordType].relativeDN
+                try:
+                    rdn = self._recordTypeSchemas[recordType].relativeDN
+                except KeyError:
+                    # Skip this unknown record type
+                    continue
+
                 rdn = (
                     ldap.dn.str2dn(rdn.lower()) +
                     ldap.dn.str2dn(self._baseDN.lower())
@@ -600,7 +607,7 @@ class DirectoryService(BaseDirectoryService):
                     raise LDAPQueryError("Unable to perform query", e)
 
                 except ldap.NO_SUCH_OBJECT as e:
-                    self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
+                    # self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
                     continue
 
                 records.extend(
@@ -628,13 +635,19 @@ class DirectoryService(BaseDirectoryService):
 
             self.log.debug("Performing LDAP DN query: {dn}", dn=dn)
 
-            reply = connection.search_s(
-                dn,
-                ldap.SCOPE_SUBTREE,
-                "(objectClass=*)",
-                attrlist=self._attributesToFetch
-            )
-            records = self._recordsFromReply(reply)
+            try:
+                reply = connection.search_s(
+                    dn,
+                    ldap.SCOPE_SUBTREE,
+                    "(objectClass=*)",
+                    attrlist=self._attributesToFetch
+                )
+                records = self._recordsFromReply(reply)
+            except ldap.NO_SUCH_OBJECT:
+                records = []
+            except ldap.INVALID_DN_SYNTAX:
+                self.log.warn("Invalid LDAP DN syntax: '{dn}'", dn=dn)
+                records = []
 
         if len(records):
             return records[0]
@@ -705,6 +718,21 @@ class DirectoryService(BaseDirectoryService):
                         else:
                             fields[fieldName] = newValues[0]
 
+                    elif valueType is bool:
+                        if not isinstance(values, list):
+                            values = [values]
+                        if "=" in attribute:
+                            attribute, trueValue = attribute.split("=")
+                        else:
+                            trueValue = "true"
+
+                        for value in values:
+                            if value == trueValue:
+                                fields[fieldName] = True
+                                break
+                        else:
+                            fields[fieldName] = False
+
                     else:
                         raise LDAPConfigurationError(
                             "Unknown value type {0} for field {1}".format(
@@ -741,6 +769,24 @@ class DirectoryService(BaseDirectoryService):
                 queryString, recordTypes=recordTypes
             )
 
+        elif isinstance(expression, ExistsExpression):
+            queryString = ldapQueryStringFromExistsExpression(
+                expression,
+                self._fieldNameToAttributesMap, self._recordTypeSchemas
+            )
+            return self._recordsFromQueryString(
+                queryString, recordTypes=recordTypes
+            )
+
+        elif isinstance(expression, BooleanExpression):
+            queryString = ldapQueryStringFromBooleanExpression(
+                expression,
+                self._fieldNameToAttributesMap, self._recordTypeSchemas
+            )
+            return self._recordsFromQueryString(
+                queryString, recordTypes=recordTypes
+            )
+
         return BaseDirectoryService.recordsFromNonCompoundExpression(
             self, expression, records=records
         )
@@ -762,8 +808,12 @@ class DirectoryService(BaseDirectoryService):
 
 
     def recordsWithRecordType(self, recordType):
-        return self.recordsWithFieldValue(
-            BaseFieldName.uid, u"*", recordTypes=[recordType]
+        queryString = ldapQueryStringFromExistsExpression(
+            ExistsExpression(self.fieldName.uid),
+            self._fieldNameToAttributesMap, self._recordTypeSchemas
+        )
+        return self._recordsFromQueryString(
+            queryString, recordTypes=[recordType]
         )
 
 
@@ -812,6 +862,15 @@ class DirectoryRecord(BaseDirectoryRecord):
     def verifyPlaintextPassword(self, password):
         return self.service._authenticateUsernamePassword(self.dn, password)
 
+
+def normalizeDNstr(dnStr):
+    """
+    Convert to lowercase and remove extra whitespace
+    @param dnStr: dn
+    @type dnStr: C{str}
+    @return: normalized dn C{str}
+    """
+    return ' '.join(ldap.dn.dn2str(ldap.dn.str2dn(dnStr.lower())).split())
 
 
 def reverseDict(source):

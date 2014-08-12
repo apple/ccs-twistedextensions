@@ -185,7 +185,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             u"({attribute}={expected})".format(
                 attribute=ODAttribute.fullName.value,
                 expected=(
-                    u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29* "
+                    u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
                     "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
                 )
             )

@@ -22,7 +22,8 @@ from twisted.trial import unittest
 
 from ...idirectory import QueryNotSupportedError
 from ...expression import (
-    CompoundExpression, Operand, MatchExpression, MatchType, MatchFlags
+    CompoundExpression, ExistsExpression, MatchExpression, BooleanExpression,
+    Operand, MatchType, MatchFlags
 )
 from ...test.test_xml import UnknownConstant
 from .._constants import LDAPOperand
@@ -31,15 +32,27 @@ from .._service import (
 )
 from .._util import (
     ldapQueryStringFromQueryStrings,
-    ldapQueryStringFromMatchExpression,
+    ldapQueryStringFromBooleanExpression,
     ldapQueryStringFromCompoundExpression,
+    ldapQueryStringFromExistsExpression,
+    ldapQueryStringFromMatchExpression,
     ldapQueryStringFromExpression,
 )
 from ...idirectory import FieldName as BaseFieldName
-
+from twisted.python.constants import Names, NamedConstant
 
 TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
 TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
+
+
+class TestFieldName(Names):
+    isAwesome = NamedConstant()
+    isAwesome.description = u"is awesome"
+    isAwesome.valueType = bool
+
+    isCool = NamedConstant()
+    isCool.description = u"is cool"
+    isCool.valueType = bool
 
 
 class LDAPQueryTestCase(unittest.TestCase):
@@ -81,9 +94,7 @@ class LDAPQueryTestCase(unittest.TestCase):
                 c,
                 RecordTypeSchema(
                     relativeDN=NotImplemented,  # Don't expect this to be used
-                    attributes=(
-                        (u"recordTypeAttribute", c.name),
-                    )
+                    attributes=((u"recordTypeAttribute", c.name),)
                 )
             )
             for c in service.recordType.iterconstants()
@@ -120,6 +131,55 @@ class LDAPQueryTestCase(unittest.TestCase):
         return self._test_ldapQueryStringFromQueryStrings(
             (u"(x=yzzy)", u"(xy=zzy)"), u"({operand}(x=yzzy)(xy=zzy))"
         )
+
+
+    def test_queryStringFromExistsExpression(self):
+        """
+        Exists expressions produce the correct (attribute=*) string.
+        """
+        service = self.service()
+
+        expression = ExistsExpression(service.fieldName.shortNames)
+        queryString = ldapQueryStringFromExistsExpression(
+            expression,
+            self.fieldNameMap(service),
+            self.recordTypeSchemas(service),
+        )
+        expected = u"(shortNames=*)"
+        self.assertEquals(queryString, expected)
+
+
+    def test_queryStringFromBooleanExpression(self):
+        """
+        If a field is a boolean type and the fieldNameToAttributesMap
+        value for the field has an equals sign, the portion to the right
+        of the equals sign is the value that represents True.  Make sure
+        the query string we generate includes that value.
+        """
+        service = self.service()
+
+        testFieldNameMap = {
+            TestFieldName.isAwesome: ("awesome=totally",),
+            TestFieldName.isCool: ("cool",),
+        }
+
+        expression = BooleanExpression(TestFieldName.isAwesome)
+        queryString = ldapQueryStringFromBooleanExpression(
+            expression,
+            testFieldNameMap,
+            self.recordTypeSchemas(service),
+        )
+        expected = u"(awesome=totally)"
+        self.assertEquals(queryString, expected)
+
+        expression = BooleanExpression(TestFieldName.isCool)
+        queryString = ldapQueryStringFromBooleanExpression(
+            expression,
+            testFieldNameMap,
+            self.recordTypeSchemas(service),
+        )
+        expected = u"(cool=true)"
+        self.assertEquals(queryString, expected)
 
 
     def test_queryStringFromMatchExpression_matchTypes(self):
@@ -216,7 +276,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         expected = u"({attribute}={expected})".format(
             attribute=u"fullNames",
             expected=(
-                u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29* "
+                u"\\5Cxyzzy: a\\2Fb\\2F\\28c\\29\\2A "
                 "\\7E\\7E \\3E\\3D\\3C \\7E\\7E \\26\\7C \\00!!"
             )
         )

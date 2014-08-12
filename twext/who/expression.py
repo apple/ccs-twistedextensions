@@ -21,8 +21,9 @@ Directory query expressions.
 
 __all__ = [
     "Operand",
+    "BooleanExpression",
     "CompoundExpression",
-
+    "ExistsExpression",
     "MatchType",
     "MatchFlags",
     "MatchExpression",
@@ -334,3 +335,71 @@ class MatchExpression(object):
         return predicate(match(
             normalize(value), normalize(self.fieldValue)
         ))
+
+
+class ExistsExpression(object):
+    """
+    Query for the existence a given field.
+
+    @ivar fieldName: A L{NamedConstant} specifying the field.
+    """
+
+    def __init__(self, fieldName):
+        if not isinstance(fieldName, NamedConstant):
+            raise TypeError(
+                "Field name {name} in exists expression is not a NamedConstant."
+                .format(name=fieldName)
+            )
+
+        self.fieldName = fieldName
+
+
+    def __repr__(self):
+        return (
+            "<{self.__class__.__name__}: {fieldName!r} "
+            .format(
+                self=self,
+                fieldName=describe(self.fieldName),
+            )
+        )
+
+
+    def __eq__(self, other):
+        if isinstance(other, ExistsExpression):
+            return (self.fieldName is other.fieldName)
+        else:
+            return NotImplemented
+
+
+class BooleanExpression(object):
+    """
+    Query for the "True" value of a given field.
+
+    @ivar fieldName: A L{NamedConstant} specifying the field.
+    """
+
+    def __init__(self, fieldName):
+        if not isinstance(fieldName, NamedConstant):
+            raise TypeError(
+                "Field name {name} in boolean expression is not a NamedConstant."
+                .format(name=fieldName)
+            )
+
+        self.fieldName = fieldName
+
+
+    def __repr__(self):
+        return (
+            "<{self.__class__.__name__}: {fieldName!r} "
+            .format(
+                self=self,
+                fieldName=describe(self.fieldName),
+            )
+        )
+
+
+    def __eq__(self, other):
+        if isinstance(other, BooleanExpression):
+            return (self.fieldName is other.fieldName)
+        else:
+            return NotImplemented

@@ -57,11 +57,10 @@ from ...test import test_directory
 from ...test.test_xml import (
     xmlService,
     BaseTest as XMLBaseTest, QueryMixIn,
-    DirectoryServiceConvenienceTestMixIn
-    as BaseDirectoryServiceConvenienceTestMixIn,
+    DirectoryServiceConvenienceTestMixIn,
     DirectoryServiceRealmTestMixIn,
     DirectoryServiceQueryTestMixIn as BaseDirectoryServiceQueryTestMixIn,
-    DirectoryServiceMutableTestMixIn as BaseDirectoryServiceMutableTestMixIn,
+    DirectoryServiceMutableTestMixIn as BaseDirectoryServiceMutableTestMixIn
 )
 
 
@@ -150,21 +149,6 @@ class BaseTestCase(XMLBaseTest):
             }),
             **kwargs
         )
-
-
-
-class DirectoryServiceConvenienceTestMixIn(
-    BaseDirectoryServiceConvenienceTestMixIn
-):
-    def test_recordsWithRecordType_unknown(self):
-        pass
-        # service = self.service()
-
-        # self.assertRaises(
-        #     QueryNotSupportedError,
-        #     service.recordsWithRecordType, UnknownConstant.unknown
-        # )
-    test_recordsWithRecordType_unknown.todo = "After this test runs, other tests fail, need to investigate"
 
 
 
@@ -268,6 +252,7 @@ class DirectoryServiceConnectionTestMixIn(object):
         self.assertFalse(connection.tls_enabled)
 
 
+    @inlineCallbacks
     def test_connect_withUsernamePassword_invalid(self):
         """
         Connect with UsernamePassword credentials.
@@ -277,7 +262,12 @@ class DirectoryServiceConnectionTestMixIn(object):
             u"__password__"
         )
         service = self.service(credentials=credentials)
-        self.assertFailure(service._connect(), LDAPBindAuthError)
+        try:
+            yield service._connect()
+        except LDAPBindAuthError:
+            pass
+        else:
+            self.fail("Should have raised LDAPBindAuthError")
 
 
     @inlineCallbacks

@@ -17,8 +17,8 @@
 
 from ..idirectory import QueryNotSupportedError, FieldName
 from ..expression import (
-    CompoundExpression, Operand,
-    MatchExpression, MatchFlags,
+    CompoundExpression, ExistsExpression, MatchExpression,
+    MatchFlags, Operand, BooleanExpression
 )
 from ._constants import LDAPOperand, LDAPMatchType, LDAPMatchFlags
 
@@ -154,6 +154,101 @@ def ldapQueryStringFromMatchExpression(
     raise AssertionError("We shouldn't be here.")
 
 
+def ldapQueryStringFromExistsExpression(
+    expression, fieldNameToAttributesMap, recordTypeSchemas
+):
+    """
+    Generates an LDAP query string from an exists expression.
+
+    @param expression: An exists expression.
+    @type expression: L{ExistsExpression}
+
+    @param fieldNameToAttributesMap: A mapping from field names to native LDAP
+        attribute names.
+    @type fieldNameToAttributesMap: L{dict} with L{FieldName} keys and sequence
+        of L{unicode} values.
+
+    @param recordTypeSchemas: Schema information for record types.
+    @type recordTypeSchemas: mapping from L{NamedConstant} to
+        L{RecordTypeSchema}
+
+    @return: An LDAP query string.
+    @rtype: L{unicode}
+
+    @raises QueryNotSupportedError: if the expresion references an unknown
+        field name (meaning a field name not in C{fieldNameToAttributeMap}).
+    """
+
+    fieldName = expression.fieldName
+
+    try:
+        attributes = fieldNameToAttributesMap[fieldName]
+    except KeyError:
+        raise QueryNotSupportedError(
+            "Unmapped field name: {0}".format(expression.fieldName)
+        )
+
+    queryStrings = [
+        u"({attribute}=*)".format(attribute=attribute)
+        for attribute in attributes
+    ]
+
+    operand = LDAPOperand.OR.value
+    return ldapQueryStringFromQueryStrings(operand, queryStrings)
+
+
+def ldapQueryStringFromBooleanExpression(
+    expression, fieldNameToAttributesMap, recordTypeSchemas
+):
+    """
+    Generates an LDAP query string from a boolean expression.
+
+    @param expression: An boolean expression.
+    @type expression: L{BooleanExpression}
+
+    @param fieldNameToAttributesMap: A mapping from field names to native LDAP
+        attribute names.
+    @type fieldNameToAttributesMap: L{dict} with L{FieldName} keys and sequence
+        of L{unicode} values.
+
+    @param recordTypeSchemas: Schema information for record types.
+    @type recordTypeSchemas: mapping from L{NamedConstant} to
+        L{RecordTypeSchema}
+
+    @return: An LDAP query string.
+    @rtype: L{unicode}
+
+    @raises QueryNotSupportedError: if the expresion references an unknown
+        field name (meaning a field name not in C{fieldNameToAttributeMap}).
+    """
+
+    fieldName = expression.fieldName
+
+    try:
+        attributes = fieldNameToAttributesMap[fieldName]
+    except KeyError:
+        raise QueryNotSupportedError(
+            "Unmapped field name: {0}".format(expression.fieldName)
+        )
+
+    queryStrings = []
+    for attribute in attributes:
+        if "=" in attribute:
+            attribute, trueValue = attribute.split("=")
+        else:
+            trueValue = "true"
+
+        queryStrings.append(
+            u"({attribute}={trueValue})".format(
+                attribute=attribute,
+                trueValue=trueValue
+            )
+        )
+
+
+    operand = LDAPOperand.OR.value
+    return ldapQueryStringFromQueryStrings(operand, queryStrings)
+
 
 def ldapQueryStringFromCompoundExpression(
     expression, fieldNameToAttributesMap, recordTypeSchemas
@@ -227,6 +322,16 @@ def ldapQueryStringFromExpression(
             expression, fieldNameToAttributesMap, recordTypeSchemas
         )
 
+    if isinstance(expression, BooleanExpression):
+        return ldapQueryStringFromBooleanExpression(
+            expression, fieldNameToAttributesMap, recordTypeSchemas
+        )
+
+    if isinstance(expression, ExistsExpression):
+        return ldapQueryStringFromExistsExpression(
+            expression, fieldNameToAttributesMap, recordTypeSchemas
+        )
+
     if isinstance(expression, CompoundExpression):
         return ldapQueryStringFromCompoundExpression(
             expression, fieldNameToAttributesMap, recordTypeSchemas
@@ -243,8 +348,7 @@ LDAP_QUOTING_TABLE = {
 
     ord(u"("): u"\\28",
     ord(u")"): u"\\29",
-    # Question: shouldn't we not be quoting * because that's how you specify wildcards?
-    # ord(u"*"): u"\\2A",
+    ord(u"*"): u"\\2A",
 
     ord(u"<"): u"\\3C",
     ord(u"="): u"\\3D",
