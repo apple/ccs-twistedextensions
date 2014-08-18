@@ -659,7 +659,7 @@ class DirectoryService(BaseDirectoryService):
         # its delegate...
 
         if query is None:
-            returnValue(None)
+            returnValue(())
 
         if DEFER_TO_THREAD:
             odRecords, error = (
