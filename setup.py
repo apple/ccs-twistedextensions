@@ -181,9 +181,13 @@ extensions = [
 
 if sys.platform == "darwin":
     try:
+        print("XYZZY about to import launchd", sys.path)
         from twext.python import launchd
+        print("XYZZY imported launchd", launchd)
         extensions.append(launchd.ffi.verifier.get_extension())
-    except ImportError:
+        print("XYZZY extensions", extensions)
+    except ImportError as e:
+        print("XYZZY import failed", e)
         pass
 
 
