@@ -15,14 +15,15 @@
 ##
 
 """
-Extentions to twisted.internet.ssl.
+Extensions to twisted.internet.ssl.
 """
 
 __all__ = [
     "ChainingOpenSSLContextFactory",
 ]
 
-from OpenSSL.SSL import Context as SSLContext, SSLv3_METHOD
+from OpenSSL.SSL import Context as SSLContext, SSLv23_METHOD, OP_NO_SSLv2, \
+    OP_CIPHER_SERVER_PREFERENCE
 
 from twisted.internet.ssl import DefaultOpenSSLContextFactory
 
@@ -30,7 +31,7 @@ from twisted.internet.ssl import DefaultOpenSSLContextFactory
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
     def __init__(
         self, privateKeyFileName, certificateFileName,
-        sslmethod=SSLv3_METHOD, certificateChainFile=None,
+        sslmethod=SSLv23_METHOD, certificateChainFile=None,
         passwdCallback=None, ciphers=None
     ):
         self.certificateChainFile = certificateChainFile
@@ -49,8 +50,12 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
         # Unfortunate code duplication.
         ctx = SSLContext(self.sslmethod)
 
+        # Always disable SSLv2
+        ctx.set_options(OP_NO_SSLv2)
+
         if self.ciphers is not None:
             ctx.set_cipher_list(self.ciphers)
+            ctx.set_options(OP_CIPHER_SERVER_PREFERENCE)
 
         if self.passwdCallback is not None:
             ctx.set_passwd_cb(self.passwdCallback)
