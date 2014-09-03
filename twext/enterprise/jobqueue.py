@@ -774,9 +774,9 @@ class JobDescriptorArg(Argument):
 
 
 # Priority for work - used to order work items in the job queue
-WORK_PRIORITY_LOW = 1
-WORK_PRIORITY_MEDIUM = 2
-WORK_PRIORITY_HIGH = 3
+WORK_PRIORITY_LOW = 0
+WORK_PRIORITY_MEDIUM = 1
+WORK_PRIORITY_HIGH = 2
 
 # Weight for work - used to schedule workers based on capacity
 WORK_WEIGHT_0 = 0
@@ -1961,6 +1961,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     "workCheck: jobqueue priority limit change: {limit}",
                     limit=minPriority,
                 )
+                if self._lastMinPriority == WORK_PRIORITY_HIGH + 1:
+                    log.error("workCheck: jobqueue is no longer overloaded")
             self._lastMinPriority = minPriority
 
             # Determine what the timestamp cutoff
