@@ -1023,7 +1023,7 @@ class WorkItem(Record):
                 datetime.utcnow() +
                 timedelta(seconds=seconds)
             )
-            log.info(
+            log.debug(
                 "Scheduling next {cls}: {when}",
                 cls=cls.__name__,
                 when=notBefore,
