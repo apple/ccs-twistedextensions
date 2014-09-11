@@ -392,7 +392,9 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def _queryFromCompoundExpression(self, expression, recordTypes=None, local=False):
+    def _queryFromCompoundExpression(
+        self, expression, recordTypes=None, local=False, limitResults=None
+    ):
         """
         Form an OpenDirectory query from a compound expression.
 
@@ -442,7 +444,10 @@ class DirectoryService(BaseDirectoryService):
             matchType = ODMatchType.any.value
 
         attributes = [a.value for a in ODAttribute.iterconstants()]
-        maxResults = 0
+        if limitResults is None:
+            maxResults = 0
+        else:
+            maxResults = limitResults
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,
@@ -468,7 +473,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _queryFromMatchExpression(
-        self, expression, recordTypes=None, local=False
+        self, expression, recordTypes=None, local=False, limitResults=None
     ):
         """
         Form an OpenDirectory query from a match expression.
@@ -503,7 +508,11 @@ class DirectoryService(BaseDirectoryService):
             caseInsensitive = 0x0
 
         fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
-        maxResults = 0
+
+        if limitResults is None:
+            maxResults = 0
+        else:
+            maxResults = limitResults
 
         # For OpenDirectory, use guid for uid:
         if expression.fieldName is self.fieldName.uid:
@@ -644,12 +653,16 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
-    def _recordsFromQuery(self, query):
+    def _recordsFromQuery(self, query, timeoutSeconds=None):
         """
         Executes a query and generates directory records from it.
 
         @param query: A query.
         @type query: L{ODQuery}
+
+        @param timeoutSeconds: number of seconds after which the request
+            should timeout (currently unused)
+        @type timeoutSeconds: C{integer}
 
         @return: The records produced by executing the query.
         @rtype: list of L{DirectoryRecord}
@@ -707,11 +720,17 @@ class DirectoryService(BaseDirectoryService):
         returnValue(result)
 
 
-    def recordsFromNonCompoundExpression(self, expression, recordTypes=None, records=None):
+    def recordsFromNonCompoundExpression(
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         if isinstance(expression, MatchExpression):
             try:
-                query = self._queryFromMatchExpression(expression, recordTypes=recordTypes)
-                return self._recordsFromQuery(query)
+                query = self._queryFromMatchExpression(
+                    expression, recordTypes=recordTypes, limitResults=limitResults)
+                return self._recordsFromQuery(
+                    query, timeoutSeconds=timeoutSeconds
+                )
 
             except QueryNotSupportedError:
                 pass  # Let the superclass try
@@ -720,12 +739,16 @@ class DirectoryService(BaseDirectoryService):
                 return succeed([])
 
         return BaseDirectoryService.recordsFromNonCompoundExpression(
-            self, expression
+            self, expression,
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
 
     @inlineCallbacks
-    def recordsFromCompoundExpression(self, expression, recordTypes=None, records=None):
+    def recordsFromCompoundExpression(
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         """
         Returns records matching the CompoundExpression.  Because the
         local node doesn't perform Compound queries in a case insensitive
@@ -736,13 +759,16 @@ class DirectoryService(BaseDirectoryService):
         """
 
         try:
-            query = self._queryFromCompoundExpression(expression, recordTypes=recordTypes)
+            query = self._queryFromCompoundExpression(
+                expression, recordTypes=recordTypes, limitResults=limitResults
+            )
 
         except QueryNotSupportedError:
             returnValue(
                 (
                     yield BaseDirectoryService.recordsFromCompoundExpression(
-                        self, expression, recordTypes=recordTypes
+                        self, expression, recordTypes=recordTypes,
+                        limitResults=limitResults, timeoutSeconds=timeoutSeconds
                     )
                 )
             )
@@ -752,7 +778,8 @@ class DirectoryService(BaseDirectoryService):
         if self.localNode is not None:
 
             localRecords = yield self.localRecordsFromCompoundExpression(
-                expression, recordTypes=recordTypes
+                expression, recordTypes=recordTypes,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
             for localRecord in localRecords:
                 if localRecord not in results:
@@ -762,7 +789,10 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
-    def localRecordsFromCompoundExpression(self, expression, recordTypes=None):
+    def localRecordsFromCompoundExpression(
+        self, expression, recordTypes=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         """
         Takes a CompoundExpression, and recursively goes through each
         MatchExpression, passing those specifically to the local node, and
@@ -780,17 +810,22 @@ class DirectoryService(BaseDirectoryService):
 
             if isinstance(subExpression, CompoundExpression):
                 subRecords = yield self.localRecordsFromCompoundExpression(
-                    subExpression, recordTypes=recordTypes
+                    subExpression, recordTypes=recordTypes,
+                    limitResults=limitResults, timeoutSeconds=timeoutSeconds
                 )
 
             elif isinstance(subExpression, MatchExpression):
                 try:
                     subQuery = self._queryFromMatchExpression(
-                        subExpression, recordTypes=recordTypes, local=True
+                        subExpression, recordTypes=recordTypes, local=True,
+                        limitResults=limitResults
                     )
                 except UnsupportedRecordTypeError:
                     continue
-                subRecords = yield self._recordsFromQuery(subQuery)
+                subRecords = yield self._recordsFromQuery(
+                    subQuery,
+                    timeoutSeconds=timeoutSeconds
+                )
 
             else:
                 raise QueryNotSupportedError(
@@ -841,27 +876,35 @@ class DirectoryService(BaseDirectoryService):
 
 
     @inlineCallbacks
-    def recordWithUID(self, uid):
+    def recordWithUID(self, uid, timeoutSeconds=None):
         returnValue(firstResult(
-            (yield self.recordsWithFieldValue(BaseFieldName.uid, uid))
+            (yield self.recordsWithFieldValue(
+                BaseFieldName.uid, uid, timeoutSeconds=timeoutSeconds
+            ))
         ))
 
 
     @inlineCallbacks
-    def recordWithGUID(self, guid):
+    def recordWithGUID(self, guid, timeoutSeconds=None):
         returnValue(firstResult(
-            (yield self.recordsWithFieldValue(BaseFieldName.guid, guid))
+            (yield self.recordsWithFieldValue(
+                BaseFieldName.guid, guid, timeoutSeconds=timeoutSeconds
+            ))
         ))
 
 
     @inlineCallbacks
-    def recordWithShortName(self, recordType, shortName):
+    def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
         try:
             query = self._queryFromMatchExpression(
                 MatchExpression(self.fieldName.shortNames, shortName),
-                recordTypes=(recordType,)
+                recordTypes=(recordType,),
+                limitResults=1
             )
-            results = yield self._recordsFromQuery(query)
+            results = yield self._recordsFromQuery(
+                query,
+                timeoutSeconds=timeoutSeconds
+            )
 
             try:
                 record = firstResult(results)
@@ -877,7 +920,7 @@ class DirectoryService(BaseDirectoryService):
         except QueryNotSupportedError:
             # Let the superclass try
             returnValue((yield BaseDirectoryService.recordWithShortName(
-                self, recordType, shortName)))
+                self, recordType, shortName, timeoutSeconds=timeoutSeconds)))
 
         except UnsupportedRecordTypeError:
             returnValue(None)

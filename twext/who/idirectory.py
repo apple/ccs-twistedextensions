@@ -277,7 +277,9 @@ class IDirectoryService(Interface):
         @rtype: iterable of L{NamedConstant}s
         """
 
-    def recordsFromExpression(expression, recordTypes=None):
+    def recordsFromExpression(
+        expression, recordTypes=None, limitResults=None, timeoutSeconds=None
+    ):
         """
         Find records matching an expression.
 
@@ -288,6 +290,13 @@ class IDirectoryService(Interface):
         @type recordTypes: an iterable of L{NamedConstant}, or None for no
             filtering
 
+        @param limitResults: how many records to limit the results to
+        @type limitResults: an C{integer} or None if no limit desired
+
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
+
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
 
@@ -295,7 +304,9 @@ class IDirectoryService(Interface):
             supported by this directory service.
         """
 
-    def recordsWithFieldValue(fieldName, value):
+    def recordsWithFieldValue(
+        fieldName, value, limitResults=None, timeoutSeconds=None
+    ):
         """
         Find records that have the given field name with the given
         value.
@@ -306,44 +317,68 @@ class IDirectoryService(Interface):
         @param value: a value to match
         @type value: L{object}
 
+        @param limitResults: how many records to limit the results to
+        @type limitResults: an C{integer} or None if no limit desired
+
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
+
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
         """
 
-    def recordWithUID(uid):
+    def recordWithUID(uid, timeoutSeconds=None):
         """
         Find the record that has the given UID.
 
         @param uid: a UID
         @type uid: L{unicode}
 
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
+
         @return: The matching record or C{None} if there is no match.
         @rtype: deferred L{IDirectoryRecord}s or C{None}
         """
 
-    def recordWithGUID(guid):
+    def recordWithGUID(guid, timeoutSeconds=None):
         """
         Find the record that has the given GUID.
 
         @param guid: a GUID
         @type guid: L{UUID}
 
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
+
         @return: The matching record or C{None} if there is no match.
         @rtype: deferred L{IDirectoryRecord}s or C{None}
         """
 
-    def recordsWithRecordType(recordType):
+    def recordsWithRecordType(
+        recordType, limitResults=None, timeoutSeconds=None
+    ):
         """
         Find the records that have the given record type.
 
         @param recordType: a record type
         @type recordType: L{NamedConstant}
 
+        @param limitResults: how many records to limit the results to
+        @type limitResults: an C{integer} or None if no limit desired
+
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
+
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s
         """
 
-    def recordWithShortName(recordType, shortName):
+    def recordWithShortName(recordType, shortName, timeoutSeconds=None):
         """
         Find the record that has the given record type and short name.
 
@@ -353,16 +388,26 @@ class IDirectoryService(Interface):
         @param shortName: a short name
         @type shortName: L{unicode}
 
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
+
         @return: The matching record or C{None} if there is no match.
         @rtype: deferred L{IDirectoryRecord}s or C{None}
         """
 
-    def recordsWithEmailAddress(emailAddress):
+    def recordsWithEmailAddress(
+        emailAddress, limitResults=None, timeoutSeconds=None
+    ):
         """
         Find the records that have the given email address.
 
         @param emailAddress: an email address
         @type emailAddress: L{unicode}
+
+        @param timeoutSeconds: how long (in seconds) to let a directory service
+            request to run before giving up
+        @type timeoutSeconds: an C{integer} or None if no limit desired
 
         @return: The matching records.
         @rtype: deferred iterable of L{IDirectoryRecord}s

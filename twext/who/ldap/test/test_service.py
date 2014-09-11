@@ -24,13 +24,21 @@ from itertools import chain
 
 import ldap
 
-try:
-    from mockldap import MockLdap
-    from mockldap.filter import (
-        Test as MockLDAPFilterTest,
-        UnsupportedOp as MockLDAPUnsupportedOp,
-    )
-except ImportError:
+
+# FIXME:
+MOCKLDAP_SUPPORTS_LDAP_ASYNC = False
+
+
+if MOCKLDAP_SUPPORTS_LDAP_ASYNC:
+    try:
+        from mockldap import MockLdap
+        from mockldap.filter import (
+            Test as MockLDAPFilterTest,
+            UnsupportedOp as MockLDAPUnsupportedOp,
+        )
+    except ImportError:
+        MockLdap = None
+else:
     MockLdap = None
 
 from twext.python.types import MappingProxyType

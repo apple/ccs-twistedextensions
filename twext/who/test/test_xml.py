@@ -185,6 +185,31 @@ class DirectoryServiceConvenienceTestMixIn(object):
         self.assertRecords(records, (u"__sagen__", u"__dre__"))
 
 
+    @inlineCallbacks
+    def test_limitResults(self):
+        """
+        Make sure limitResults does limit results.
+        """
+
+        service = self.service()
+
+        records = (
+            yield service.recordsWithRecordType(
+                service.recordType.user,
+                limitResults=3
+            )
+        )
+        self.assertEquals(len(records), 3)
+
+        records = (
+            yield service.recordsWithRecordType(
+                service.recordType.user,
+                limitResults=1000
+            )
+        )
+        self.assertEquals(len(records), 9)
+
+
 
 class DirectoryServiceRealmTestMixIn(object):
     def test_realmNameImmutable(self):

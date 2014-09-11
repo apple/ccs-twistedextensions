@@ -227,7 +227,8 @@ class DirectoryService(BaseDirectoryService):
 
 
     def indexedRecordsFromMatchExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         """
         Finds records in the internal indexes matching a single expression.
@@ -293,11 +294,15 @@ class DirectoryService(BaseDirectoryService):
                 if record.recordType not in recordTypes:
                     matchingRecords.remove(record)
 
+        if limitResults is not None:
+            matchingRecords = set(list(matchingRecords)[:limitResults])
+
         return succeed(matchingRecords)
 
 
     def unIndexedRecordsFromMatchExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         """
         Finds records not in the internal indexes matching a single expression.
@@ -335,11 +340,15 @@ class DirectoryService(BaseDirectoryService):
                 if expression.match(fieldValue):
                     result.add(record)
 
+        if limitResults is not None:
+            result = set(list(result)[:limitResults])
+
         return succeed(result)
 
 
     def recordsFromNonCompoundExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         """
         This implementation can handle L{MatchExpression} expressions; other
@@ -348,15 +357,18 @@ class DirectoryService(BaseDirectoryService):
         if isinstance(expression, MatchExpression):
             if expression.fieldName in self.indexedFields:
                 return self.indexedRecordsFromMatchExpression(
-                    expression, recordTypes=recordTypes, records=records
+                    expression, recordTypes=recordTypes, records=records,
+                    limitResults=limitResults, timeoutSeconds=timeoutSeconds
                 )
             else:
                 return self.unIndexedRecordsFromMatchExpression(
-                    expression, recordTypes=recordTypes, records=records
+                    expression, recordTypes=recordTypes, records=records,
+                    limitResults=limitResults, timeoutSeconds=timeoutSeconds
                 )
         else:
             return BaseDirectoryService.recordsFromNonCompoundExpression(
-                self, expression, recordTypes=recordTypes, records=records
+                self, expression, recordTypes=recordTypes, records=records,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
 
 

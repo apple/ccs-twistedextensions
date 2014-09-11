@@ -109,10 +109,14 @@ class DirectoryService(BaseDirectoryService):
         return d
 
 
-    def recordsFromExpression(self, expression, recordTypes=None, records=None):
+    def recordsFromExpression(
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         return self._gatherFromSubServices(
             "recordsFromExpression", expression, recordTypes=recordTypes,
-            records=None
+            records=None,
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
 
@@ -123,41 +127,58 @@ class DirectoryService(BaseDirectoryService):
     # want to call their implementations, not bypass them.
 
 
-    def recordsWithFieldValue(self, fieldName, value):
+    def recordsWithFieldValue(
+        self, fieldName, value, limitResults=None, timeoutSeconds=None
+    ):
         return self._gatherFromSubServices(
-            "recordsWithFieldValue", fieldName, value
+            "recordsWithFieldValue", fieldName, value,
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
 
-    def recordWithUID(self, uid):
-        return self._oneFromSubServices("recordWithUID", uid)
+    def recordWithUID(self, uid, timeoutSeconds=None):
+        return self._oneFromSubServices(
+            "recordWithUID", uid, timeoutSeconds=timeoutSeconds
+        )
 
 
-    def recordWithGUID(self, guid):
-        return self._oneFromSubServices("recordWithGUID", guid)
+    def recordWithGUID(self, guid, timeoutSeconds=None):
+        return self._oneFromSubServices(
+            "recordWithGUID", guid, timeoutSeconds=timeoutSeconds
+        )
 
 
-    def recordsWithRecordType(self, recordType):
+    def recordsWithRecordType(
+        self, recordType, limitResults=None, timeoutSeconds=None
+    ):
         # Since we know the recordType, we can go directly to the appropriate
         # service.
         for service in self.services:
             if recordType in service.recordTypes():
-                return service.recordsWithRecordType(recordType)
+                return service.recordsWithRecordType(
+                    recordType,
+                    limitResults=limitResults, timeoutSeconds=timeoutSeconds
+                )
         return succeed(())
 
 
-    def recordWithShortName(self, recordType, shortName):
+    def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
         # Since we know the recordType, we can go directly to the appropriate
         # service.
         for service in self.services:
             if recordType in service.recordTypes():
-                return service.recordWithShortName(recordType, shortName)
+                return service.recordWithShortName(
+                    recordType, shortName, timeoutSeconds=timeoutSeconds
+                )
         return succeed(None)
 
 
-    def recordsWithEmailAddress(self, emailAddress):
+    def recordsWithEmailAddress(
+        self, emailAddress, limitResults=None, timeoutSeconds=None
+    ):
         return self._gatherFromSubServices(
-            "recordsWithEmailAddress", emailAddress
+            "recordsWithEmailAddress", emailAddress,
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
 

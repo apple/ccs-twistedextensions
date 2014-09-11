@@ -123,7 +123,8 @@ class DirectoryService(object):
 
 
     def recordsFromNonCompoundExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         """
         Finds records matching a non-compound expression.
@@ -172,7 +173,8 @@ class DirectoryService(object):
 
     @inlineCallbacks
     def recordsFromCompoundExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         """
         Finds records matching a compound expression.
@@ -246,7 +248,10 @@ class DirectoryService(object):
         returnValue(results)
 
 
-    def recordsFromExpression(self, expression, recordTypes=None, records=None):
+    def recordsFromExpression(
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         """
         @note: This interface is the same as
             L{IDirectoryService.recordsFromExpression}, except for the
@@ -254,41 +259,57 @@ class DirectoryService(object):
         """
         if isinstance(expression, CompoundExpression):
             return self.recordsFromCompoundExpression(
-                expression, recordTypes=recordTypes
+                expression, recordTypes=recordTypes,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
         else:
             return self.recordsFromNonCompoundExpression(
-                expression, recordTypes=recordTypes
+                expression, recordTypes=recordTypes,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
 
 
-    def recordsWithFieldValue(self, fieldName, value, recordTypes=None):
+    def recordsWithFieldValue(
+        self, fieldName, value, recordTypes=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         return self.recordsFromExpression(
             MatchExpression(fieldName, value),
-            recordTypes=recordTypes
+            recordTypes=recordTypes,
+            limitResults=limitResults,
+            timeoutSeconds=timeoutSeconds
         )
 
 
     @inlineCallbacks
-    def recordWithUID(self, uid):
+    def recordWithUID(self, uid, timeoutSeconds=None):
         returnValue(uniqueResult(
-            (yield self.recordsWithFieldValue(FieldName.uid, uid))
+            (yield self.recordsWithFieldValue(
+                FieldName.uid, uid, timeoutSeconds=timeoutSeconds
+            ))
         ))
 
 
     @inlineCallbacks
-    def recordWithGUID(self, guid):
+    def recordWithGUID(self, guid, timeoutSeconds=None):
         returnValue(uniqueResult(
-            (yield self.recordsWithFieldValue(FieldName.guid, guid))
+            (yield self.recordsWithFieldValue(
+                FieldName.guid, guid, timeoutSeconds=timeoutSeconds
+            ))
         ))
 
 
-    def recordsWithRecordType(self, recordType):
-        return self.recordsWithFieldValue(FieldName.recordType, recordType)
+    def recordsWithRecordType(
+        self, recordType, limitResults=None, timeoutSeconds=None
+    ):
+        return self.recordsWithFieldValue(
+            FieldName.recordType, recordType,
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
+        )
 
 
     @inlineCallbacks
-    def recordWithShortName(self, recordType, shortName):
+    def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
         returnValue(
             uniqueResult(
                 (
@@ -296,17 +317,22 @@ class DirectoryService(object):
                         MatchExpression(
                             FieldName.shortNames, shortName
                         ),
-                        recordTypes=[recordType]
+                        recordTypes=[recordType],
+                        timeoutSeconds=timeoutSeconds
                     )
                 )
             )
         )
 
 
-    def recordsWithEmailAddress(self, emailAddress):
+    def recordsWithEmailAddress(
+        self, emailAddress, limitResults=None, timeoutSeconds=None
+    ):
         return self.recordsWithFieldValue(
             FieldName.emailAddresses,
             emailAddress,
+            limitResults=limitResults,
+            timeoutSeconds=timeoutSeconds
         )
 
 

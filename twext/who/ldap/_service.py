@@ -27,6 +27,7 @@ from uuid import UUID
 
 import collections
 import ldap
+import ldap.async
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
@@ -47,7 +48,10 @@ from ..directory import (
     DirectoryService as BaseDirectoryService,
     DirectoryRecord as BaseDirectoryRecord,
 )
-from ..expression import MatchExpression, ExistsExpression, BooleanExpression
+from ..expression import (
+    MatchExpression, ExistsExpression, BooleanExpression,
+    CompoundExpression, Operand, MatchType
+)
 from ..util import ConstantsContainer
 from ._constants import LDAPAttribute, LDAPObjectClass
 from ._util import (
@@ -554,16 +558,24 @@ class DirectoryService(BaseDirectoryService):
             connection = None
 
 
-    def _recordsFromQueryString(self, queryString, recordTypes=None):
+    def _recordsFromQueryString(
+        self, queryString, recordTypes=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         return deferToThreadPool(
             reactor, self.threadpool,
             self._recordsFromQueryString_inThread,
             queryString,
             recordTypes,
+            limitResults=limitResults,
+            timeoutSeconds=timeoutSeconds
         )
 
 
-    def _recordsFromQueryString_inThread(self, queryString, recordTypes=None):
+    def _recordsFromQueryString_inThread(
+        self, queryString, recordTypes=None,
+        limitResults=None, timeoutSeconds=None
+    ):
         """
         This method is always called in a thread.
         """
@@ -571,10 +583,16 @@ class DirectoryService(BaseDirectoryService):
 
         with DirectoryService.Connection(self) as connection:
 
+
             if recordTypes is None:
                 recordTypes = self.recordTypes()
 
             for recordType in recordTypes:
+
+                if limitResults is not None:
+                    if limitResults < 1:
+                        break
+
                 try:
                     rdn = self._recordTypeSchemas[recordType].relativeDN
                 except KeyError:
@@ -586,23 +604,35 @@ class DirectoryService(BaseDirectoryService):
                     ldap.dn.str2dn(self._baseDN.lower())
                 )
                 self.log.debug(
-                    "Performing LDAP query: {rdn} {query} {recordType}",
+                    "Performing LDAP query: {rdn} {query} {recordType}{limit}{timeout}",
                     rdn=rdn,
                     query=queryString,
-                    recordType=recordType
+                    recordType=recordType,
+                    limit=" limit={}".format(limitResults) if limitResults else "",
+                    timeout=" timeout={}".format(timeoutSeconds) if timeoutSeconds else "",
                 )
                 try:
-                    reply = connection.search_s(
+                    s = ldap.async.List(connection)
+                    s.startSearch(
                         ldap.dn.dn2str(rdn),
                         ldap.SCOPE_SUBTREE,
                         queryString,
-                        attrlist=self._attributesToFetch
+                        attrList=self._attributesToFetch,
+                        timeout=timeoutSeconds if timeoutSeconds else -1,
+                        sizelimit=limitResults if limitResults else 0
                     )
+                    s.processResults()
+
+                except ldap.SIZELIMIT_EXCEEDED, e:
+                    self.log.debug("LDAP result limit exceeded: {}".format(limitResults,))
+
+                except ldap.TIMELIMIT_EXCEEDED, e:
+                    self.log.warn("LDAP timeout exceeded: {} seconds".format(timeoutSeconds,))
 
                 except ldap.FILTER_ERROR as e:
                     self.log.error(
-                        "Unable to perform query {0!r}: {1}"
-                        .format(queryString, e)
+                        "Unable to perform query {query!r}: {err}",
+                        query=queryString, err=e
                     )
                     raise LDAPQueryError("Unable to perform query", e)
 
@@ -610,9 +640,48 @@ class DirectoryService(BaseDirectoryService):
                     # self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
                     continue
 
-                records.extend(
-                    self._recordsFromReply(reply, recordType=recordType)
+                except ldap.INVALID_SYNTAX, e:
+                    self.log.error(
+                        "LDAP invalid syntax {query!r}: {err}",
+                        query=queryString, err=e
+                    )
+                    continue
+
+                except ldap.SERVER_DOWN:
+                    self.log.error(
+                        "LDAP server unavailable"
+                    )
+                    continue
+
+                except Exception, e:
+                    self.log.error(
+                        "LDAP error {query!r}: {err}",
+                        query=queryString, err=e
+                    )
+                    continue
+
+                reply = [resultItem for resultType, resultItem in s.allResults]
+
+                newRecords = self._recordsFromReply(reply, recordType=recordType)
+
+                self.log.debug(
+                    "Records from LDAP query ({rdn} {query} {recordType}): {count}",
+                    rdn=rdn,
+                    query=queryString,
+                    recordType=recordType,
+                    count=len(newRecords)
                 )
+
+                if limitResults is not None:
+                    limitResults = limitResults - len(newRecords)
+
+                records.extend(newRecords)
+
+        self.log.debug(
+            "LDAP result count ({query}): {count}",
+            query=queryString,
+            count=len(records)
+        )
 
         return records
 
@@ -758,7 +827,8 @@ class DirectoryService(BaseDirectoryService):
 
 
     def recordsFromNonCompoundExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None, limitResults=None,
+        timeoutSeconds=None
     ):
         if isinstance(expression, MatchExpression):
             queryString = ldapQueryStringFromMatchExpression(
@@ -766,7 +836,8 @@ class DirectoryService(BaseDirectoryService):
                 self._fieldNameToAttributesMap, self._recordTypeSchemas
             )
             return self._recordsFromQueryString(
-                queryString, recordTypes=recordTypes
+                queryString, recordTypes=recordTypes,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
 
         elif isinstance(expression, ExistsExpression):
@@ -775,7 +846,8 @@ class DirectoryService(BaseDirectoryService):
                 self._fieldNameToAttributesMap, self._recordTypeSchemas
             )
             return self._recordsFromQueryString(
-                queryString, recordTypes=recordTypes
+                queryString, recordTypes=recordTypes,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
 
         elif isinstance(expression, BooleanExpression):
@@ -784,16 +856,19 @@ class DirectoryService(BaseDirectoryService):
                 self._fieldNameToAttributesMap, self._recordTypeSchemas
             )
             return self._recordsFromQueryString(
-                queryString, recordTypes=recordTypes
+                queryString, recordTypes=recordTypes,
+                limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
 
         return BaseDirectoryService.recordsFromNonCompoundExpression(
-            self, expression, records=records
+            self, expression, records=records, limitResults=limitResults,
+            timeoutSeconds=timeoutSeconds
         )
 
 
     def recordsFromCompoundExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         if not expression.expressions:
             return succeed(())
@@ -803,17 +878,21 @@ class DirectoryService(BaseDirectoryService):
             self._fieldNameToAttributesMap, self._recordTypeSchemas
         )
         return self._recordsFromQueryString(
-            queryString, recordTypes=recordTypes
+            queryString, recordTypes=recordTypes,
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
 
-    def recordsWithRecordType(self, recordType):
+    def recordsWithRecordType(
+        self, recordType, limitResults=None, timeoutSeconds=None
+    ):
         queryString = ldapQueryStringFromExistsExpression(
             ExistsExpression(self.fieldName.uid),
             self._fieldNameToAttributesMap, self._recordTypeSchemas
         )
         return self._recordsFromQueryString(
-            queryString, recordTypes=[recordType]
+            queryString, recordTypes=[recordType],
+            limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
 
@@ -839,12 +918,66 @@ class DirectoryRecord(BaseDirectoryRecord):
     @inlineCallbacks
     def members(self):
 
+        members = set()
+
         if self.recordType != self.service.recordType.group:
             returnValue(())
 
-        members = set()
-        for dn in getattr(self, "memberDNs", []):
-            record = yield self.service._recordWithDN(dn)
+        # Scan through the memberDNs, grouping them by record type (which we
+        # deduce by their RDN).  If we have a fieldname that corresponds to
+        # the most specific slice of the DN, we can bundle that into a
+        # single CompoundExpression to fault in all the DNs belonging to the
+        # same base RDN, reducing the number of requests from 1-per-member to
+        # 1-per-record-type.  Any memberDNs we can't group in this way are
+        # simply faulted in by DN at the end.
+
+        fieldValuesByRecordType = {}
+        # dictionary key = recordType, value = tuple(fieldName, value)
+
+        faultByDN = []
+        # the DNs we need to fault in individually
+
+        for dnStr in getattr(self, "memberDNs", []):
+            try:
+                recordType = recordTypeForDN(
+                    self.service._baseDN, self.service._recordTypeSchemas, dnStr
+                )
+                dn = ldap.dn.str2dn(dnStr.lower())
+                attrName, value, ignored = dn[0][0]
+                fieldName = self.service._attributeToFieldNameMap[attrName][0]
+                fieldValuesByRecordType.setdefault(recordType, []).append((fieldName, value))
+                continue
+
+            except:
+                # For whatever reason we can't group this DN in with the others
+                # so we'll add it to faultByDN just below
+                pass
+
+            # have to fault in by dn
+            faultByDN.append(dnStr)
+
+        for recordType, fieldValue in fieldValuesByRecordType.iteritems():
+            if fieldValue:
+                matchExpressions = []
+                for fieldName, value in fieldValue:
+                    matchExpressions.append(
+                        MatchExpression(
+                            fieldName,
+                            value.decode("utf-8"),
+                            matchType=MatchType.equals
+                        )
+                    )
+            expression = CompoundExpression(
+                matchExpressions,
+                Operand.OR
+            )
+            for record in (yield self.service.recordsFromCompoundExpression(
+                expression, recordTypes=[recordType]
+            )):
+                members.add(record)
+
+        for dnStr in faultByDN:
+            record = yield self.service._recordWithDN(dnStr)
             members.add(record)
 
         returnValue(members)
@@ -861,6 +994,7 @@ class DirectoryRecord(BaseDirectoryRecord):
 
     def verifyPlaintextPassword(self, password):
         return self.service._authenticateUsernamePassword(self.dn, password)
+
 
 
 def normalizeDNstr(dnStr):

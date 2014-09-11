@@ -351,6 +351,34 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
 
 
     @inlineCallbacks
+    def test_unIndexedRecordsFromMatchExpression_limitResults(self):
+        """
+        Make sure limitResults does limit results.
+        """
+        service = self.noLoadServicePopulated()
+
+        records = yield service.unIndexedRecordsFromMatchExpression(
+            MatchExpression(
+                BaseFieldName.fullNames, u"A",
+                MatchType.startsWith
+            ),
+            recordTypes=None,
+            limitResults=1
+        )
+        self.assertEquals(len(records), 1)
+
+        records = yield service.unIndexedRecordsFromMatchExpression(
+            MatchExpression(
+                BaseFieldName.fullNames, u"A",
+                MatchType.startsWith
+            ),
+            recordTypes=None,
+            limitResults=1000
+        )
+        self.assertEquals(len(records), 2)
+
+
+    @inlineCallbacks
     def _test_recordsFromNonCompoundExpression(self, expression):
         service = self.noLoadServicePopulated()
         yield service.recordsFromNonCompoundExpression(expression)

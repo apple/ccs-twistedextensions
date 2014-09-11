@@ -71,7 +71,8 @@ class StubDirectoryService(TestDirectoryService):
 
 
     def recordsFromNonCompoundExpression(
-        self, expression, recordTypes=None, records=None
+        self, expression, recordTypes=None, records=None,
+        limitResults=None, timeoutSeconds=None
     ):
         """
         This implementation handles three expressions:
