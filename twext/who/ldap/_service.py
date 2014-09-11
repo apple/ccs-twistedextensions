@@ -623,10 +623,10 @@ class DirectoryService(BaseDirectoryService):
                     )
                     s.processResults()
 
-                except ldap.SIZELIMIT_EXCEEDED, e:
+                except ldap.SIZELIMIT_EXCEEDED as e:
                     self.log.debug("LDAP result limit exceeded: {}".format(limitResults,))
 
-                except ldap.TIMELIMIT_EXCEEDED, e:
+                except ldap.TIMELIMIT_EXCEEDED as e:
                     self.log.warn("LDAP timeout exceeded: {} seconds".format(timeoutSeconds,))
 
                 except ldap.FILTER_ERROR as e:
@@ -640,25 +640,25 @@ class DirectoryService(BaseDirectoryService):
                     # self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
                     continue
 
-                except ldap.INVALID_SYNTAX, e:
+                except ldap.INVALID_SYNTAX as e:
                     self.log.error(
                         "LDAP invalid syntax {query!r}: {err}",
                         query=queryString, err=e
                     )
                     continue
 
-                except ldap.SERVER_DOWN:
+                except ldap.SERVER_DOWN as e:
                     self.log.error(
                         "LDAP server unavailable"
                     )
-                    continue
+                    raise LDAPQueryError("LDAP server down", e)
 
-                except Exception, e:
+                except Exception as e:
                     self.log.error(
                         "LDAP error {query!r}: {err}",
                         query=queryString, err=e
                     )
-                    continue
+                    raise LDAPQueryError("Unable to perform query", e)
 
                 reply = [resultItem for resultType, resultItem in s.allResults]
 
