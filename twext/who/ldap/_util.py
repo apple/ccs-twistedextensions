@@ -154,6 +154,7 @@ def ldapQueryStringFromMatchExpression(
     raise AssertionError("We shouldn't be here.")
 
 
+
 def ldapQueryStringFromExistsExpression(
     expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
@@ -195,6 +196,7 @@ def ldapQueryStringFromExistsExpression(
 
     operand = LDAPOperand.OR.value
     return ldapQueryStringFromQueryStrings(operand, queryStrings)
+
 
 
 def ldapQueryStringFromBooleanExpression(
@@ -248,6 +250,7 @@ def ldapQueryStringFromBooleanExpression(
 
     operand = LDAPOperand.OR.value
     return ldapQueryStringFromQueryStrings(operand, queryStrings)
+
 
 
 def ldapQueryStringFromCompoundExpression(

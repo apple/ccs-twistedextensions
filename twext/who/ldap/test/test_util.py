@@ -55,6 +55,7 @@ class TestFieldName(Names):
     isCool.valueType = bool
 
 
+
 class LDAPQueryTestCase(unittest.TestCase):
     """
     Tests for LDAP query generation.

@@ -337,6 +337,7 @@ class MatchExpression(object):
         ))
 
 
+
 class ExistsExpression(object):
     """
     Query for the existence a given field.
@@ -369,6 +370,7 @@ class ExistsExpression(object):
             return (self.fieldName is other.fieldName)
         else:
             return NotImplemented
+
 
 
 class BooleanExpression(object):

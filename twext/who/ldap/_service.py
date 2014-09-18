@@ -26,7 +26,6 @@ from threading import RLock
 from uuid import UUID
 
 import collections
-import ldap
 import ldap.async
 
 from twisted.python.constants import Names, NamedConstant
@@ -660,7 +659,7 @@ class DirectoryService(BaseDirectoryService):
                     )
                     raise LDAPQueryError("Unable to perform query", e)
 
-                reply = [resultItem for resultType, resultItem in s.allResults]
+                reply = [resultItem for _ignore_resultType, resultItem in s.allResults]
 
                 newRecords = self._recordsFromReply(reply, recordType=recordType)
 
@@ -1005,6 +1004,7 @@ def normalizeDNstr(dnStr):
     @return: normalized dn C{str}
     """
     return ' '.join(ldap.dn.dn2str(ldap.dn.str2dn(dnStr.lower())).split())
+
 
 
 def reverseDict(source):
