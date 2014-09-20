@@ -727,6 +727,53 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
+    def waitJobDone(cls, txnCreator, reactor, timeout, jobID):
+        """
+        Wait for the specified job to complete. Only use this in tests
+        that need to wait for results from jobs.
+        """
+        t = time.time()
+        while True:
+            work = yield inTransaction(txnCreator, cls.query, expr=(cls.jobID == jobID))
+            if not work:
+                break
+            if time.time() - t > timeout:
+                returnValue(False)
+            d = Deferred()
+            reactor.callLater(0.1, lambda : d.callback(None))
+            yield d
+
+        returnValue(True)
+
+
+    @classmethod
+    @inlineCallbacks
+    def waitWorkDone(cls, txnCreator, reactor, timeout, workTypes):
+        """
+        Wait for the specified job to complete. Only use this in tests
+        that need to wait for results from jobs.
+        """
+        t = time.time()
+        while True:
+            count = 0
+            def _countTypes(txn):
+                for t in workTypes:
+                    work = yield t.all()
+                    count += len(work)
+            yield inTransaction(txnCreator, _countTypes)
+            if count == 0:
+                break
+            if time.time() - t > timeout:
+                returnValue(False)
+            d = Deferred()
+            reactor.callLater(0.1, lambda : d.callback(None))
+            yield d
+
+        returnValue(True)
+
+
+    @classmethod
+    @inlineCallbacks
     def histogram(cls, txn):
         """
         Generate a histogram of work items currently in the queue.
