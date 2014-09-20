@@ -50,6 +50,7 @@ from .index import (
 )
 from .util import ConstantsContainer
 
+import itertools
 
 
 ##
@@ -148,6 +149,17 @@ class DirectoryService(BaseDirectoryService):
     attribute = Attribute
     recordTypeValue = RecordTypeValue
 
+    xmlFieldOrder = (
+        BaseFieldName.recordType,
+        BaseFieldName.uid,
+        BaseFieldName.guid,
+        BaseFieldName.shortNames,
+        BaseFieldName.fullNames,
+        BaseFieldName.emailAddresses,
+        BaseFieldName.password,
+        IndexFieldName.memberUIDs,
+    )
+
 
     def __init__(self, filePath, refreshInterval=4):
         """
@@ -162,6 +174,7 @@ class DirectoryService(BaseDirectoryService):
         BaseDirectoryService.__init__(self, realmName=noRealmName)
 
         self.filePath = filePath
+        self.filePreamble = ""
         self.refreshInterval = refreshInterval
 
 
@@ -251,6 +264,10 @@ class DirectoryService(BaseDirectoryService):
         # Open and parse the file
         #
         try:
+            with self.filePath.open() as fh:
+                lines = fh.read().splitlines()
+                self.filePreamble = "\n".join(itertools.takewhile(lambda x: not x.startswith("<directory"), lines))
+
             with self.filePath.open() as fh:
                 try:
                     etree = parseXML(fh)
@@ -472,7 +489,12 @@ class DirectoryService(BaseDirectoryService):
 
         def fillRecordNode(recordNode, record):
             subNode = None
-            for (name, value) in record.fields.items():
+            fields = list(self.xmlFieldOrder)
+            fields.extend(filter(lambda k: k not in self.xmlFieldOrder, record.fields))
+            for name in fields:
+                if name not in record.fields:
+                    continue
+                value = record.fields[name]
                 if name == self.fieldName.recordType:
                     if value in recordTypes:
                         recordNode.set(
@@ -561,7 +583,7 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _writeDirectoryNode(self, directoryNode):
-        self.filePath.setContent(etreeToString(directoryNode, "utf-8"))
+        self.filePath.setContent("{preamble}\n{xml}\n".format(preamble=self.filePreamble, xml=etreeToString(directoryNode, "utf-8")))
         self.flush()
 
 
