@@ -38,7 +38,7 @@ from .directory import (
 
 
 ##
-# Data type extentions
+# Data type extensions
 ##
 
 class FieldName(Names):
@@ -61,7 +61,7 @@ class DirectoryService(BaseDirectoryService):
 
     Each indexed field has a top-level key in the index and in turn contains
     a dictionary in which keys are field values, and values are directory
-    records which have a matching field value for the cooresponding key::
+    records which have a matching field value for the corresponding key:
 
         {
             <FieldName1>: {
@@ -386,8 +386,20 @@ class DirectoryRecord(BaseDirectoryRecord):
         returnValue(members)
 
 
+    def addMembers(self, memberRecords):
+        oldlen = len(getattr(self, "memberUIDs", ()))
+        self.fields[FieldName.memberUIDs] = sorted(list(set(getattr(self, "memberUIDs", ())) | set([r.uid for r in memberRecords])))
+        return succeed(oldlen < len(self.memberUIDs))
+
+
+    def removeMembers(self, memberRecords):
+        oldlen = len(getattr(self, "memberUIDs", ()))
+        self.fields[FieldName.memberUIDs] = sorted(list(set(getattr(self, "memberUIDs", ())) - set([r.uid for r in memberRecords])))
+        return succeed(oldlen > len(self.memberUIDs))
+
+
     def setMembers(self, memberRecords):
-        self.memberUIDs = set([r.uid for r in memberRecords])
+        self.fields[FieldName.memberUIDs] = set([r.uid for r in memberRecords])
         return succeed(None)
 
 
