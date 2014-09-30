@@ -755,13 +755,16 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         """
         t = time.time()
         while True:
-            count = 0
+            count = [0]
+
+            @inlineCallbacks
             def _countTypes(txn):
                 for t in workTypes:
-                    work = yield t.all()
-                    count += len(work)
+                    work = yield t.all(txn)
+                    count[0] += len(work)
+
             yield inTransaction(txnCreator, _countTypes)
-            if count == 0:
+            if count[0] == 0:
                 break
             if time.time() - t > timeout:
                 returnValue(False)
