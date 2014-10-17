@@ -25,20 +25,34 @@ from itertools import chain
 import ldap
 
 
-# FIXME:
-MOCKLDAP_SUPPORTS_LDAP_ASYNC = False
+try:
+    from mockldap import MockLdap
+    from mockldap.filter import (
+        Test as MockLDAPFilterTest,
+        UnsupportedOp as MockLDAPUnsupportedOp,
+    )
+    from mockldap.ldapobject import LDAPObject
+
+    # Allow ldap.async to work with mockldap:
+
+    def search_ext(
+        self, base, scope, filterstr='(objectClass=*)',
+        attrlist=None, attrsonly=0, serverctrls=None, clientctrls=None,
+        timeout=-1, sizelimit=0
+    ):
+        value = self._search_s(base, scope, filterstr, attrlist, attrsonly)
+        if sizelimit:
+            value = value[:sizelimit]
+        return self._add_async_result(value)
 
 
-if MOCKLDAP_SUPPORTS_LDAP_ASYNC:
-    try:
-        from mockldap import MockLdap
-        from mockldap.filter import (
-            Test as MockLDAPFilterTest,
-            UnsupportedOp as MockLDAPUnsupportedOp,
-        )
-    except ImportError:
-        MockLdap = None
-else:
+    def result3(self, msgid, all=1, timeout=None):
+        return ldap.RES_SEARCH_RESULT, self._pop_async_result(msgid), None, None
+
+    LDAPObject.search_ext = search_ext
+    LDAPObject.result3 = result3
+
+except ImportError:
     MockLdap = None
 
 from twext.python.types import MappingProxyType
