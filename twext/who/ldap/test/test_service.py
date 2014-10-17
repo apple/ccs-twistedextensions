@@ -60,8 +60,9 @@ from twext.who.idirectory import RecordType
 from twext.who.ldap import (
     LDAPAttribute, RecordTypeSchema, LDAPObjectClass
 )
+from twext.who.util import ConstantsContainer
 
-from twisted.python.constants import NamedConstant, ValueConstant
+from twisted.python.constants import Names, NamedConstant, ValueConstant
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import inlineCallbacks
 from twisted.cred.credentials import UsernamePassword
@@ -86,8 +87,41 @@ from ...test.test_xml import (
 )
 
 
+class TestFieldWithChoices(Names):
+
+    none = NamedConstant()
+    none.description = u"none"
+
+    one = NamedConstant()
+    one.description = u"one"
+
+    two = NamedConstant()
+    two.description = u"two"
+
+    three = NamedConstant()
+    three.description = u"three"
+
+
+class TestFieldName(Names):
+    multiChoice = NamedConstant()
+    multiChoice.description = u"Multiple Choice Test Field"
+    multiChoice.valueType = TestFieldWithChoices
+
+    trueFalse = NamedConstant()
+    trueFalse.description = u"Boolean Test Field"
+    trueFalse.valueType = bool
+
+
 
 TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
+TEST_FIELDNAME_MAP[TestFieldName.multiChoice] = (
+    u"testField:One:one",
+    u"testField:Two:two",
+    u"testField:Three:three",
+)
+TEST_FIELDNAME_MAP[TestFieldName.trueFalse] = (
+    u"foo:active",
+)
 TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
 
 
@@ -140,7 +174,7 @@ class BaseTestCase(XMLBaseTest):
 
 
     def service(self, **kwargs):
-        return TestService(
+        svc = TestService(
             url=self.url,
             baseDN=self.baseDN,
             fieldNameToAttributesMap=TEST_FIELDNAME_MAP,
@@ -171,6 +205,10 @@ class BaseTestCase(XMLBaseTest):
             }),
             **kwargs
         )
+        svc.fieldName = ConstantsContainer(
+            (svc.fieldName, TestFieldName)
+        )
+        return svc
 
 
 
@@ -380,6 +418,56 @@ class DirectoryServiceTest(
 
         self.assertEquals(repr(service), u"<TestService u'ldap://localhost/'>")
 
+
+
+class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
+
+    def test_boolean(self):
+        service = self.service()
+        reply = (
+            (
+                "dn",
+                {
+                    "__who_uid__": u"active",
+                    "foo": u"active",
+                }
+            ),
+            (
+                "dn",
+                {
+                    "__who_uid__": u"inactive",
+                    "foo": u"inactive",
+                }
+            ),
+        )
+        records = service._recordsFromReply(reply, recordType=RecordType.user)
+        self.assertTrue(records[0].trueFalse)
+        self.assertFalse(records[1].trueFalse)
+
+
+    def test_multipleChoice(self):
+        service = self.service()
+        reply = (
+            (
+                "dn",
+                {
+                    "__who_uid__": u"two",
+                    "testField": u"Two",
+                }
+            ),
+            (
+                "dn",
+                {
+                    "__who_uid__": u"four",
+                    "testField": u"Four",
+                }
+            ),
+        )
+        records = service._recordsFromReply(reply, recordType=RecordType.user)
+        self.assertEquals(records[0].multiChoice, TestFieldWithChoices.two)
+
+        # "Four" is not a valid value, so it won't get set
+        self.assertFalse(service.fieldName.multiChoice in records[1].fields)
 
 
 def mockDirectoryDataFromXMLService(service):
