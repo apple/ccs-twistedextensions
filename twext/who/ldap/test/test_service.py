@@ -107,22 +107,46 @@ class TestFieldName(Names):
     multiChoice.description = u"Multiple Choice Test Field"
     multiChoice.valueType = TestFieldWithChoices
 
-    trueFalse = NamedConstant()
-    trueFalse.description = u"Boolean Test Field"
-    trueFalse.valueType = bool
+    boolean1 = NamedConstant()
+    boolean1.description = u"Boolean Test Field"
+    boolean1.valueType = bool
 
+    boolean2 = NamedConstant()
+    boolean2.description = u"Boolean Test Field 2"
+    boolean2.valueType = bool
+
+    boolean3 = NamedConstant()
+    boolean3.description = u"Boolean Test Field 3"
+    boolean3.valueType = bool
 
 
 TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
+TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
+
 TEST_FIELDNAME_MAP[TestFieldName.multiChoice] = (
     u"testField:One:one",
     u"testField:Two:two",
     u"testField:Three:three",
 )
-TEST_FIELDNAME_MAP[TestFieldName.trueFalse] = (
+
+# Set up two Fields which will map to the same LDAP attribute ("foo")
+# to make sure both Fields get set.  Their field values *will* be different,
+# based on whether there is a colon in the attribute rule.  If the LDAP
+# value matches the string following the colon, the Field value will be True.
+# If there is no colon, then the string to match is literally the string "true".
+TEST_FIELDNAME_MAP[TestFieldName.boolean1] = (
     u"foo:active",
 )
-TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
+TEST_FIELDNAME_MAP[TestFieldName.boolean2] = (
+    u"foo",
+)
+
+# This Field will map to LDAP attribute "bar" and will be used for matching
+# the string "true"
+TEST_FIELDNAME_MAP[TestFieldName.boolean3] = (
+    u"bar",
+)
+
 
 
 
@@ -430,6 +454,8 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
                 {
                     "__who_uid__": u"active",
                     "foo": u"active",
+                    "bar": u"true",
+                    "unknown": u"unknown",  # will ignore unknown LDAP attrs
                 }
             ),
             (
@@ -437,12 +463,19 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
                 {
                     "__who_uid__": u"inactive",
                     "foo": u"inactive",
+                    "bar": u"false",
                 }
             ),
         )
         records = service._recordsFromReply(reply, recordType=RecordType.user)
-        self.assertTrue(records[0].trueFalse)
-        self.assertFalse(records[1].trueFalse)
+
+        self.assertTrue(records[0].boolean1)   # foo == active so True
+        self.assertFalse(records[0].boolean2)  # foo != true so False
+        self.assertTrue(records[0].boolean3)  # bar == true so True
+
+        self.assertFalse(records[1].boolean1)  # foo != active so False
+        self.assertFalse(records[1].boolean2)  # foo != true so False
+        self.assertFalse(records[1].boolean3)  # bar != true so False
 
 
     def test_multipleChoice(self):

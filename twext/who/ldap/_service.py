@@ -302,7 +302,9 @@ class DirectoryService(BaseDirectoryService):
             for attribute in attributes:
                 if ":" in attribute:
                     attribute, ignored = attribute.split(":", 1)
-                self._attributeToFieldNameMap[attribute] = name
+                self._attributeToFieldNameMap.setdefault(
+                    attribute, []
+                ).append(name)
 
         self._recordTypeSchemas = recordTypeSchemas
 
@@ -758,81 +760,83 @@ class DirectoryService(BaseDirectoryService):
             fields = {}
 
             for attribute, values in recordData.iteritems():
-                fieldName = self._attributeToFieldNameMap.get(attribute)
-                attributeRules = self._fieldNameToAttributesMap[fieldName]
+                fieldNames = self._attributeToFieldNameMap.get(attribute, ())
+                for fieldName in fieldNames:
+                    attributeRules = self._fieldNameToAttributesMap[fieldName]
 
-                if fieldName is None:
-                    # self.log.debug(
-                    #     "Unmapped LDAP attribute {attribute!r} in record "
-                    #     "data: {recordData!r}",
-                    #     attribute=attribute, recordData=recordData,
-                    # )
-                    continue
+                    if fieldName is None:
+                        # self.log.debug(
+                        #     "Unmapped LDAP attribute {attribute!r} in record "
+                        #     "data: {recordData!r}",
+                        #     attribute=attribute, recordData=recordData,
+                        # )
+                        continue
 
-                valueType = self.fieldName.valueType(fieldName)
+                    valueType = self.fieldName.valueType(fieldName)
 
-                if valueType in (unicode, UUID):
-                    if not isinstance(values, list):
-                        values = [values]
+                    if valueType in (unicode, UUID):
+                        if not isinstance(values, list):
+                            values = [values]
 
-                    if valueType is unicode:
-                        newValues = []
-                        for v in values:
-                            if isinstance(v, unicode):
-                                # because the ldap unit test produces
-                                # unicode values (?)
-                                newValues.append(v)
-                            else:
-                                newValues.append(unicode(v, "utf-8"))
-                        # newValues = [unicode(v, "utf-8") for v in values]
-                    else:
-                        newValues = [valueType(v) for v in values]
+                        if valueType is unicode:
+                            newValues = []
+                            for v in values:
+                                if isinstance(v, unicode):
+                                    # because the ldap unit test produces
+                                    # unicode values (?)
+                                    newValues.append(v)
+                                else:
+                                    newValues.append(unicode(v, "utf-8"))
+                            # newValues = [unicode(v, "utf-8") for v in values]
+                        else:
+                            newValues = [valueType(v) for v in values]
 
-                    if self.fieldName.isMultiValue(fieldName):
-                        fields[fieldName] = newValues
-                    else:
-                        fields[fieldName] = newValues[0]
+                        if self.fieldName.isMultiValue(fieldName):
+                            fields[fieldName] = newValues
+                        else:
+                            fields[fieldName] = newValues[0]
 
-                elif valueType is bool:
-                    if not isinstance(values, list):
-                        values = [values]
+                    elif valueType is bool:
+                        if not isinstance(values, list):
+                            values = [values]
 
-                    rule = attributeRules[0]  # there is only one true value
-                    if ":" in rule:
-                        ignored, trueValue = rule.split(":")
-                    else:
-                        trueValue = "true"
 
-                    for value in values:
-                        if value == trueValue:
-                            fields[fieldName] = True
-                            break
-                    else:
-                        fields[fieldName] = False
-
-                elif issubclass(valueType, Names):
-                    if not isinstance(values, list):
-                        values = [values]
-
-                    for rule in attributeRules:
-                        attribute, attributeValue, fieldValue = rule.split(":")
+                        rule = attributeRules[0]  # there is only one true value
+                        if ":" in rule:
+                            ignored, trueValue = rule.split(":")
+                        else:
+                            trueValue = "true"
 
                         for value in values:
-                            if value == attributeValue:
-                                # convert to a constant
-                                try:
-                                    fieldValue = valueType.lookupByName(fieldValue)
-                                    fields[fieldName] = fieldValue
-                                except ValueError:
-                                    pass
+                            if value == trueValue:
+                                fields[fieldName] = True
                                 break
+                        else:
+                            fields[fieldName] = False
 
-                else:
-                    raise LDAPConfigurationError(
-                        "Unknown value type {0} for field {1}".format(
-                            valueType, fieldName
+                    elif issubclass(valueType, Names):
+                        if not isinstance(values, list):
+                            values = [values]
+
+                        for rule in attributeRules:
+                            attribute, attributeValue, fieldValue = rule.split(":")
+
+                            for value in values:
+                                if value == attributeValue:
+                                    # convert to a constant
+                                    try:
+                                        fieldValue = valueType.lookupByName(fieldValue)
+                                        fields[fieldName] = fieldValue
+                                    except ValueError:
+                                        pass
+                                    break
+
+                    else:
+                        raise LDAPConfigurationError(
+                            "Unknown value type {0} for field {1}".format(
+                                valueType, fieldName
+                            )
                         )
-                    )
 
             # Skip any results missing the uid, which is a required field
             if self.fieldName.uid not in fields:
