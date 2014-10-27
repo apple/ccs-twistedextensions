@@ -235,8 +235,8 @@ def ldapQueryStringFromBooleanExpression(
 
     queryStrings = []
     for attribute in attributes:
-        if "=" in attribute:
-            attribute, trueValue = attribute.split("=")
+        if ":" in attribute:
+            attribute, trueValue = attribute.split(":")
         else:
             trueValue = "true"
 

@@ -160,7 +160,7 @@ class LDAPQueryTestCase(unittest.TestCase):
         service = self.service()
 
         testFieldNameMap = {
-            TestFieldName.isAwesome: ("awesome=totally",),
+            TestFieldName.isAwesome: ("awesome:totally",),
             TestFieldName.isCool: ("cool",),
         }
 
