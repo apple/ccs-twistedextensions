@@ -229,6 +229,7 @@ class DirectoryService(BaseDirectoryService):
         useTLS=False,
         fieldNameToAttributesMap=DEFAULT_FIELDNAME_ATTRIBUTE_MAP,
         recordTypeSchemas=DEFAULT_RECORDTYPE_SCHEMAS,
+        extraFilter=None,
         ownThreadpool=True,
         threadPoolMax=10,
         connectionMax=10,
@@ -265,12 +266,18 @@ class DirectoryService(BaseDirectoryService):
         @param recordTypeSchemas: Schema information for record types.
         @type recordTypeSchemas: mapping from L{NamedConstant} to
             L{RecordTypeSchema}
+
+        @param extraFilter: An extra filter fragment to AND in to any generated
+            queries.
+        @type extraFilter: L{unicode}
+
         """
 
         self.url = url
         self._baseDN = baseDN
         self._credentials = credentials
         self._timeout = timeout
+        self._extraFilter = extraFilter
 
         if tlsCACertificateFile is None:
             self._tlsCACertificateFile = None
@@ -580,6 +587,14 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
+    def _addExtraFilter(self, queryString):
+        if self._extraFilter:
+            queryString = "(&{extra}{query})".format(
+                extra=self._extraFilter, query=queryString
+            )
+        return queryString
+
+
     def _recordsFromQueryString_inThread(
         self, queryString, recordTypes=None,
         limitResults=None, timeoutSeconds=None
@@ -587,6 +602,9 @@ class DirectoryService(BaseDirectoryService):
         """
         This method is always called in a thread.
         """
+
+        queryString = self._addExtraFilter(queryString)
+
         records = []
 
         with DirectoryService.Connection(self) as connection:

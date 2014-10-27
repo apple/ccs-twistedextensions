@@ -443,6 +443,21 @@ class DirectoryServiceTest(
         self.assertEquals(repr(service), u"<TestService u'ldap://localhost/'>")
 
 
+class ExtraFilterTest(BaseTestCase, unittest.TestCase):
+
+    def test_extra(self):
+        service = self.service(extraFilter="(foo=1)")
+        self.assertEquals(
+            "(&(foo=1)(bar=2))",
+            service._addExtraFilter("(bar=2)")
+        )
+
+        service = self.service(extraFilter=None)
+        self.assertEquals(
+            "(bar=2)",
+            service._addExtraFilter("(bar=2)")
+        )
+
 
 class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
 
