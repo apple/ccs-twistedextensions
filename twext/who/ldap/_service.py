@@ -229,7 +229,7 @@ class DirectoryService(BaseDirectoryService):
         useTLS=False,
         fieldNameToAttributesMap=DEFAULT_FIELDNAME_ATTRIBUTE_MAP,
         recordTypeSchemas=DEFAULT_RECORDTYPE_SCHEMAS,
-        extraFilter=None,
+        extraFilters=None,
         ownThreadpool=True,
         threadPoolMax=10,
         connectionMax=10,
@@ -267,9 +267,9 @@ class DirectoryService(BaseDirectoryService):
         @type recordTypeSchemas: mapping from L{NamedConstant} to
             L{RecordTypeSchema}
 
-        @param extraFilter: An extra filter fragment to AND in to any generated
-            queries.
-        @type extraFilter: L{unicode}
+        @param extraFilters: A dict (keyed off recordType) of extra filter
+            fragments to AND in to any generated queries.
+        @type extraFilters: L{dicts} of L{unicode}
 
         """
 
@@ -277,7 +277,7 @@ class DirectoryService(BaseDirectoryService):
         self._baseDN = baseDN
         self._credentials = credentials
         self._timeout = timeout
-        self._extraFilter = extraFilter
+        self._extraFilters = extraFilters
 
         if tlsCACertificateFile is None:
             self._tlsCACertificateFile = None
@@ -587,10 +587,10 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    def _addExtraFilter(self, queryString):
-        if self._extraFilter:
+    def _addExtraFilter(self, recordType, queryString):
+        if self._extraFilters and self._extraFilters.get(recordType, ""):
             queryString = "(&{extra}{query})".format(
-                extra=self._extraFilter, query=queryString
+                extra=self._extraFilters[recordType], query=queryString
             )
         return queryString
 
@@ -602,8 +602,6 @@ class DirectoryService(BaseDirectoryService):
         """
         This method is always called in a thread.
         """
-
-        queryString = self._addExtraFilter(queryString)
 
         records = []
 
@@ -629,10 +627,11 @@ class DirectoryService(BaseDirectoryService):
                     ldap.dn.str2dn(rdn.lower()) +
                     ldap.dn.str2dn(self._baseDN.lower())
                 )
+                filteredQuery=self._addExtraFilter(recordType, queryString)
                 self.log.debug(
                     "Performing LDAP query: {rdn} {query} {recordType}{limit}{timeout}",
                     rdn=rdn,
-                    query=queryString,
+                    query=filteredQuery,
                     recordType=recordType,
                     limit=" limit={}".format(limitResults) if limitResults else "",
                     timeout=" timeout={}".format(timeoutSeconds) if timeoutSeconds else "",
@@ -642,7 +641,7 @@ class DirectoryService(BaseDirectoryService):
                     s.startSearch(
                         ldap.dn.dn2str(rdn),
                         ldap.SCOPE_SUBTREE,
-                        queryString,
+                        filteredQuery,
                         attrList=self._attributesToFetch,
                         timeout=timeoutSeconds if timeoutSeconds else -1,
                         sizelimit=limitResults if limitResults else 0

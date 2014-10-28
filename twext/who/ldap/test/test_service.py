@@ -443,21 +443,27 @@ class DirectoryServiceTest(
         self.assertEquals(repr(service), u"<TestService u'ldap://localhost/'>")
 
 
-class ExtraFilterTest(BaseTestCase, unittest.TestCase):
+class ExtraFiltersTest(BaseTestCase, unittest.TestCase):
 
-    def test_extra(self):
-        service = self.service(extraFilter="(foo=1)")
+    def test_extraFilters(self):
+        extraFilters = {
+            RecordType.user: "(foo=1)",
+        }
+        service = self.service(extraFilters=extraFilters)
         self.assertEquals(
             "(&(foo=1)(bar=2))",
-            service._addExtraFilter("(bar=2)")
+            service._addExtraFilter(RecordType.user, "(bar=2)")
         )
-
-        service = self.service(extraFilter=None)
         self.assertEquals(
             "(bar=2)",
-            service._addExtraFilter("(bar=2)")
+            service._addExtraFilter(RecordType.group, "(bar=2)")
         )
 
+        service = self.service(extraFilters=None)
+        self.assertEquals(
+            "(bar=2)",
+            service._addExtraFilter(RecordType.group, "(bar=2)")
+        )
 
 class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
 
@@ -548,6 +554,11 @@ def mockDirectoryDataFromXMLService(service):
             return schema.attributes
 
         else:
+
+            # mockldap requires data in this structure: {dn: {attr: [values]}}
+            if not isinstance(fieldValue, (tuple, list)):
+                fieldValue = [fieldValue]
+
             # Question: why convert to unicode?  We get utf-8 encoded strings
             # back from a real LDAP server, don't we?
             value = toUnicode(fieldValue)
