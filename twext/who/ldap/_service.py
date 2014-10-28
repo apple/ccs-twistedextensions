@@ -1024,7 +1024,7 @@ class DirectoryRecord(BaseDirectoryRecord):
                 members.add(record)
 
         for dnStr in faultByDN:
-            record = yield self.service._recordWithDN(dnStr)
+            record = yield self.service._recordWithDN(dnStr.replace("+", "\+"))
             members.add(record)
 
         returnValue(members)
