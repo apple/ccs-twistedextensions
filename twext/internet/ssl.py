@@ -23,20 +23,32 @@ __all__ = [
 ]
 
 from OpenSSL.SSL import Context as SSLContext, SSLv23_METHOD, OP_NO_SSLv2, \
-    OP_CIPHER_SERVER_PREFERENCE, OP_NO_SSLv3
+    OP_CIPHER_SERVER_PREFERENCE, OP_NO_SSLv3, VERIFY_NONE, VERIFY_PEER, \
+    VERIFY_FAIL_IF_NO_PEER_CERT, VERIFY_CLIENT_ONCE
 
 from twisted.internet.ssl import DefaultOpenSSLContextFactory
+from twisted.internet._sslverify import Certificate
 
 
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
     def __init__(
         self, privateKeyFileName, certificateFileName,
         sslmethod=SSLv23_METHOD, certificateChainFile=None,
-        passwdCallback=None, ciphers=None
+        passwdCallback=None, ciphers=None,
+        verifyClient=False, requireClientCertificate=False,
+        verifyClientOnce=True, verifyClientDepth=9,
+        clientCACertFileNames=[], sendCAsToClient=True
     ):
         self.certificateChainFile = certificateChainFile
         self.passwdCallback = passwdCallback
         self.ciphers = ciphers
+
+        self.verifyClient = verifyClient
+        self.requireClientCertificate = requireClientCertificate
+        self.verifyClientOnce = verifyClientOnce
+        self.verifyClientDepth = verifyClientDepth
+        self.clientCACertFileNames = clientCACertFileNames
+        self.sendCAsToClient = sendCAsToClient
 
         DefaultOpenSSLContextFactory.__init__(
             self,
@@ -66,5 +78,32 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
 
         if self.certificateChainFile != "":
             ctx.use_certificate_chain_file(self.certificateChainFile)
+
+        verifyFlags = VERIFY_NONE
+        if self.verifyClient:
+            verifyFlags = VERIFY_PEER
+            if self.requireClientCertificate:
+                verifyFlags |= VERIFY_FAIL_IF_NO_PEER_CERT
+            if self.verifyClientOnce:
+                verifyFlags |= VERIFY_CLIENT_ONCE
+            if self.clientCACertFileNames:
+                store = ctx.get_cert_store()
+                for cert in self.clientCACertFileNames:
+                    with open(cert) as f:
+                        certpem = f.read()
+                    cert = Certificate.loadPEM(certpem)
+                    store.add_cert(cert.original)
+                    if self.sendCAsToClient:
+                        ctx.add_client_ca(cert.original)
+
+        # It'd be nice if pyOpenSSL let us pass None here for this behavior (as
+        # the underlying OpenSSL API call allows NULL to be passed).  It
+        # doesn't, so we'll supply a function which does the same thing.
+        def _verifyCallback(conn, cert, errno, depth, preverify_ok):
+            return preverify_ok
+        ctx.set_verify(verifyFlags, _verifyCallback)
+
+        if self.verifyClientDepth is not None:
+            ctx.set_verify_depth(self.verifyClientDepth)
 
         self._context = ctx
