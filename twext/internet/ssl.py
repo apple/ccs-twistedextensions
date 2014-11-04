@@ -29,6 +29,8 @@ from OpenSSL.SSL import Context as SSLContext, SSLv23_METHOD, OP_NO_SSLv2, \
 from twisted.internet.ssl import DefaultOpenSSLContextFactory
 from twisted.internet._sslverify import Certificate
 
+import uuid
+
 
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
     def __init__(
@@ -95,6 +97,11 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
                     store.add_cert(cert.original)
                     if self.sendCAsToClient:
                         ctx.add_client_ca(cert.original)
+
+            # When a client certificate is used we also need to set a session context id
+            # to avoid openssl SSL_F_SSL_GET_PREV_SESSION,SSL_R_SESSION_ID_CONTEXT_UNINITIALIZED
+            # errors
+            ctx.set_session_id(str(uuid.uuid4()).replace("-", ""))
 
         # It'd be nice if pyOpenSSL let us pass None here for this behavior (as
         # the underlying OpenSSL API call allows NULL to be passed).  It
