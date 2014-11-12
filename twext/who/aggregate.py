@@ -206,3 +206,12 @@ class DirectoryService(BaseDirectoryService):
                 yield service.removeRecords(uids)
             except:
                 pass
+
+
+    @inlineCallbacks
+    def flush(self):
+        for service in self.services:
+            try:
+                yield service.flush()
+            except:
+                pass
