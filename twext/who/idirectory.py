@@ -150,11 +150,11 @@ class FieldName(Names):
     iterable of values (if it has a true C{multiValue} attribute).
 
     Field values must be an instance of an expected type.  The default expected
-    type for a field is L{unicode}, and may be overriden by a C{valueType}
+    type for a field is L{unicode}, and may be overridden by a C{valueType}
     attribute on the field name.
 
-    In the case where the expected type is a constant (eg. L{NamedConstant}),
-    C{valueType} should be the container that contains the constant (eg. a
+    In the case where the expected type is a constant (e.g. L{NamedConstant}),
+    C{valueType} should be the container that contains the constant (e.g. a
     subclass of L{Names}).
 
     @cvar uid: The primary unique identifier for a directory record.
@@ -174,7 +174,7 @@ class FieldName(Names):
         The associated values must be L{unicode}s.
 
     @cvar emailAddresses: The email addresses for a directory record.
-        The associated values must be L{unicodes}.
+        The associated values must be L{unicode}s.
 
     @cvar password: The clear text password (oh no!) for a directory record.
         The associated value must be a L{unicode} or C{None}.
@@ -423,7 +423,7 @@ class IDirectoryService(Interface):
         @param create: if true, create records if necessary
         @type create: boolean
 
-        @return: unspecifiied
+        @return: unspecified
         @rtype: deferred object
 
         @raises L{NotAllowedError}: if the update is not allowed by the
@@ -437,11 +437,25 @@ class IDirectoryService(Interface):
         @param uids: the UIDs of the records to remove
         @type uids: iterable of L{unicode}
 
-        @return: unspecifiied
+        @return: unspecified
         @rtype: deferred object
 
         @raises L{NotAllowedError}: if the removal is not allowed by the
             directory service.
+        """
+
+    def flush():
+        """
+        Clear out any record information that the directory service has cached
+        from the underlying directory store. This is useful in testing scenarios
+        where we want a change to the underlying store to quickly propagate to
+        all directory services that use it.
+
+        Each service that uses some form of record caching should implement this method
+        and make sure its caches are cleared.
+
+        @return: unspecified
+        @rtype: deferred object
         """
 
 
@@ -451,7 +465,7 @@ class IDirectoryRecord(Interface):
     Directory record.
 
     A directory record corresponds to a principal, and contains
-    information about the principal such as idenfiers, names and
+    information about the principal such as identifiers, names and
     passwords.
 
     This information is stored in a set of fields (a mapping of field
@@ -526,14 +540,14 @@ class IDirectoryRecord(Interface):
 
 class IPlaintextPasswordVerifier(Interface):
     """
-    Provides a way to verify a plaintext password as provided by a client.
+    Provides a way to verify a plain text password as provided by a client.
     """
 
     def verifyPlaintextPassword(password):
         """
-        Verifies that a given plaintext password authenticates the record.
+        Verifies that a given plain text password authenticates the record.
 
-        @param password: A plaintext password.
+        @param password: A plain text password.
         @type password: L{unicode}
 
         @return: L{True} if the password matches, L{False} otherwise.
@@ -549,9 +563,9 @@ class IHTTPDigestVerifier(Interface):
 
     def verifyHTTPDigest(username, realm, nonce, algorithm, response, method):
         """
-        Verifies that a given plaintext password authenticates the record.
+        Verifies that a given plain text password authenticates the record.
 
-        @param password: A plaintext password.
+        @param password: A plain text password.
         @type password: L{unicode}
 
         @return: L{True} if the password matches, L{False} otherwise.

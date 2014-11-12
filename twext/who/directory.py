@@ -348,6 +348,10 @@ class DirectoryService(object):
         return succeed(None)
 
 
+    def flush(self):
+        return succeed(None)
+
+
 
 @implementer(IDirectoryRecord)
 class DirectoryRecord(object):
