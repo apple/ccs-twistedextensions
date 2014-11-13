@@ -26,6 +26,7 @@ __all__ = [
 import collections
 from itertools import chain
 
+from twisted.python.components import proxyForInterface
 from twisted.internet.defer import (
     gatherResults, FirstError, succeed, inlineCallbacks, returnValue
 )
@@ -50,6 +51,10 @@ class DirectoryService(BaseDirectoryService):
                 raise ValueError(
                     "Not a directory service: {0}".format(service)
                 )
+
+            service = proxyForInterface(IDirectoryService)(
+                service, originalAttribute="_service"
+            )
 
             for recordType in service.recordTypes():
                 if recordType in recordTypes:
@@ -184,8 +189,8 @@ class DirectoryService(BaseDirectoryService):
 
     @inlineCallbacks
     def updateRecords(self, records, create=False):
-
-        # When migrating there may be lots of new records so batch this by each service record type
+        # When migrating there may be lots of new records so batch this by each
+        # service record type.
         recordsByType = collections.defaultdict(list)
         for record in records:
             recordsByType[record.recordType].append(record)
