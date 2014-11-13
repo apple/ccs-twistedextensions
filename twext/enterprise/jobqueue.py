@@ -1139,7 +1139,7 @@ class SingletonWorkItem(WorkItem):
         """
         if force:
             yield cls.deleteall(transaction)
-            all = yield cls.all(transaction)
+            yield cls.all(transaction)
         result = yield super(SingletonWorkItem, cls).reschedule(transaction, seconds, **kwargs)
         returnValue(result)
 
