@@ -52,9 +52,9 @@ class DirectoryService(BaseDirectoryService):
                     "Not a directory service: {0}".format(service)
                 )
 
-            service = proxyForInterface(IDirectoryService)(
-                service, originalAttribute="_service"
-            )
+            service = proxyForInterface(
+                IDirectoryService, originalAttribute="_service"
+            )(service)
 
             for recordType in service.recordTypes():
                 if recordType in recordTypes:
