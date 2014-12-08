@@ -47,6 +47,7 @@ from ..expression import (
 from ..ldap._util import LDAP_QUOTING_TABLE
 from ..util import ConstantsContainer, firstResult
 
+from Foundation import NSAutoreleasePool
 from ._odframework import ODSession, ODNode, ODQuery
 from ._constants import (
     FieldName,
@@ -54,6 +55,27 @@ from ._constants import (
 )
 
 DEFER_TO_THREAD = True
+
+
+
+def wrapWithAutoreleasePool(f):
+    """
+    A decorator which creates an autorelease pool and deletes it, causing it
+    to drain
+    """
+    def wrapped(*args, **kwds):
+        pool = NSAutoreleasePool.alloc().init()
+        try:
+            return f(*args, **kwds)
+        finally:
+            del pool
+    return wrapped
+
+
+
+def deferToThreadWithAutoReleasePool(f, *args, **kwargs):
+    return deferToThread(wrapWithAutoreleasePool(f), *args, **kwargs)
+
 
 
 #
@@ -443,7 +465,6 @@ class DirectoryService(BaseDirectoryService):
         else:
             matchType = ODMatchType.any.value
 
-        attributes = [a.value for a in ODAttribute.iterconstants()]
         if limitResults is None:
             maxResults = 0
         else:
@@ -455,7 +476,7 @@ class DirectoryService(BaseDirectoryService):
             None,
             matchType,
             queryString,
-            attributes,
+            self._getFetchAttributes(),
             maxResults,
             None
         )
@@ -470,6 +491,23 @@ class DirectoryService(BaseDirectoryService):
             )
 
         return query
+
+
+    def _getFetchAttributes(self):
+        if not hasattr(self, "_fetchAttributes"):
+            self._fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
+        return self._fetchAttributes
+
+
+    def _getSupportedODRecordTypes(self):
+        if not hasattr(self, "_supportedODRecordTypes"):
+            supportedODRecordTypes = []
+            for rt in self.recordTypes():
+                odRecordType = ODRecordType.fromRecordType(rt)
+                if odRecordType is not None:
+                    supportedODRecordTypes.append(odRecordType.value)
+            self._supportedODRecordTypes = supportedODRecordTypes
+        return self._supportedODRecordTypes
 
 
     def _queryFromMatchExpression(
@@ -507,8 +545,6 @@ class DirectoryService(BaseDirectoryService):
             caseInsensitive = 0x100
         else:
             caseInsensitive = 0x0
-
-        fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
 
         if limitResults is None:
             maxResults = 0
@@ -557,14 +593,9 @@ class DirectoryService(BaseDirectoryService):
             node = self.node
 
         # Scrub unsupported recordTypes
-        supportedODRecordTypes = []
-        for rt in self.recordTypes():
-            odRecordType = ODRecordType.fromRecordType(rt)
-            if odRecordType is not None:
-                supportedODRecordTypes.append(odRecordType.value)
         scrubbedRecordTypes = []
         for odRecordType in odRecordTypes:
-            if odRecordType in supportedODRecordTypes:
+            if odRecordType in self._getSupportedODRecordTypes():
                 scrubbedRecordTypes.append(odRecordType)
 
         if not scrubbedRecordTypes:
@@ -579,7 +610,7 @@ class DirectoryService(BaseDirectoryService):
             queryAttribute,
             matchType | caseInsensitive,
             queryValue,
-            fetchAttributes,
+            self._getFetchAttributes(),
             maxResults,
             None
         )
@@ -683,7 +714,7 @@ class DirectoryService(BaseDirectoryService):
 
         if DEFER_TO_THREAD:
             odRecords, error = (
-                yield deferToThread(
+                yield deferToThreadWithAutoReleasePool(
                     query.resultsAllowingPartial_error_,
                     False,
                     None
@@ -727,6 +758,7 @@ class DirectoryService(BaseDirectoryService):
         returnValue(result)
 
 
+    @wrapWithAutoreleasePool
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
@@ -754,6 +786,7 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
+    @wrapWithAutoreleasePool
     @inlineCallbacks
     def recordsFromCompoundExpression(
         self, expression, recordTypes=None, records=None,
@@ -801,6 +834,7 @@ class DirectoryService(BaseDirectoryService):
         returnValue(results)
 
 
+    @wrapWithAutoreleasePool
     @inlineCallbacks
     def localRecordsFromCompoundExpression(
         self, expression, recordTypes=None,
@@ -906,6 +940,7 @@ class DirectoryService(BaseDirectoryService):
         ))
 
 
+    @wrapWithAutoreleasePool
     @inlineCallbacks
     def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
         try:
@@ -1050,7 +1085,7 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         if DEFER_TO_THREAD:
             result, error = (
-                yield deferToThread(
+                yield deferToThreadWithAutoReleasePool(
                     self._odRecord.verifyPassword_error_,
                     password,
                     None
@@ -1103,7 +1138,7 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         if DEFER_TO_THREAD:
             result, _ignore_m1, _ignore_m2, error = (
-                yield deferToThread(
+                yield deferToThreadWithAutoReleasePool(
                     self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_,
                     ODAuthMethod.digestMD5.value,
                     [username, challenge, responseArg, method],
