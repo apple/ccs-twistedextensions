@@ -481,7 +481,8 @@ class DirectoryService(BaseDirectoryService):
         @param expression: A match expression.
         @type expression: L{MatchExpression}
 
-        @param recordTypes: Record types to insert into the query; None for no filtering.
+        @param recordTypes: Record types to insert into the query; None for no
+            filtering.
         @type recordTypes: iterable of L{NamedConstant}, or None
 
         @param local: Whether to restrict the query to the local node
@@ -525,7 +526,9 @@ class DirectoryService(BaseDirectoryService):
             matchType = ODMatchType.any.value
             caseInsensitive = 0x0
 
-            odRecordTypes = [ODRecordType.fromRecordType(expression.fieldValue).value, ]
+            odRecordTypes = [
+                ODRecordType.fromRecordType(expression.fieldValue).value,
+            ]
         else:
             if MatchFlags.NOT in flags:
                 raise NotImplementedError()
@@ -533,7 +536,9 @@ class DirectoryService(BaseDirectoryService):
             if recordTypes is None:
                 odRecordTypes = [t.value for t in ODRecordType.iterconstants()]
             else:
-                odRecordTypes = [ODRecordType.fromRecordType(r).value for r in recordTypes]
+                odRecordTypes = [
+                    ODRecordType.fromRecordType(r).value for r in recordTypes
+                ]
 
             queryAttribute = ODAttribute.fromFieldName(
                 expression.fieldName
@@ -564,7 +569,9 @@ class DirectoryService(BaseDirectoryService):
 
         if not scrubbedRecordTypes:
             # None of the requested recordTypes are supported.
-            raise UnsupportedRecordTypeError(u",".join(r.name for r in recordTypes))
+            raise UnsupportedRecordTypeError(
+                u",".join(r.name for r in recordTypes)
+            )
 
         query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
             node,
@@ -727,7 +734,10 @@ class DirectoryService(BaseDirectoryService):
         if isinstance(expression, MatchExpression):
             try:
                 query = self._queryFromMatchExpression(
-                    expression, recordTypes=recordTypes, limitResults=limitResults)
+                    expression,
+                    recordTypes=recordTypes,
+                    limitResults=limitResults,
+                )
                 return self._recordsFromQuery(
                     query, timeoutSeconds=timeoutSeconds
                 )
@@ -767,8 +777,11 @@ class DirectoryService(BaseDirectoryService):
             returnValue(
                 (
                     yield BaseDirectoryService.recordsFromCompoundExpression(
-                        self, expression, recordTypes=recordTypes,
-                        limitResults=limitResults, timeoutSeconds=timeoutSeconds
+                        self,
+                        expression,
+                        recordTypes=recordTypes,
+                        limitResults=limitResults,
+                        timeoutSeconds=timeoutSeconds,
                     )
                 )
             )
@@ -1044,7 +1057,9 @@ class DirectoryRecord(BaseDirectoryRecord):
                 )
             )
         else:
-            result, error = self._odRecord.verifyPassword_error_(password, None)
+            result, error = self._odRecord.verifyPassword_error_(
+                password, None
+            )
 
         if error:
             returnValue(False)
