@@ -112,7 +112,7 @@ class TestCRUD(TestCase):
         """
         txn = self.pool.connection()
         yield txn.execSQL("insert into ALPHA values (:1, :2)", [234, "one"])
-        self.assertFailure(TestRecord.load(txn, 456), NoSuchRecord)
+        yield self.assertFailure(TestRecord.load(txn, 456), NoSuchRecord)
 
 
     @inlineCallbacks
@@ -173,7 +173,7 @@ class TestCRUD(TestCase):
         txn = self.pool.connection(self.id())
         newRow = yield TestRecord.load(txn, row.beta)
         yield newRow.delete()
-        self.failUnlessFailure(newRow.delete(), NoSuchRecord)
+        yield self.assertFailure(newRow.delete(), NoSuchRecord)
 
 
     @inlineCallbacks
@@ -183,8 +183,7 @@ class TestCRUD(TestCase):
         L{TypeError}.
         """
         txn = self.pool.connection()
-        te = yield self.failUnlessFailure(TestAutoRecord.create(txn),
-                                          TypeError)
+        te = yield self.assertFailure(TestAutoRecord.create(txn), TypeError)
         self.assertIn("required attribute 'epsilon' not passed", str(te))
 
 
@@ -219,7 +218,7 @@ class TestCRUD(TestCase):
         don't map to any column), it raises a L{TypeError}.
         """
         txn = self.pool.connection()
-        te = yield self.failUnlessFailure(
+        te = yield self.assertFailure(
             TestRecord.create(
                 txn, beta=3, gamma=u'three',
                 extraBonusAttribute=u'nope',
@@ -395,7 +394,7 @@ class TestCRUD(TestCase):
             )),
             [tuple([0])]
         )
-        yield self.failUnlessFailure(TestRecord.pop(txn, 234), NoSuchRecord)
+        yield self.assertFailure(TestRecord.pop(txn, 234), NoSuchRecord)
 
 
     def test_columnNamingConvention(self):

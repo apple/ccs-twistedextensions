@@ -672,7 +672,7 @@ class DirectoryServiceMutableTestMixIn(object):
             }
         )
 
-        self.assertFailure(
+        return self.assertFailure(
             service.updateRecords((newRecord,)),
             NoSuchRecordError
         )
@@ -941,7 +941,7 @@ class MissingFileTest(unittest.TestCase):
     def test_missingFile(self):
         service = DirectoryService(FilePath(self.mktemp()))
 
-        self.assertFailure(
+        return self.assertFailure(
             service.recordWithUID(u"missing"),
             DirectoryAvailabilityError
         )

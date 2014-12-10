@@ -175,7 +175,7 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         expression type fails with L{QueryNotSupportedError}.
         """
         service = self.service()
-        self.assertFailure(
+        return self.assertFailure(
             service.recordsFromNonCompoundExpression(object()),
             QueryNotSupportedError
         )
@@ -213,7 +213,7 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             }
         )
 
-        self.assertFailure(
+        return self.assertFailure(
             service.recordsFromNonCompoundExpression(
                 object(), records=((wsanchez,))
             ),
@@ -227,8 +227,10 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         type fails with L{QueryNotSupportedError}.
         """
         service = self.service()
-        result = yield(service.recordsFromExpression(object()))
-        self.assertFailure(result, QueryNotSupportedError)
+        return self.assertFailure(
+            service.recordsFromExpression(object()),
+            QueryNotSupportedError
+        )
 
 
     @inlineCallbacks
@@ -240,9 +242,9 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         service = self.service()
 
         for operand in Operand.iterconstants():
-            result = yield(service.recordsFromExpression(
+            result = yield service.recordsFromExpression(
                 CompoundExpression((), operand)
-            ))
+            )
             self.assertEquals(set(result), set(()))
 
 
@@ -424,7 +426,7 @@ class DirectoryServiceRecordsFromExpressionTest(
             )
         )
 
-        self.assertFailure(results, QueryNotSupportedError)
+        return self.assertFailure(results, QueryNotSupportedError)
 
 
 
@@ -445,7 +447,7 @@ class DirectoryServiceConvenienceTest(
         """
         service = self.service()
 
-        self.assertFailure(
+        return self.assertFailure(
             service.recordWithUID(u""),
             QueryNotSupportedError
         )
@@ -458,12 +460,13 @@ class DirectoryServiceConvenienceTest(
         """
         service = self.service()
 
-        self.assertFailure(
+        return self.assertFailure(
             service.recordWithGUID(UUID(int=0)),
             QueryNotSupportedError
         )
 
 
+    @inlineCallbacks
     def test_recordsWithRecordType(self):
         """
         L{DirectoryService.recordsWithRecordType} fails with
@@ -472,12 +475,13 @@ class DirectoryServiceConvenienceTest(
         service = self.service()
 
         for recordType in RecordType.iterconstants():
-            self.assertFailure(
+            yield self.assertFailure(
                 service.recordsWithRecordType(recordType),
                 QueryNotSupportedError
             )
 
 
+    @inlineCallbacks
     def test_recordWithShortName(self):
         """
         L{DirectoryService.recordWithShortName} fails with
@@ -486,7 +490,7 @@ class DirectoryServiceConvenienceTest(
         service = self.service()
 
         for recordType in RecordType.iterconstants():
-            self.assertFailure(
+            yield self.assertFailure(
                 service.recordWithShortName(recordType, u""),
                 QueryNotSupportedError
             )
@@ -499,7 +503,7 @@ class DirectoryServiceConvenienceTest(
         """
         service = self.service()
 
-        self.assertFailure(
+        return self.assertFailure(
             service.recordsWithEmailAddress(u"a@b"),
             QueryNotSupportedError
         )
@@ -511,6 +515,7 @@ class BaseDirectoryServiceImmutableTest(ServiceMixIn):
     Tests for immutable directory services.
     """
 
+    @inlineCallbacks
     def test_updateRecordsNotAllowed(self):
         """
         Updating records is not allowed.
@@ -527,7 +532,7 @@ class BaseDirectoryServiceImmutableTest(ServiceMixIn):
         )
 
         for create in (True, False):
-            self.assertFailure(
+            yield self.assertFailure(
                 service.updateRecords((newRecord,), create=create),
                 NotAllowedError,
             )
@@ -539,7 +544,7 @@ class BaseDirectoryServiceImmutableTest(ServiceMixIn):
         """
         service = self.service()
 
-        self.assertFailure(
+        return self.assertFailure(
             service.removeRecords((u"foo",)),
             NotAllowedError,
         )
@@ -1047,13 +1052,13 @@ class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
     def test_members_group(self):
         staff = self.makeRecord(self.fields_staff)
 
-        self.assertFailure(staff.members(), NotImplementedError)
+        return self.assertFailure(staff.members(), NotImplementedError)
 
 
     def test_memberships(self):
         wsanchez = self.makeRecord(self.fields_wsanchez)
 
-        self.assertFailure(wsanchez.groups(), NotImplementedError)
+        return self.assertFailure(wsanchez.groups(), NotImplementedError)
 
 
 

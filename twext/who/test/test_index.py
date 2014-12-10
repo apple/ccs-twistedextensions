@@ -225,7 +225,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             MatchType.equals,
             fieldName=BaseFieldName.password
         )
-        self.assertFailure(result, TypeError)
+        return self.assertFailure(result, TypeError)
 
 
     def test_indexedRecordsFromMatchExpression_notMatchExpression(self):
@@ -239,7 +239,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             ),
             "Not a match type we know about"
         )
-        self.assertFailure(result, NotImplementedError)
+        return self.assertFailure(result, NotImplementedError)
 
 
     def test_indexedRecordsFromMatchExpression_recordTypes(self):
@@ -347,7 +347,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             ),
             "Not a match type we know about"
         )
-        self.assertFailure(result, NotImplementedError)
+        return self.assertFailure(result, NotImplementedError)
 
 
     @inlineCallbacks
@@ -420,7 +420,7 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         L{QueryNotSupportedError}.
         """
         result = self._test_recordsFromNonCompoundExpression(object())
-        self.assertFailure(result, QueryNotSupportedError)
+        return self.assertFailure(result, QueryNotSupportedError)
 
 
 
