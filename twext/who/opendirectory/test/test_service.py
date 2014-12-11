@@ -35,16 +35,22 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     Tests for L{DirectoryService}.
     """
 
+    def setUp(self):
+        self.service = DirectoryService()
+
+    def tearDown(self):
+        self.service._deletePool()
+
+
     def test_queryFromMatchExpression_recordType(self):
         """
         Make sure queryFromMatchExpression handles recordType correctly
         """
-        service = DirectoryService()
-        query = service._queryFromMatchExpression(
+        query = self.service._queryFromMatchExpression(
             MatchExpression(
-                service.fieldName.shortNames, u"xyzzy"
+                self.service.fieldName.shortNames, u"xyzzy"
             ),
-            recordType=service.recordType.group
+            recordType=self.service.recordType.group
         )
         # FIXME:
         # Actually, how do we inspect the query object to peek at the
@@ -59,8 +65,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         Match expressions with each match type produces the correct
         operator=value string.
         """
-        service = DirectoryService()
-
         for matchType, expected in (
             (MatchType.equals, u"=xyzzy"),
             (MatchType.startsWith, u"=xyzzy*"),
@@ -72,10 +76,10 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             (MatchType.greaterThanOrEqualTo, u">=xyzzy"),
         ):
             expression = MatchExpression(
-                service.fieldName.shortNames, u"xyzzy",
+                self.service.fieldName.shortNames, u"xyzzy",
                 matchType=matchType
             )
-            queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+            queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
             self.assertEquals(
                 recordTypes,
                 set(
@@ -99,13 +103,11 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         """
         Match expression with the C{NOT} flag adds the C{!} operator.
         """
-        service = DirectoryService()
-
         expression = MatchExpression(
-            service.fieldName.shortNames, u"xyzzy",
+            self.service.fieldName.shortNames, u"xyzzy",
             flags=MatchFlags.NOT
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
             set(
@@ -130,13 +132,11 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         Match expression with the C{caseInsensitive} flag adds the C{??????}
         operator.
         """
-        service = DirectoryService()
-
         expression = MatchExpression(
-            service.fieldName.shortNames, u"xyzzy",
+            self.service.fieldName.shortNames, u"xyzzy",
             flags=MatchFlags.caseInsensitive
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
             set(
@@ -164,13 +164,11 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         """
         Special characters are quoted properly.
         """
-        service = DirectoryService()
-
         expression = MatchExpression(
-            service.fieldName.fullNames,
+            self.service.fieldName.fullNames,
             u"\\xyzzy: a/b/(c)* ~~ >=< ~~ &| \0!!"
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
             set(
@@ -193,36 +191,34 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
 
 
     def test_queryStringFromExpression(self):
-        service = DirectoryService()
-
         # CompoundExpressions
 
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.uid, u"a",
+                    self.service.fieldName.uid, u"a",
                     matchType=MatchType.contains
                 ),
                 MatchExpression(
-                    service.fieldName.guid, UUID(int=0),
+                    self.service.fieldName.guid, UUID(int=0),
                     matchType=MatchType.contains
                 ),
                 MatchExpression(
-                    service.fieldName.shortNames, u"c",
+                    self.service.fieldName.shortNames, u"c",
                     matchType=MatchType.contains
                 ),
                 MatchExpression(
-                    service.fieldName.emailAddresses, u"d",
+                    self.service.fieldName.emailAddresses, u"d",
                     matchType=MatchType.startsWith
                 ),
                 MatchExpression(
-                    service.fieldName.fullNames, u"e",
+                    self.service.fieldName.fullNames, u"e",
                     matchType=MatchType.equals
                 ),
             ],
             Operand.AND
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
             set(
@@ -249,21 +245,21 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.shortNames, u"a",
+                    self.service.fieldName.shortNames, u"a",
                     matchType=MatchType.contains
                 ),
                 MatchExpression(
-                    service.fieldName.emailAddresses, u"b",
+                    self.service.fieldName.emailAddresses, u"b",
                     matchType=MatchType.startsWith
                 ),
                 MatchExpression(
-                    service.fieldName.fullNames, u"c",
+                    self.service.fieldName.fullNames, u"c",
                     matchType=MatchType.equals
                 ),
             ],
             Operand.OR
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             recordTypes,
             set(
@@ -289,30 +285,28 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         """
         Record type in expression
         """
-        service = DirectoryService()
-
         # AND expression
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.shortNames,
+                    self.service.fieldName.shortNames,
                     u"xyzzy",
                     matchType=MatchType.equals
                 ),
                 MatchExpression(
-                    service.fieldName.recordType,
-                    service.recordType.group,
+                    self.service.fieldName.recordType,
+                    self.service.recordType.group,
                     matchType=MatchType.equals
                 ),
                 MatchExpression(
-                    service.fieldName.recordType,
-                    service.recordType.user,
+                    self.service.fieldName.recordType,
+                    self.service.recordType.user,
                     matchType=MatchType.equals
                 ),
             ],
             Operand.AND
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(recordTypes, set())
         self.assertEquals(
             queryString,
@@ -323,7 +317,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.shortNames,
+                    self.service.fieldName.shortNames,
                     u"xxxxx",
                     matchType=MatchType.equals
                 ),
@@ -331,12 +325,12 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                     [
 
                         MatchExpression(
-                            service.fieldName.recordType,
-                            service.recordType.group,
+                            self.service.fieldName.recordType,
+                            self.service.recordType.group,
                             matchType=MatchType.equals
                         ),
                         MatchExpression(
-                            service.fieldName.shortNames,
+                            self.service.fieldName.shortNames,
                             u"yyyyy",
                             matchType=MatchType.equals
                         ),
@@ -346,7 +340,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
             ],
             Operand.OR
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Groups", ]))
         self.assertEquals(
             queryString,
@@ -359,25 +353,25 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.shortNames,
+                    self.service.fieldName.shortNames,
                     u"xxxxx",
                     matchType=MatchType.equals
                 ),
                 MatchExpression(
-                    service.fieldName.shortNames,
+                    self.service.fieldName.shortNames,
                     u"yyyyy",
                     matchType=MatchType.equals
                 ),
                 MatchExpression(
-                    service.fieldName.recordType,
-                    service.recordType.user,
+                    self.service.fieldName.recordType,
+                    self.service.recordType.user,
                     matchType=MatchType.equals,
                     flags=MatchFlags.NOT
                 ),
             ],
             Operand.OR
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(
             set(recordTypes),
             set(
@@ -400,14 +394,14 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.recordType,
-                    service.recordType.user,
+                    self.service.fieldName.recordType,
+                    self.service.recordType.user,
                     matchType=MatchType.equals
                 ),
             ],
             Operand.AND
         )
-        queryString, recordTypes = service._queryStringAndRecordTypesFromExpression(expression)
+        queryString, recordTypes = self.service._queryStringAndRecordTypesFromExpression(expression)
         self.assertEquals(set(recordTypes), set([u"dsRecTypeStandard:Users"]))
         self.assertEquals(
             queryString,
@@ -418,8 +412,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         expression = CompoundExpression(
             [
                 MatchExpression(
-                    service.fieldName.recordType,
-                    service.recordType.user,
+                    self.service.fieldName.recordType,
+                    self.service.recordType.user,
                     matchType=MatchType.equals
                 ),
             ],
@@ -427,6 +421,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         )
         self.assertRaises(
             QueryNotSupportedError,
-            service._queryStringAndRecordTypesFromExpression,
+            self.service._queryStringAndRecordTypesFromExpression,
             expression,
         )

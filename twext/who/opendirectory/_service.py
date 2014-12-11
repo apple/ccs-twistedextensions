@@ -21,6 +21,7 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
+from time import time
 from uuid import UUID
 from zope.interface import implementer
 
@@ -157,6 +158,46 @@ class DirectoryService(BaseDirectoryService):
         """
         self._nodeName = nodeName
         self._suppressSystemRecords = suppressSystemRecords
+
+
+        # Create an autorelease pool which will get deleted when someone
+        # calls _maybeDrainPool( ), but no more often than 60 seconds, hence
+        # the "maybe"
+        self._resetAutoreleasePool()
+
+        # Register a pool delete to happen at shutdown
+        from twisted.internet import reactor
+        reactor.addSystemEventTrigger("after", "shutdown", self._deletePool)
+
+
+    def _deletePool(self):
+        """
+        Delete the autorelease pool if we have one
+        """
+        if hasattr(self, "_autoReleasePool"):
+            del self._autoReleasePool
+
+
+    def _resetAutoreleasePool(self):
+        """
+        Create an autorelease pool, deleting the old one if we had one.
+        """
+        self._deletePool()
+
+        self._autoReleasePool = NSAutoreleasePool.alloc().init()
+        self._poolCreationTime = time()
+
+
+    def _maybeResetPool(self):
+        """
+        If it's been at least 60 seconds since the last time we created the
+        pool, delete the pool (which drains it) and create a new one.
+        """
+        poolCreationTime = getattr(self, "_poolCreationTime", 0)
+        now = time()
+        if (now - poolCreationTime) > 60:
+            self._resetAutoreleasePool()
+
 
 
     @property
@@ -758,11 +799,12 @@ class DirectoryService(BaseDirectoryService):
         returnValue(result)
 
 
-    @wrapWithAutoreleasePool
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
     ):
+        self._maybeResetPool()
+
         if isinstance(expression, MatchExpression):
             try:
                 query = self._queryFromMatchExpression(
@@ -786,7 +828,6 @@ class DirectoryService(BaseDirectoryService):
         )
 
 
-    @wrapWithAutoreleasePool
     @inlineCallbacks
     def recordsFromCompoundExpression(
         self, expression, recordTypes=None, records=None,
@@ -800,6 +841,7 @@ class DirectoryService(BaseDirectoryService):
         CompoundExpression up into MatchExpressions for sending to the local
         node.
         """
+        self._maybeResetPool()
 
         try:
             query = self._queryFromCompoundExpression(
@@ -834,7 +876,6 @@ class DirectoryService(BaseDirectoryService):
         returnValue(results)
 
 
-    @wrapWithAutoreleasePool
     @inlineCallbacks
     def localRecordsFromCompoundExpression(
         self, expression, recordTypes=None,
@@ -940,9 +981,10 @@ class DirectoryService(BaseDirectoryService):
         ))
 
 
-    @wrapWithAutoreleasePool
     @inlineCallbacks
     def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
+        self._maybeResetPool()
+
         try:
             query = self._queryFromMatchExpression(
                 MatchExpression(self.fieldName.shortNames, shortName),
