@@ -619,11 +619,12 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                     yield workItem.doWork()
                     yield workItem.afterWork()
             except Exception as e:
+                f = Failure()
                 log.error(
                     "JobItem: {jobid}, WorkItem: {workid} failed: {exc}",
                     jobid=self.jobID,
                     workid=workItem.workID,
-                    exc=e,
+                    exc=f,
                 )
                 raise JobFailedError(e)
 
