@@ -46,7 +46,7 @@ from ..expression import (
     MatchExpression, MatchFlags,
 )
 from ..ldap._util import LDAP_QUOTING_TABLE
-from ..util import ConstantsContainer, firstResult
+from ..util import ConstantsContainer, firstResult, uniqueResult
 
 from Foundation import NSAutoreleasePool
 from ._odframework import ODSession, ODNode, ODQuery
@@ -55,7 +55,7 @@ from ._constants import (
     ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod,
 )
 
-DEFER_TO_THREAD = True
+DEFER_TO_THREAD = False
 
 
 
@@ -805,7 +805,9 @@ class DirectoryService(BaseDirectoryService):
     ):
         self._maybeResetPool()
 
+
         if isinstance(expression, MatchExpression):
+            self.log.debug("OD call: {}".format(expression))
             try:
                 query = self._queryFromMatchExpression(
                     expression,
@@ -844,6 +846,7 @@ class DirectoryService(BaseDirectoryService):
         self._maybeResetPool()
 
         try:
+            self.log.debug("OD call: {}".format(expression))
             query = self._queryFromCompoundExpression(
                 expression, recordTypes=recordTypes, limitResults=limitResults
             )
@@ -983,37 +986,24 @@ class DirectoryService(BaseDirectoryService):
 
     @inlineCallbacks
     def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
-        self._maybeResetPool()
+
+        records = yield self.recordsFromNonCompoundExpression(
+            MatchExpression(self.fieldName.shortNames, shortName),
+            recordTypes=(recordType,),
+            limitResults=1
+        )
 
         try:
-            query = self._queryFromMatchExpression(
-                MatchExpression(self.fieldName.shortNames, shortName),
-                recordTypes=(recordType,),
-                limitResults=1
+            record = uniqueResult(records)
+        except DirectoryServiceError:
+            self.log.error(
+                "Duplicate records for name: {name} ({recordType})"
+                .format(name=shortName, recordType=recordType.name)
             )
-            results = yield self._recordsFromQuery(
-                query,
-                timeoutSeconds=timeoutSeconds
-            )
+            raise
 
-            try:
-                record = firstResult(results)
-            except DirectoryServiceError:
-                self.log.error(
-                    "Duplicate records for name: {name} ({recordType})"
-                    .format(name=shortName, recordType=recordType.name)
-                )
-                raise
+        returnValue(record)
 
-            returnValue(record)
-
-        except QueryNotSupportedError:
-            # Let the superclass try
-            returnValue((yield BaseDirectoryService.recordWithShortName(
-                self, recordType, shortName, timeoutSeconds=timeoutSeconds)))
-
-        except UnsupportedRecordTypeError:
-            returnValue(None)
 
 
 
