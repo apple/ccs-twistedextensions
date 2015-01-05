@@ -55,6 +55,11 @@ from ._constants import (
     ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod,
 )
 
+# Note: the combination of threads, PyObjC, and OD.Framework is causing trouble
+# where OD requests are not completing and we're filling our thread pool.  Not
+# using deferToThread() works around the problem, but we should try to measure
+# performance impact (although in older versions of the code we were not using
+# deferToThread, so it won't be any worse than before).
 DEFER_TO_THREAD = False
 
 
