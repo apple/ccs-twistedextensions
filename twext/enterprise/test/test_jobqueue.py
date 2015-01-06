@@ -515,7 +515,7 @@ class WorkItemTests(TestCase):
         self.assertTrue(work is None)
 
         # Unassigned job with past notBefore returned
-        yield self._enqueue(dbpool, 2, 1, now + datetime.timedelta(days=-1))
+        yield self._enqueue(dbpool, 2, 1, now + datetime.timedelta(days=-1), priority=WORK_PRIORITY_HIGH)
         job, work = yield inTransaction(dbpool.connection, _next)
         self.assertTrue(job is not None)
         self.assertTrue(work.a == 2)
@@ -1291,13 +1291,13 @@ class PeerConnectionPoolIntegrationTests(TestCase):
 
 
     @inlineCallbacks
-    def test_overdue(self):
+    def test_overdueStillRunning(self):
         """
-        L{JobItem.run} locks the work item.
+        Make sure an overdue work item that is still running gets its overdue value bumped.
         """
 
         # Patch JobItem.assign and JobItem.bumpOverdue to track how many times
-        # they are called.
+        # they are called. Also, change the overdue to be one second ahead of assigned.
         assigned = [0]
         _oldAssign = JobItem.assign
         def _newAssign(self, when, overdue):
@@ -1338,6 +1338,8 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         self.assertTrue(assigned[0] == 1)
         self.assertTrue(bumped[0] == 0)
 
+        # Pause long enough that the overdue time is passed, which should result
+        # in the overdue value being bumped
         d = Deferred()
         reactor.callLater(2, lambda: d.callback(None))
         yield d
@@ -1345,8 +1347,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         jobs = yield inTransaction(self.store.newTransaction, checkJob)
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(assigned[0] == 1)
-        if bumped[0] != 1:
-            pass
         self.assertTrue(bumped[0] == 1)
 
         DummyWorkPauseItem.unpauseWork.callback(None)
@@ -1356,6 +1356,160 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         self.assertTrue(len(jobs) == 0)
         self.assertTrue(assigned[0] == 1)
         self.assertTrue(bumped[0] == 1)
+
+
+    @inlineCallbacks
+    def test_overdueWorkGotLost(self):
+        """
+        Make sure an overdue work item that is not still running gets its overdue value bumped, and
+        eventually executed.
+        """
+
+        # Patch JobItem.assign and JobItem.bumpOverdue to track how many times
+        # they are called. Also, change the overdue to be one second ahead of assigned.
+        assigned = [0]
+        _oldAssign = JobItem.assign
+        def _newAssign(self, when, overdue):
+            assigned[0] += 1
+            return _oldAssign(self, when, 1)
+        self.patch(JobItem, "assign", _newAssign)
+
+        bumped = [0]
+        _oldBumped = JobItem.bumpOverdue
+        def _newBump(self, bump):
+            bumped[0] += 1
+            return _oldBumped(self, 5)
+        self.patch(JobItem, "bumpOverdue", _newBump)
+
+        failed = [0]
+        waitFail = Deferred()
+        _oldFailedToRun = JobItem.failedToRun
+        def _newFailedToRun(self, locked=False, delay=None):
+            failed[0] += 1
+            waitFail.callback(None)
+            return succeed(None)
+        self.patch(JobItem, "failedToRun", _newFailedToRun)
+
+        _oldDoWork = DummyWorkPauseItem.doWork
+        def _newDoWorkRaise(self):
+            self.workStarted.callback(None)
+            raise ValueError()
+        def _newDoWorkSuccess(self):
+            return succeed(None)
+
+        DummyWorkPauseItem.workStarted = Deferred()
+        self.patch(DummyWorkPauseItem, "doWork", _newDoWorkRaise)
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue(txn):
+            return txn.enqueue(
+                DummyWorkPauseItem, a=30, b=40, workID=1
+            )
+        yield _enqueue
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(assigned[0] == 0)
+        self.assertTrue(bumped[0] == 0)
+        self.assertTrue(failed[0] == 0)
+
+        # Wait for work to fail once and reset it to succeed next time
+        yield DummyWorkPauseItem.workStarted
+        self.patch(DummyWorkPauseItem, "doWork", _newDoWorkSuccess)
+        yield waitFail
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(assigned[0] == 1)
+        self.assertTrue(bumped[0] == 0)
+        self.assertTrue(failed[0] == 1)
+
+        # Wait for the overdue to be detected and the work restarted
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 0)
+        self.assertTrue(assigned[0] == 2)
+        self.assertTrue(bumped[0] == 0)
+        self.assertTrue(failed[0] == 1)
+
+
+    @inlineCallbacks
+    def test_lowPriorityOverdueWorkNotAssigned(self):
+        """
+        Make sure an overdue work item that is not still running gets its overdue value bumped, and
+        eventually executed.
+        """
+
+        # Patch the work item to fail once and appear as overdue
+        _oldAssign = JobItem.assign
+        def _newAssign(self, when, overdue):
+            return _oldAssign(self, when, 1)
+        self.patch(JobItem, "assign", _newAssign)
+
+        failed = [0]
+        waitFail = Deferred()
+        _oldFailedToRun = JobItem.failedToRun
+        def _newFailedToRun(self, locked=False, delay=None):
+            failed[0] += 1
+            waitFail.callback(None)
+            return succeed(None)
+        self.patch(JobItem, "failedToRun", _newFailedToRun)
+
+        _oldDoWork = DummyWorkPauseItem.doWork
+        def _newDoWorkRaise(self):
+            self.workStarted.callback(None)
+            raise ValueError()
+        def _newDoWorkSuccess(self):
+            return succeed(None)
+
+        DummyWorkPauseItem.workStarted = Deferred()
+        self.patch(DummyWorkPauseItem, "doWork", _newDoWorkRaise)
+
+        @transactionally(self.store.newTransaction)
+        def _enqueue(txn):
+            return txn.enqueue(
+                DummyWorkPauseItem, a=30, b=40, workID=1
+            )
+        yield _enqueue
+
+        # Make sure we have one JOB and one DUMMY_WORK_ITEM
+        def checkJob(txn):
+            return JobItem.all(txn)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(failed[0] == 0)
+
+        # Wait for work to fail once and reset it to succeed next time
+        yield DummyWorkPauseItem.workStarted
+        self.patch(DummyWorkPauseItem, "doWork", _newDoWorkSuccess)
+        yield waitFail
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(failed[0] == 1)
+
+        # Try to get the next high priority only job
+        @transactionally(self.store.newTransaction)
+        @inlineCallbacks
+        def _testNone(txn):
+            nowTime = datetime.datetime.utcfromtimestamp(reactor.seconds() + 10)
+            job = yield JobItem.nextjob(txn, nowTime, WORK_PRIORITY_HIGH)
+            self.assertTrue(job is None)
+
+        yield _testNone
+
+        # Wait for the overdue to be detected and the work restarted
+        yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
+
+        jobs = yield inTransaction(self.store.newTransaction, checkJob)
+        self.assertTrue(len(jobs) == 0)
+        self.assertTrue(failed[0] == 1)
 
 
     @inlineCallbacks

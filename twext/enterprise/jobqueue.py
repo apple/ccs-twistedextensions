@@ -564,10 +564,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     @inlineCallbacks
     def nextjobs(cls, txn, now, minPriority, limit=1):
         """
-        Find the next available job based on priority, also return any that are overdue. This
-        method relies on there being a nextjob() SQL stored procedure to enable skipping over
-        items which are row locked to help avoid contention when multiple nodes are operating
-        on the job queue simultaneously.
+        Find the next available job based on priority, also return any that are overdue.
 
         @param txn: the transaction to use
         @type txn: L{IAsyncTransaction}
@@ -584,8 +581,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
         jobs = yield cls.query(
             txn,
-            (cls.notBefore <= now).And
-            (((cls.priority >= minPriority).And(cls.assigned == None)).Or(cls.overdue < now)),
+            (cls.notBefore <= now).And(cls.priority >= minPriority).And(
+                (cls.assigned == None).Or(cls.overdue < now)
+            ),
             order=(cls.assigned, cls.priority),
             ascending=False,
             forUpdate=True,
