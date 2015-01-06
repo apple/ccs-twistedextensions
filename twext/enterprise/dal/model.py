@@ -128,6 +128,22 @@ class Constraint(object):
         self.name = name
 
 
+    def __repr__(self):
+        return "<Constraint: ({} {} {})>".format(self.type, [c.name for c in self.affectsColumns], self.name)
+
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+
+    def __eq__(self, other):
+        return self.__repr__() == other.__repr__()
+
+
+    def __ne__(self, other):
+        return self.__repr__() != other.__repr__()
+
+
 
 class Check(Constraint):
     """
@@ -386,6 +402,12 @@ class Table(FancyEqMixin, object):
             if myRows != otherRows:
                 results.append("Table: %s, mismatched schema rows: %s" % (self.name, myRows))
 
+        # Compare psuedo-constraints - ones which include implicit primary key and unique
+        # index items.
+        diff_constraints = set(self.pseudoConstraints()) ^ set(other.pseudoConstraints())
+        if diff_constraints:
+            results.append("Table: %s, mismatched constraints: %s" % (self.name, diff_constraints))
+
         return results
 
 
@@ -491,6 +513,29 @@ class Table(FancyEqMixin, object):
         for constraint in self.constraints:
             if constraint.type is Constraint.UNIQUE:
                 yield list(constraint.affectsColumns)
+
+
+    def pseudoConstraints(self):
+        """
+        Get constraints and pseudo constraints (ones for implicit not null
+        of a primary key or unique indexes).
+
+        @return: an iterable of C{list}s of C{Constraints}s which are related to
+            this table.
+        """
+        constraints = set(self.constraints)
+
+        if self.primaryKey:
+            for column in self.primaryKey:
+                constraints.add(Constraint(Constraint.NOT_NULL, [column, ]))
+            constraints.add(Constraint(Constraint.UNIQUE, self.primaryKey))
+
+        for idx in self.schema.indexes:
+            if idx.unique and idx.table is self:
+                if self.primaryKey is None or idx.columns != self.primaryKey:
+                    constraints.add(Constraint(Constraint.UNIQUE, idx.columns))
+
+        return (constraint for constraint in constraints)
 
 
 
