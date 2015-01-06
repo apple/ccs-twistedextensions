@@ -121,27 +121,30 @@ class Constraint(object):
     UNIQUE = "UNIQUE"
 
     def __init__(self, type, affectsColumns, name=None):
-        self.affectsColumns = affectsColumns
-        # XXX: possibly different constraint types should have different
-        # classes?
         self.type = type
+        self.affectsColumns = affectsColumns
+        self.columnNames = tuple([c.name for c in self.affectsColumns])
         self.name = name
 
 
     def __repr__(self):
-        return "<Constraint: ({} {} {})>".format(self.type, [c.name for c in self.affectsColumns], self.name)
+        return "<Constraint: ({} {} {})>".format(self.type, self.columnNames, self.name)
 
 
     def __hash__(self):
-        return hash(self.__repr__())
+        return hash((self.type, self.columnNames, self.name,))
 
 
     def __eq__(self, other):
-        return self.__repr__() == other.__repr__()
+        return (
+            self.type == other.type and
+            self.columnNames == other.columnNames and
+            self.name == other.name
+        )
 
 
     def __ne__(self, other):
-        return self.__repr__() != other.__repr__()
+        return not self.__eq__(other)
 
 
 
