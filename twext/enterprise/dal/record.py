@@ -480,9 +480,17 @@ class Record(object):
         """
         Delete all rows from the table that corresponds to C{cls}.
         """
+        return cls.deletesome(transaction, None)
+
+
+    @classmethod
+    def deletesome(cls, transaction, where):
+        """
+        Delete all rows matching the where expression from the table that corresponds to C{cls}.
+        """
         return Delete(
             From=cls.table,
-            Where=None,
+            Where=where,
         ).on(transaction)
 
 

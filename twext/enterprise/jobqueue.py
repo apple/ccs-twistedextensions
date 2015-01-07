@@ -1144,6 +1144,23 @@ class SingletonWorkItem(WorkItem):
 
 
 
+class AggregatedWorkItem(WorkItem):
+    """
+    An L{WorkItem} that deletes all the others in the same group prior to running.
+    """
+
+    @inlineCallbacks
+    def beforeWork(self):
+        """
+        For safety just delete any others.
+        """
+
+        # Delete all other work items
+        yield self.deletesome(self.transaction, self.group)
+        returnValue(True)
+
+
+
 class RegeneratingWorkItem(SingletonWorkItem):
     """
     An L{SingletonWorkItem} that regenerates itself when work is done.
