@@ -45,7 +45,6 @@ from ..expression import (
     CompoundExpression, Operand,
     MatchExpression, MatchFlags,
 )
-from ..ldap._util import LDAP_QUOTING_TABLE
 from ..util import ConstantsContainer, firstResult, uniqueResult
 
 from Foundation import NSAutoreleasePool
@@ -62,6 +61,25 @@ from ._constants import (
 # deferToThread, so it won't be any worse than before).
 DEFER_TO_THREAD = False
 
+
+QUOTING_TABLE = {
+    ord(u"\\"): u"\\5C",
+    ord(u"/"): u"\\2F",
+
+    ord(u"("): u"\\28",
+    ord(u")"): u"\\29",
+    ord(u"*"): u"\\2A",
+
+    ord(u"<"): u"\\3C",
+    ord(u"="): u"\\3D",
+    ord(u">"): u"\\3E",
+    ord(u"~"): u"\\7E",
+
+    ord(u"&"): u"\\26",
+    ord(u"|"): u"\\7C",
+
+    ord(u"\0"): u"\\00",
+}
 
 
 def wrapWithAutoreleasePool(f):
@@ -351,7 +369,7 @@ class DirectoryService(BaseDirectoryService):
             value = expression.fieldValue
 
         value = unicode(value)  # We want unicode
-        value = value.translate(LDAP_QUOTING_TABLE)  # Escape special chars
+        value = value.translate(QUOTING_TABLE)  # Escape special chars
 
         return (
             matchType.queryString.format(
