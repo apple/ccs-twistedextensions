@@ -1383,14 +1383,12 @@ class PeerConnectionPoolIntegrationTests(TestCase):
 
         failed = [0]
         waitFail = Deferred()
-        _oldFailedToRun = JobItem.failedToRun
         def _newFailedToRun(self, locked=False, delay=None):
             failed[0] += 1
             waitFail.callback(None)
             return succeed(None)
         self.patch(JobItem, "failedToRun", _newFailedToRun)
 
-        _oldDoWork = DummyWorkPauseItem.doWork
         def _newDoWorkRaise(self):
             self.workStarted.callback(None)
             raise ValueError()
@@ -1453,14 +1451,12 @@ class PeerConnectionPoolIntegrationTests(TestCase):
 
         failed = [0]
         waitFail = Deferred()
-        _oldFailedToRun = JobItem.failedToRun
         def _newFailedToRun(self, locked=False, delay=None):
             failed[0] += 1
             waitFail.callback(None)
             return succeed(None)
         self.patch(JobItem, "failedToRun", _newFailedToRun)
 
-        _oldDoWork = DummyWorkPauseItem.doWork
         def _newDoWorkRaise(self):
             self.workStarted.callback(None)
             raise ValueError()
