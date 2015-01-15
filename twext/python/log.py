@@ -54,7 +54,6 @@ __all__ = [
     "Logger",
     "LegacyLogger",
     "ILogObserver",
-    "ILegacyLogObserver",
     "LogPublisher",
     "PredicateResult",
     "ILogFilterPredicate",
@@ -62,7 +61,6 @@ __all__ = [
     "LogLevelFilterPredicate",
     "LegacyLogObserver",
     "replaceTwistedLoggers",
-    # "StandardIOObserver",
 ]
 
 
