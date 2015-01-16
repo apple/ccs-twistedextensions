@@ -34,7 +34,11 @@ definitions = """
 ffi.cdef(definitions)
 
 try:
-    lib = ffi.verify(definitions, libraries=[])
+    lib = ffi.verify(
+        definitions,
+        libraries=[],
+        tag=__name__.replace(".", "_")
+    )
 except VerificationError as ve:
     raise ImportError(ve)
 
