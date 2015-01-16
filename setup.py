@@ -180,13 +180,10 @@ extensions = [
 ]
 
 if sys.platform == "darwin":
-    try:
-        from twext.python import launchd
-        extensions.append(launchd.ffi.verifier.get_extension())
-        from twext.python import sacl
-        extensions.append(sacl.ffi.verifier.get_extension())
-    except ImportError:
-        pass
+    from twext.python import launchd
+    extensions.append(launchd.ffi.verifier.get_extension())
+    from twext.python import sacl
+    extensions.append(sacl.ffi.verifier.get_extension())
 
 
 
