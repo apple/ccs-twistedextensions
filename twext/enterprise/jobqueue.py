@@ -1428,7 +1428,7 @@ class WorkerConnectionPool(object):
         """
         current = sum(worker.currentLoad for worker in self.workers)
         total = len(self.workers) * self.maximumLoadPerWorker
-        return ((current * 100) / total) if total else 0
+        return ((current * 100) / total) if total else 100
 
 
     def eachWorkerLoad(self):
@@ -1863,7 +1863,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
     highPriorityLevel = 80      # Percentage load level above which only high priority jobs are processed
     mediumPriorityLevel = 50    # Percentage load level above which high and medium priority jobs are processed
 
-    def __init__(self, reactor, transactionFactory, ampPort):
+    def __init__(self, reactor, transactionFactory, ampPort, useWorkerPool=True):
         """
         Initialize a L{PeerConnectionPool}.
 
@@ -1876,6 +1876,9 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
 
         @param transactionFactory: a 0- or 1-argument callable that produces an
             L{IAsyncTransaction}
+
+        @param useWorkerPool:  Whether to use a worker pool to manage load
+            or instead take on all work ourselves (e.g. in single process mode)
         """
         super(PeerConnectionPool, self).__init__()
         self.reactor = reactor
@@ -1884,7 +1887,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         self.pid = self.getpid()
         self.ampPort = ampPort
         self.thisProcess = None
-        self.workerPool = WorkerConnectionPool()
+        self.workerPool = WorkerConnectionPool() if useWorkerPool else None
         self.peers = []
         self.mappedPeers = {}
         self._startingUp = None
@@ -1904,7 +1907,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
 
 
     def totalLoad(self):
-        return self.workerPool.allWorkerLoad()
+        return self.workerPool.allWorkerLoad() if self.workerPool else 0
 
 
     def workerListenerFactory(self):
@@ -1935,13 +1938,17 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         @rtype: L{_IJobPerformer} L{ConnectionFromPeerNode} or
             L{WorkerConnectionPool}
         """
-        if self.workerPool.hasAvailableCapacity():
-            return self.workerPool
+        if self.workerPool:
 
-        if self.peers and not onlyLocally:
-            return sorted(self.peers, key=lambda p: p.currentLoadEstimate())[0]
-        else:
-            return LocalPerformer(self.transactionFactory)
+            if self.workerPool.hasAvailableCapacity():
+                return self.workerPool
+
+            if self.peers and not onlyLocally:
+                return sorted(self.peers, key=lambda p: p.currentLoadEstimate())[0]
+            else:
+                raise JobFailedError("No capacity for work")
+
+        return LocalPerformer(self.transactionFactory)
 
 
     def performJobForPeer(self, job):
@@ -2007,7 +2014,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             # FIXME: need to include capacity of other nodes. For now we only check
             # our own capacity and stop processing if too busy. Other nodes that
             # are not busy will pick up work.
-            level = self.workerPool.loadLevel()
+            # If no workerPool, set level to 0, taking on all work.
+            level = 0 if self.workerPool is None else self.workerPool.loadLevel()
 
             # Check overload level first
             if level > self.overloadLevel:
@@ -2081,8 +2089,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     yield txn.commit()
 
             if nextJob is not None:
-                peer = self.choosePerformer(onlyLocally=True)
                 try:
+                    peer = self.choosePerformer(onlyLocally=True)
                     # Send the job over but DO NOT block on the response - that will ensure
                     # we can do stuff in parallel
                     peer.performJob(nextJob.descriptor())

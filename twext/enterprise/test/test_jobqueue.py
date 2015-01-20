@@ -43,7 +43,7 @@ from twext.enterprise.jobqueue import (
     ConnectionFromPeerNode,
     _BaseQueuer, NonPerformingQueuer, JobItem,
     WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM,
-    JobDescriptor, SingletonWorkItem
+    JobDescriptor, SingletonWorkItem, JobFailedError
 )
 import twext.enterprise.jobqueue
 
@@ -408,7 +408,7 @@ class WorkItemTests(TestCase):
         sinceEpoch = astimestamp(fakeNow)
         clock = Clock()
         clock.advance(sinceEpoch)
-        qpool = PeerConnectionPool(clock, dbpool.connection, 0)
+        qpool = PeerConnectionPool(clock, dbpool.connection, 0, useWorkerPool=False)
         realChoosePerformer = qpool.choosePerformer
         performerChosen = []
 
@@ -668,7 +668,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         then = datetime.datetime(2012, 12, 12, 12, 12, 12)
         reactor.advance(astimestamp(then))
         cph.setUp(self)
-        qpool = PeerConnectionPool(reactor, cph.pool.connection, 4321)
+        qpool = PeerConnectionPool(reactor, cph.pool.connection, 4321, useWorkerPool=False)
 
         realChoosePerformer = qpool.choosePerformer
         performerChosen = []
@@ -694,7 +694,19 @@ class PeerConnectionPoolUnitTests(TestCase):
         or outgoing), then it chooses an implementation of C{performJob} that
         simply executes the work locally.
         """
+
+        # If we're using worker pool, this should raise
+        try:
+            self.pcp.choosePerformer()
+        except JobFailedError:
+            pass
+        else:
+            self.fail("Didn't raise JobFailedError")
+
+        # If we're not using worker pool, we should get back LocalPerformer
+        self.pcp = PeerConnectionPool(None, None, 4321, useWorkerPool=False)
         self.checkPerformer(LocalPerformer)
+
 
 
     def test_choosingPerformerWithLocalCapacity(self):
@@ -704,6 +716,10 @@ class PeerConnectionPoolUnitTests(TestCase):
         performer.
         """
         # Give it some local capacity.
+
+        # In this case we want pcp to have a workerPool, so create a new pcp
+        # for this test
+        self.pcp = PeerConnectionPool(None, None, 4321)
         wlf = self.pcp.workerListenerFactory()
         proto = wlf.buildProtocol(None)
         proto.makeConnection(StringTransport())
@@ -945,7 +961,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         then = datetime.datetime(2012, 12, 12, 12, 12, 0)
         reactor.advance(astimestamp(then))
         cph.setUp(self)
-        pcp = PeerConnectionPool(reactor, cph.pool.connection, 4321)
+        pcp = PeerConnectionPool(reactor, cph.pool.connection, 4321, useWorkerPool=False)
         now = then + datetime.timedelta(seconds=20)
 
         @transactionally(cph.pool.connection)
@@ -1163,9 +1179,9 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         self.addCleanup(deschema)
 
         self.node1 = PeerConnectionPool(
-            reactor, indirectedTransactionFactory, 0)
+            reactor, indirectedTransactionFactory, 0, useWorkerPool=False)
         self.node2 = PeerConnectionPool(
-            reactor, indirectedTransactionFactory, 0)
+            reactor, indirectedTransactionFactory, 0, useWorkerPool=False)
 
         class FireMeService(Service, object):
             def __init__(self, d):
