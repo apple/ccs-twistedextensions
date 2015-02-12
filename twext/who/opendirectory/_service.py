@@ -165,6 +165,9 @@ class DirectoryService(BaseDirectoryService):
 
     fieldName = ConstantsContainer((BaseDirectoryService.fieldName, FieldName))
 
+    # The auto release pool is a class attribute; if _poolDeletionRegistered
+    # is True, that means someone has already added a SystemEventTrigger
+    _poolDeletionRegistered = False
 
     def __init__(
         self,
@@ -184,42 +187,47 @@ class DirectoryService(BaseDirectoryService):
 
 
         # Create an autorelease pool which will get deleted when someone
-        # calls _maybeDrainPool( ), but no more often than 60 seconds, hence
+        # calls _maybeResetPool( ), but no more often than 60 seconds, hence
         # the "maybe"
-        self._resetAutoreleasePool()
+        DirectoryService._resetAutoreleasePool()
 
         # Register a pool delete to happen at shutdown
-        from twisted.internet import reactor
-        reactor.addSystemEventTrigger("after", "shutdown", self._deletePool)
+        if not DirectoryService._poolDeletionRegistered:
+            from twisted.internet import reactor
+            DirectoryService._poolDeletionRegistered = True
+            reactor.addSystemEventTrigger("after", "shutdown", DirectoryService._deletePool)
 
 
-    def _deletePool(self):
+    @classmethod
+    def _deletePool(cls):
         """
         Delete the autorelease pool if we have one
         """
-        if hasattr(self, "_autoReleasePool"):
-            del self._autoReleasePool
+        if hasattr(cls, "_autoReleasePool"):
+            del cls._autoReleasePool
 
 
-    def _resetAutoreleasePool(self):
+    @classmethod
+    def _resetAutoreleasePool(cls):
         """
         Create an autorelease pool, deleting the old one if we had one.
         """
-        self._deletePool()
+        cls._deletePool()
 
-        self._autoReleasePool = NSAutoreleasePool.alloc().init()
-        self._poolCreationTime = time()
+        cls._autoReleasePool = NSAutoreleasePool.alloc().init()
+        cls._poolCreationTime = time()
 
 
-    def _maybeResetPool(self):
+    @classmethod
+    def _maybeResetPool(cls):
         """
         If it's been at least 60 seconds since the last time we created the
         pool, delete the pool (which drains it) and create a new one.
         """
-        poolCreationTime = getattr(self, "_poolCreationTime", 0)
+        poolCreationTime = getattr(cls, "_poolCreationTime", 0)
         now = time()
         if (now - poolCreationTime) > 60:
-            self._resetAutoreleasePool()
+            cls._resetAutoreleasePool()
 
 
 
@@ -826,7 +834,7 @@ class DirectoryService(BaseDirectoryService):
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
     ):
-        self._maybeResetPool()
+        DirectoryService._maybeResetPool()
 
 
         if isinstance(expression, MatchExpression):
@@ -866,7 +874,7 @@ class DirectoryService(BaseDirectoryService):
         CompoundExpression up into MatchExpressions for sending to the local
         node.
         """
-        self._maybeResetPool()
+        DirectoryService._maybeResetPool()
 
         try:
             self.log.debug("OD call: {}".format(expression))
