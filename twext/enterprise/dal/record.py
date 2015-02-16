@@ -198,7 +198,7 @@ class Record(object):
         words = columnName.lower().split("_")
 
         def cap(word):
-            if word.lower() == "id":
+            if word.lower() in ("id", "uid",):
                 return word.upper()
             else:
                 return word.capitalize()
@@ -246,39 +246,40 @@ class Record(object):
 
             MyRecord.create(transaction, column1=1, column2=u"two")
         """
+        self = cls.make(**k)
+        yield self.insert(transaction)
+        returnValue(self)
+
+
+    @classmethod
+    def make(cls, **k):
+        """
+        Make a record without creating one in the database - this will not have an
+        associated L{transaction}. When the record is ready to be written to the database
+        use L{SerializeableRecord.insert} to add it. Before it gets written to the DB, the
+        attributes can be changed.
+        """
         self = cls()
-        colmap = {}
         attrtocol = cls.__attrmap__
-        needsCols = []
-        needsAttrs = []
 
         for attr in attrtocol:
             col = attrtocol[attr]
             if attr in k:
-                setattr(self, attr, k[attr])
-                colmap[col] = k.pop(attr)
+                value = k.pop(attr)
+                setattr(self, attr, value)
             else:
                 if col.model.needsValue():
                     raise TypeError(
                         "required attribute {0!r} not passed"
                         .format(attr)
                     )
-                else:
-                    needsCols.append(col)
-                    needsAttrs.append(attr)
 
         if k:
             raise TypeError("received unknown attribute{0}: {1}".format(
                 "s" if len(k) > 1 else "", ", ".join(sorted(k))
             ))
-        result = yield (Insert(colmap, Return=needsCols if needsCols else None)
-                        .on(transaction))
-        if needsCols:
-            self._attributesFromRow(zip(needsAttrs, result[0]))
 
-        self.transaction = transaction
-
-        returnValue(self)
+        return self
 
 
     def _attributesFromRow(self, attributeList):
@@ -294,6 +295,46 @@ class Record(object):
             if setColumn.model.type.name == "timestamp" and setValue is not None:
                 setValue = parseSQLTimestamp(setValue)
             setattr(self, setAttribute, setValue)
+
+
+    @inlineCallbacks
+    def insert(self, transaction):
+        """
+        Insert a new a row for an existing record that was not initially created in the database.
+        """
+
+        # Cannot do this if a transaction has already been assigned because that means
+        # the record already exists in the DB.
+
+        if self.transaction is not None:
+            raise ReadOnly(self.__class__.__name__, "Cannot insert")
+
+        colmap = {}
+        attrtocol = self.__attrmap__
+        needsCols = []
+        needsAttrs = []
+
+        for attr in attrtocol:
+            col = attrtocol[attr]
+            v = getattr(self, attr)
+            if not isinstance(v, ColumnSyntax):
+                colmap[col] = v
+            else:
+                if col.model.needsValue():
+                    raise TypeError(
+                        "required attribute {0!r} not passed"
+                        .format(attr)
+                    )
+                else:
+                    needsCols.append(col)
+                    needsAttrs.append(attr)
+
+        result = yield (Insert(colmap, Return=needsCols if needsCols else None)
+                        .on(transaction))
+        if needsCols:
+            self._attributesFromRow(zip(needsAttrs, result[0]))
+
+        self.transaction = transaction
 
 
     def delete(self):
@@ -435,6 +476,46 @@ class Record(object):
         @param noWait: include NOWAIT with the FOR UPDATE
         @type noWait: L{bool}
         """
+        return cls._rowsFromQuery(
+            transaction,
+            cls.queryExpr(
+                expr,
+                order=order,
+                ascending=ascending,
+                group=group,
+                forUpdate=forUpdate,
+                noWait=noWait,
+                limit=limit,
+            ),
+            None
+        )
+
+
+    @classmethod
+    def queryExpr(cls, expr, attributes=None, order=None, ascending=True, group=None, forUpdate=False, noWait=False, limit=None):
+        """
+        Query expression that corresponds to C{cls}. Used in cases where a sub-select
+        on this record's table is needed.
+
+        @param expr: An L{ExpressionSyntax} that constraints the results of the
+            query.  This is most easily produced by accessing attributes on the
+            class; for example, C{MyRecordType.query((MyRecordType.col1 >
+            MyRecordType.col2).And(MyRecordType.col3 == 7))}
+
+        @param order: A L{ColumnSyntax} to order the resulting record objects
+            by.
+
+        @param ascending: A boolean; if C{order} is not C{None}, whether to
+            sort in ascending or descending order.
+
+        @param group: a L{ColumnSyntax} to group the resulting record objects
+            by.
+
+        @param forUpdate: do a SELECT ... FOR UPDATE
+        @type forUpdate: L{bool}
+        @param noWait: include NOWAIT with the FOR UPDATE
+        @type noWait: L{bool}
+        """
         kw = {}
         if order is not None:
             kw.update(OrderBy=order, Ascending=ascending)
@@ -446,15 +527,13 @@ class Record(object):
                 kw.update(NoWait=True)
         if limit is not None:
             kw.update(Limit=limit)
-        return cls._rowsFromQuery(
-            transaction,
-            Select(
-                list(cls.table),
-                From=cls.table,
-                Where=expr,
-                **kw
-            ),
-            None
+        if attributes is None:
+            attributes = list(cls.table)
+        return Select(
+            attributes,
+            From=cls.table,
+            Where=expr,
+            **kw
         )
 
 
@@ -495,6 +574,21 @@ class Record(object):
 
 
     @classmethod
+    def deletematch(cls, transaction, **kw):
+        """
+        Delete all rows matching the specified attribute/values from the table that corresponds to C{cls}.
+        """
+        where = None
+        for k, v in kw.iteritems():
+            subexpr = (cls.__attrmap__[k] == v)
+            if where is None:
+                where = subexpr
+            else:
+                where = where.And(subexpr)
+        return cls.deletesome(transaction, where)
+
+
+    @classmethod
     @inlineCallbacks
     def _rowsFromQuery(cls, transaction, qry, rozrc):
         """
@@ -521,3 +615,45 @@ class Record(object):
             self.transaction = transaction
             selves.append(self)
         returnValue(selves)
+
+
+
+class SerializableRecord(Record):
+    """
+    An L{Record} that serializes/deserializes its attributes for a text-based
+    transport (e.g., JSON-over-HTTP) to allow records to be transferred from
+    one system to another (with potentially mismatched schemas).
+    """
+
+    def serialize(self):
+        """
+        Create an L{dict} of each attribute with L{str} values for each attribute
+        value. Sub-classes may need to override this to specialize certain value
+        conversions.
+
+        @return: mapping of attribute to string values
+        @rtype: L{dict} of L{str}:L{str}
+        """
+
+        result = dict([(attr, getattr(self, attr),) for attr in self.__attrmap__])
+        return result
+
+
+    @classmethod
+    def deserialize(cls, attrmap):
+        """
+        Given an L{dict} mapping attributes to values, create an L{Record} with
+        the specified values. Sub-classes may need to override this to handle special
+        values that need to be converted to specific types. They also need to override
+        this to handle possible schema mismatches (attributes no longer used, new
+        attributes not present in the map).
+
+        @param attrmap: serialized representation of a record
+        @type attrmap: L{dict} of L{str}:L{str}
+
+        @return: a newly created, but not inserted, record
+        @rtype: L{SerializableRecord}
+        """
+
+        record = cls.make(**attrmap)
+        return record
