@@ -171,6 +171,14 @@ class Record(object):
         return r
 
 
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+        attrs = dict([(attr, getattr(self, attr),) for attr in self.__attrmap__.keys()])
+        otherattrs = dict([(attr, getattr(other, attr),) for attr in other.__attrmap__.keys()])
+        return attrs == otherattrs
+
+
     @classmethod
     def fromTable(cls, table):
         """
@@ -280,6 +288,14 @@ class Record(object):
             ))
 
         return self
+
+
+    def duplicate(self):
+        return self.make(**dict([(attr, getattr(self, attr),) for attr in self.__attrmap__.keys()]))
+
+
+    def isnew(self):
+        return self.transaction is None
 
 
     def _attributesFromRow(self, attributeList):
@@ -538,6 +554,22 @@ class Record(object):
 
 
     @classmethod
+    def querysimple(cls, transaction, **kw):
+        """
+        Match all rows matching the specified attribute/values from the table that corresponds to C{cls}.
+        All attributes are logically AND'ed.
+        """
+        where = None
+        for k, v in kw.iteritems():
+            subexpr = (cls.__attrmap__[k] == v)
+            if where is None:
+                where = subexpr
+            else:
+                where = where.And(subexpr)
+        return cls.query(transaction, where)
+
+
+    @classmethod
     def all(cls, transaction):
         """
         Load all rows from the table that corresponds to C{cls} and return
@@ -574,9 +606,10 @@ class Record(object):
 
 
     @classmethod
-    def deletematch(cls, transaction, **kw):
+    def deletesimple(cls, transaction, **kw):
         """
         Delete all rows matching the specified attribute/values from the table that corresponds to C{cls}.
+        All attributes are logically AND'ed.
         """
         where = None
         for k, v in kw.iteritems():

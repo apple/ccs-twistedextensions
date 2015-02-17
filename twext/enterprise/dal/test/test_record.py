@@ -307,6 +307,44 @@ class TestCRUD(TestCase):
 
 
     @inlineCallbacks
+    def test_querySimple(self):
+        """
+        L{Record.querysimple} will allow you to query for a record by its class
+        attributes as columns.
+        """
+        txn = self.pool.connection()
+        for beta, gamma in [(123, u"one"), (234, u"two"), (345, u"three"),
+                            (356, u"three"), (456, u"four")]:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+        records = yield TestRecord.querysimple(txn, gamma=u"three")
+        self.assertEqual(len(records), 2)
+        records.sort(key=lambda x: x.beta)
+        self.assertEqual(records[0].beta, 345)
+        self.assertEqual(records[1].beta, 356)
+
+
+    @inlineCallbacks
+    def test_eq(self):
+        """
+        L{Record.__eq__} works.
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+
+        one = yield TestRecord.load(txn, 123)
+        one_copy = yield TestRecord.load(txn, 123)
+        two = yield TestRecord.load(txn, 234)
+
+        self.assertTrue(one == one_copy)
+        self.assertFalse(one == two)
+
+
+    @inlineCallbacks
     def test_all(self):
         """
         L{Record.all} will return all instances of the record, sorted by
@@ -363,9 +401,9 @@ class TestCRUD(TestCase):
 
 
     @inlineCallbacks
-    def test_deletematch(self):
+    def test_deletesimple(self):
         """
-        L{Record.deletematch} will delete all instances of the matching records.
+        L{Record.deletesimple} will delete all instances of the matching records.
         """
         txn = self.pool.connection()
         data = [(123, u"one"), (456, u"four"), (345, u"three"),
@@ -374,11 +412,11 @@ class TestCRUD(TestCase):
             yield txn.execSQL("insert into ALPHA values (:1, :2)",
                               [beta, gamma])
 
-        yield TestRecord.deletematch(txn, gamma=u"three")
+        yield TestRecord.deletesimple(txn, gamma=u"three")
         all = yield TestRecord.all(txn)
         self.assertEqual(set([record.beta for record in all]), set((123, 456, 234,)))
 
-        yield TestRecord.deletematch(txn, beta=123, gamma=u"one")
+        yield TestRecord.deletesimple(txn, beta=123, gamma=u"one")
         all = yield TestRecord.all(txn)
         self.assertEqual(set([record.beta for record in all]), set((456, 234)))
 
