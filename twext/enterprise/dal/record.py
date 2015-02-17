@@ -171,6 +171,10 @@ class Record(object):
         return r
 
 
+    def __hash__(self):
+        return hash(tuple([getattr(self, attr) for attr in self.__attrmap__.keys()]))
+
+
     def __eq__(self, other):
         if type(self) != type(other):
             return False
@@ -668,7 +672,14 @@ class SerializableRecord(Record):
         @rtype: L{dict} of L{str}:L{str}
         """
 
-        result = dict([(attr, getattr(self, attr),) for attr in self.__attrmap__])
+        # Certain values have to be mapped to str
+        result = {}
+        for attr in self.__attrmap__:
+            value = getattr(self, attr)
+            col = self.__attrmap__[attr]
+            if col.model.type.name == "timestamp" and value is not None:
+                value = str(value)
+            result[attr] = value
         return result
 
 
@@ -688,5 +699,14 @@ class SerializableRecord(Record):
         @rtype: L{SerializableRecord}
         """
 
-        record = cls.make(**attrmap)
+        # Certain values have to be mapped to non-str types
+        mapped = {}
+        for attr in attrmap:
+            value = attrmap[attr]
+            col = cls.__attrmap__[attr]
+            if col.model.type.name == "timestamp" and value is not None:
+                value = parseSQLTimestamp(value)
+            mapped[attr] = value
+
+        record = cls.make(**mapped)
         return record
