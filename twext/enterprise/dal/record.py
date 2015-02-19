@@ -472,7 +472,7 @@ class Record(object):
 
 
     @classmethod
-    def query(cls, transaction, expr, order=None, ascending=True, group=None, forUpdate=False, noWait=False, limit=None):
+    def query(cls, transaction, expr, order=None, group=None, limit=None, forUpdate=False, noWait=False, ascending=True, distinct=False):
         """
         Query the table that corresponds to C{cls}, and return instances of
         C{cls} corresponding to the rows that are returned from that table.
@@ -501,18 +501,19 @@ class Record(object):
             cls.queryExpr(
                 expr,
                 order=order,
-                ascending=ascending,
                 group=group,
+                limit=limit,
                 forUpdate=forUpdate,
                 noWait=noWait,
-                limit=limit,
+                ascending=ascending,
+                distinct=distinct,
             ),
             None
         )
 
 
     @classmethod
-    def queryExpr(cls, expr, attributes=None, order=None, ascending=True, group=None, forUpdate=False, noWait=False, limit=None):
+    def queryExpr(cls, expr, attributes=None, order=None, group=None, limit=None, forUpdate=False, noWait=False, ascending=True, distinct=False):
         """
         Query expression that corresponds to C{cls}. Used in cases where a sub-select
         on this record's table is needed.
@@ -541,12 +542,14 @@ class Record(object):
             kw.update(OrderBy=order, Ascending=ascending)
         if group is not None:
             kw.update(GroupBy=group)
+        if limit is not None:
+            kw.update(Limit=limit)
         if forUpdate:
             kw.update(ForUpdate=True)
             if noWait:
                 kw.update(NoWait=True)
-        if limit is not None:
-            kw.update(Limit=limit)
+        if distinct:
+            kw.update(Distinct=True)
         if attributes is None:
             attributes = list(cls.table)
         return Select(
@@ -599,13 +602,14 @@ class Record(object):
 
 
     @classmethod
-    def deletesome(cls, transaction, where):
+    def deletesome(cls, transaction, where, returnCols=None):
         """
         Delete all rows matching the where expression from the table that corresponds to C{cls}.
         """
         return Delete(
             From=cls.table,
             Where=where,
+            Return=returnCols,
         ).on(transaction)
 
 
