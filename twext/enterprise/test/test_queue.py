@@ -870,7 +870,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             ).on(txn)
 
         rows = yield inTransaction(self.store.newTransaction, op2)
-        self.assertEquals(rows, [[4321, 7]])
+        self.assertEquals(map(list, rows), [[4321, 7]])
 
 
     @inlineCallbacks
