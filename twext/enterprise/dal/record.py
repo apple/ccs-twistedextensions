@@ -210,7 +210,7 @@ class Record(object):
         words = columnName.lower().split("_")
 
         def cap(word):
-            if word.lower() in ("id", "uid",):
+            if word.lower() in ("id", "uid", "guid",):
                 return word.upper()
             else:
                 return word.capitalize()
