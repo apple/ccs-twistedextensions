@@ -24,8 +24,8 @@ from twisted.internet.defer import inlineCallbacks, gatherResults, returnValue
 from twisted.trial.unittest import TestCase, SkipTest
 
 from twext.enterprise.dal.record import (
-    Record, fromTable, ReadOnly, NoSuchRecord
-)
+    Record, fromTable, ReadOnly, NoSuchRecord,
+    SerializableRecord)
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.dal.syntax import SchemaSyntax
 from twext.enterprise.fixtures import buildConnectionPool
@@ -63,6 +63,13 @@ else:
 class TestRecord(Record, Alpha):
     """
     A sample test record.
+    """
+
+
+
+class TestSerializeRecord(SerializableRecord, Alpha):
+    """
+    A sample test serializable record with default values specified.
     """
 
 
@@ -300,6 +307,44 @@ class TestCRUD(TestCase):
 
 
     @inlineCallbacks
+    def test_querySimple(self):
+        """
+        L{Record.querysimple} will allow you to query for a record by its class
+        attributes as columns.
+        """
+        txn = self.pool.connection()
+        for beta, gamma in [(123, u"one"), (234, u"two"), (345, u"three"),
+                            (356, u"three"), (456, u"four")]:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+        records = yield TestRecord.querysimple(txn, gamma=u"three")
+        self.assertEqual(len(records), 2)
+        records.sort(key=lambda x: x.beta)
+        self.assertEqual(records[0].beta, 345)
+        self.assertEqual(records[1].beta, 356)
+
+
+    @inlineCallbacks
+    def test_eq(self):
+        """
+        L{Record.__eq__} works.
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+
+        one = yield TestRecord.load(txn, 123)
+        one_copy = yield TestRecord.load(txn, 123)
+        two = yield TestRecord.load(txn, 234)
+
+        self.assertTrue(one == one_copy)
+        self.assertFalse(one == two)
+
+
+    @inlineCallbacks
     def test_all(self):
         """
         L{Record.all} will return all instances of the record, sorted by
@@ -332,6 +377,48 @@ class TestCRUD(TestCase):
         yield TestRecord.deleteall(txn)
         all = yield TestRecord.all(txn)
         self.assertEqual(len(all), 0)
+
+
+    @inlineCallbacks
+    def test_deletesome(self):
+        """
+        L{Record.deletesome} will delete all instances of the matching records.
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+
+        yield TestRecord.deletesome(txn, TestRecord.gamma == u"three")
+        all = yield TestRecord.all(txn)
+        self.assertEqual(set([record.beta for record in all]), set((123, 456, 234,)))
+
+        yield TestRecord.deletesome(txn, (TestRecord.gamma == u"one").Or(TestRecord.gamma == u"two"))
+        all = yield TestRecord.all(txn)
+        self.assertEqual(set([record.beta for record in all]), set((456,)))
+
+
+    @inlineCallbacks
+    def test_deletesimple(self):
+        """
+        L{Record.deletesimple} will delete all instances of the matching records.
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+
+        yield TestRecord.deletesimple(txn, gamma=u"three")
+        all = yield TestRecord.all(txn)
+        self.assertEqual(set([record.beta for record in all]), set((123, 456, 234,)))
+
+        yield TestRecord.deletesimple(txn, beta=123, gamma=u"one")
+        all = yield TestRecord.all(txn)
+        self.assertEqual(set([record.beta for record in all]), set((456, 234)))
 
 
     @inlineCallbacks
@@ -458,3 +545,59 @@ class TestCRUD(TestCase):
         rec = yield TestRecord.load(txn, 234)
         result = yield rec.trylock()
         self.assertTrue(result)
+
+
+    @inlineCallbacks
+    def test_serialize(self):
+        """
+        A L{SerializableRecord} may be serialized.
+        """
+        txn = self.pool.connection()
+        for beta, gamma in [
+            (123, u"one"),
+            (234, u"two"),
+            (345, u"three"),
+            (356, u"three"),
+            (456, u"four"),
+        ]:
+            yield txn.execSQL(
+                "insert into ALPHA values (:1, :2)", [beta, gamma]
+            )
+
+        rec = yield TestSerializeRecord.load(txn, 234)
+        result = rec.serialize()
+        self.assertEqual(result, {"beta": 234, "gamma": u"two"})
+
+
+    @inlineCallbacks
+    def test_deserialize(self):
+        """
+        A L{SerializableRecord} may be deserialized.
+        """
+        txn = self.pool.connection()
+
+        rec = yield TestSerializeRecord.deserialize({"beta": 234, "gamma": u"two"})
+        yield rec.insert(txn)
+        yield txn.commit()
+
+        txn = self.pool.connection()
+        rec = yield TestSerializeRecord.query(txn, TestSerializeRecord.beta == 234)
+        self.assertEqual(len(rec), 1)
+        self.assertEqual(rec[0].gamma, u"two")
+        yield txn.commit()
+
+        # Check that attributes can be changed prior to insert, and not after
+        txn = self.pool.connection()
+        rec = yield TestSerializeRecord.deserialize({"beta": 456, "gamma": u"one"})
+        rec.gamma = u"four"
+        yield rec.insert(txn)
+        def _raise():
+            rec.gamma = u"five"
+        self.assertRaises(ReadOnly, _raise)
+        yield txn.commit()
+
+        txn = self.pool.connection()
+        rec = yield TestSerializeRecord.query(txn, TestSerializeRecord.beta == 456)
+        self.assertEqual(len(rec), 1)
+        self.assertEqual(rec[0].gamma, u"four")
+        yield txn.commit()

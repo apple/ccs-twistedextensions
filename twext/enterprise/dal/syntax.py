@@ -439,6 +439,8 @@ class ExpressionSyntax(Syntax):
                     "{} expression needs an explicit count of parameters".format(op.upper())
                 )
             return CompoundComparison(self, op, Constant(other))
+        elif isinstance(other, set) or isinstance(other, frozenset) or isinstance(other, list) or isinstance(other, tuple):
+            return CompoundComparison(self, op, Constant(other))
         else:
             # Can't be Select.__contains__ because __contains__ gets
             # __nonzero__ called on its result by the "in" syntax.
@@ -546,6 +548,13 @@ class Constant(ExpressionSyntax):
                         [self.value] if counter == 0 else []
                     )
                     for counter in range(self.value.count)
+                ]).subSQL(queryGenerator, allTables)
+            )
+        elif isinstance(self.value, set) or isinstance(self.value, frozenset) or isinstance(self.value, list) or isinstance(self.value, tuple):
+            return _inParens(
+                _CommaList([
+                    SQLFragment(queryGenerator.placeholder.placeholder(), [value])
+                    for value in self.value
                 ]).subSQL(queryGenerator, allTables)
             )
         else:

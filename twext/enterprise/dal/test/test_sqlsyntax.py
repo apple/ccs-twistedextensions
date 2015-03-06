@@ -1006,6 +1006,90 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
 
 
+    def test_inIterable(self):
+        """
+        L{ColumnSyntax.In} returns a sub-expression using the SQL C{in} syntax
+        with parameter list.
+        """
+        # One item with IN only
+        items = set(("A",))
+        for items in (set(items), list(items), tuple(items),):
+            self.assertEquals(
+                Select(
+                    From=self.schema.FOO,
+                    Where=self.schema.FOO.BAR.In(items),
+                ).toSQL().bind(),
+                SQLFragment("select * from FOO where BAR in (?)", ["A"])
+            )
+
+        # Two items with IN only
+        items = set(("A", "B"))
+        for items in (set(items), list(items), tuple(items),):
+            self.assertEquals(
+                Select(
+                    From=self.schema.FOO,
+                    Where=self.schema.FOO.BAR.In(items),
+                ).toSQL().bind(names=items),
+                SQLFragment(
+                    "select * from FOO where BAR in (?, ?)", ["A", "B"]
+                )
+            )
+
+            # Two items with preceding AND
+            self.assertEquals(
+                Select(
+                    From=self.schema.FOO,
+                    Where=(
+                        (
+                            self.schema.FOO.BAZ == Parameter("P1")
+                        ).And(
+                            self.schema.FOO.BAR.In(items)
+                        )
+                    )
+                ).toSQL().bind(P1="P1"),
+                SQLFragment(
+                    "select * from FOO where BAZ = ? and BAR in (?, ?)",
+                    ["P1", "A", "B"]
+                ),
+            )
+
+            # Two items with following AND
+            self.assertEquals(
+                Select(
+                    From=self.schema.FOO,
+                    Where=(
+                        (
+                            self.schema.FOO.BAR.In(items)
+                        ).And(
+                            self.schema.FOO.BAZ == Parameter("P2")
+                        )
+                    )
+                ).toSQL().bind(P2="P2"),
+                SQLFragment(
+                    "select * from FOO where BAR in (?, ?) and BAZ = ?",
+                    ["A", "B", "P2"]
+                ),
+            )
+
+            # Two items with preceding OR and following AND
+            self.assertEquals(
+                Select(
+                    From=self.schema.FOO,
+                    Where=((
+                        self.schema.FOO.BAZ == Parameter("P1")
+                    ).Or(
+                        self.schema.FOO.BAR.In(items).And(
+                            self.schema.FOO.BAZ == Parameter("P2")
+                        )
+                    ))
+                ).toSQL().bind(P1="P1", P2="P2"),
+                SQLFragment(
+                    "select * from FOO where BAZ = ? or BAR in (?, ?) and BAZ = ?",
+                    ["P1", "A", "B", "P2"]
+                ),
+            )
+
+
     def test_max(self):
         """
         L{Max}C{(column)} produces an object in the C{columns} clause that
