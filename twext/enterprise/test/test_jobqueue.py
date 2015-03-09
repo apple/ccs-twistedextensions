@@ -33,6 +33,7 @@ from twisted.protocols.amp import Command, AMP, Integer
 from twisted.application.service import Service, MultiService
 
 from twext.enterprise.dal.syntax import SchemaSyntax, Delete
+from twext.enterprise.dal.parseschema import splitSQLString
 from twext.enterprise.dal.record import fromTable
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
@@ -708,7 +709,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         self.checkPerformer(LocalPerformer)
 
 
-
     def test_choosingPerformerWithLocalCapacity(self):
         """
         If L{PeerConnectionPool.choosePerformer} is invoked when some workers
@@ -1152,8 +1152,10 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         """
         self.store = yield buildStore(self, None)
 
+        @inlineCallbacks
         def doit(txn):
-            return txn.execSQL(schemaText)
+            for statement in splitSQLString(schemaText):
+                yield txn.execSQL(statement)
 
         yield inTransaction(
             self.store.newTransaction,

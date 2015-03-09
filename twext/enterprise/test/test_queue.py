@@ -33,6 +33,7 @@ from twisted.protocols.amp import Command
 from twisted.application.service import Service, MultiService
 
 from twext.enterprise.dal.syntax import SchemaSyntax, Select
+from twext.enterprise.dal.parseschema import splitSQLString
 from twext.enterprise.dal.record import fromTable, Record
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
@@ -772,8 +773,10 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         """
         self.store = yield buildStore(self, None)
 
+        @inlineCallbacks
         def doit(txn):
-            return txn.execSQL(schemaText)
+            for statement in splitSQLString(schemaText):
+                yield txn.execSQL(statement)
 
         yield inTransaction(
             lambda: self.store.newTransaction("bonus schema"), doit
@@ -907,7 +910,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             ).on(txn)
 
         rows = yield inTransaction(self.store.newTransaction, op2)
-        self.assertEquals(rows, [])
+        self.assertEquals(list(rows), [])
 
         def op3(txn):
             return Select(
@@ -919,7 +922,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             ).on(txn)
 
         rows = yield inTransaction(self.store.newTransaction, op3)
-        self.assertEquals(rows, [])
+        self.assertEquals(list(rows), [])
 
 
 

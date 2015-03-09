@@ -34,6 +34,7 @@ __all__ = [
 ]
 
 from itertools import chain
+from re import compile
 
 from sqlparse import parse, keywords
 from sqlparse.tokens import (
@@ -752,3 +753,41 @@ def _destringify(strval):
     here.  The only quoting syntax respected is "''".)
     """
     return strval[1:-1].replace("''", "'")
+
+
+
+def splitSQLString(sqlString):
+    """
+    Strings which mix zero or more sql statements with zero or more pl/sql
+    statements need to be split into individual sql statements for execution.
+    This function was written to allow execution of pl/sql during Oracle schema
+    upgrades.
+    """
+    aggregated = ''
+    inPlSQL = None
+    parsed = parse(sqlString)
+    for stmt in parsed:
+        while stmt.tokens and not significant(stmt.tokens[0]):
+            stmt.tokens.pop(0)
+        if not stmt.tokens:
+            continue
+        if inPlSQL is not None:
+            agg = str(stmt).strip()
+            if "end;".lower() in agg.lower():
+                inPlSQL = None
+                aggregated += agg
+                rex = compile("\n +")
+                aggregated = rex.sub('\n', aggregated)
+                yield aggregated.strip()
+                continue
+            aggregated += agg
+            continue
+        if inPlSQL is None:
+            # if 'begin'.lower() in str(stmt).split()[0].lower():
+            if str(stmt).lower().strip().startswith('begin'):
+                inPlSQL = True
+                aggregated += str(stmt)
+                continue
+        else:
+            continue
+        yield str(stmt).rstrip().rstrip(";")

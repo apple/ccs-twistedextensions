@@ -30,9 +30,12 @@ def parseSQLTimestamp(ts):
     Parse an SQL timestamp string.
     """
     # Handle case where fraction seconds may not be present
-    if len(ts) < len(SQL_TIMESTAMP_FORMAT):
-        ts += ".0"
-    return datetime.strptime(ts, SQL_TIMESTAMP_FORMAT)
+    if not isinstance(ts, datetime):
+        if len(ts) < len(SQL_TIMESTAMP_FORMAT):
+            ts += ".0"
+        return datetime.strptime(ts, SQL_TIMESTAMP_FORMAT)
+    else:
+        return ts
 
 
 
@@ -58,17 +61,8 @@ def mapOracleOutputType(column):
         # use the fetchall() method".
         column = column.read()
 
-    elif isinstance(column, datetime):
-        # cx_Oracle properly maps the type of timestamps to datetime
-        # objects.  However, our code is mostly written against
-        # PyGreSQL, which just emits strings as results and expects
-        # to have to convert them itself.  Since it's easier to
-        # just detect the datetimes and stringify them, for now
-        # we'll do that.
-        return column.strftime(SQL_TIMESTAMP_FORMAT)
-
     elif isinstance(column, float):
-        # cx_Oracle maps _all_ nubmers to float types, which is more
+        # cx_Oracle maps _all_ numbers to float types, which is more
         # consistent, but we expect the database to be able to store integers
         # as integers (in fact almost all the values in our schema are
         # integers), so we map those values which exactly match back into
@@ -79,7 +73,7 @@ def mapOracleOutputType(column):
             return column
 
     if isinstance(column, unicode):
-        # Finally, we process all data as UTF-8 bytestrings in order to reduce
+        # Finally, we process all data as UTF-8 byte strings in order to reduce
         # memory consumption.  Pass any unicode string values back to the
         # application as unicode.
         column = column.encode("utf-8")
