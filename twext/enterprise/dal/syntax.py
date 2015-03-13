@@ -1445,9 +1445,13 @@ class Select(_Statement):
             # FOR UPDATE not supported with sqlite - but that is probably not relevant
             # given that sqlite does file level locking of the DB
             if queryGenerator.dialect != SQLITE_DIALECT:
-                stmt.text += " for update"
-                if self.NoWait:
-                    stmt.text += " nowait"
+                # Oracle turns this statement into a sub-select if Limit is non-zero, but we can't have
+                # the "for update" in the sub-select. So suppress it here and add it in the outer limit
+                # select later.
+                if self.Limit is None or queryGenerator.dialect != ORACLE_DIALECT:
+                    stmt.text += " for update"
+                    if self.NoWait:
+                        stmt.text += " nowait"
 
         if self.Limit is not None:
             limitConst = Constant(self.Limit).subSQL(queryGenerator, allTables)
@@ -1459,6 +1463,12 @@ class Select(_Statement):
             else:
                 stmt.text += " limit "
             stmt.append(limitConst)
+
+            # Add in any Oracle "for update"
+            if self.ForUpdate and queryGenerator.dialect == ORACLE_DIALECT:
+                stmt.text += " for update"
+                if self.NoWait:
+                    stmt.text += " nowait"
 
         return stmt
 
@@ -2042,12 +2052,20 @@ class SavepointAction(object):
         self._name = name
 
 
+    def _safeName(self, txn):
+        if txn.dialect == ORACLE_DIALECT:
+            # Oracle limits the length of identifiers
+            return self._name[:30]
+        else:
+            return self._name
+
+
     def acquire(self, txn):
-        return Savepoint(self._name).on(txn)
+        return Savepoint(self._safeName(txn)).on(txn)
 
 
     def rollback(self, txn):
-        return RollbackToSavepoint(self._name).on(txn)
+        return RollbackToSavepoint(self._safeName(txn)).on(txn)
 
 
     def release(self, txn):
@@ -2057,7 +2075,7 @@ class SavepointAction(object):
             # do anything.
             return NoOp()
         else:
-            return ReleaseSavepoint(self._name).on(txn)
+            return ReleaseSavepoint(self._safeName(txn)).on(txn)
 
 
 

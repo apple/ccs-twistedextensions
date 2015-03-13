@@ -110,12 +110,17 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             create table thetable (
                 thecolumn integer default nextval('thingy')
             );
+            create table thetable2 (
+                thecolumn2 integer primary key default nextval('thingy'),
+                ignoreme integer
+            );
             """)
         self.assertEquals(len(s.sequences), 1)
         self.assertEquals(s.sequences[0].name, "thingy")
         self.assertEquals(s.tables[0].columns[0].default, s.sequences[0])
+        self.assertEquals(s.tables[1].columns[0].default, s.sequences[0])
         self.assertEquals(s.sequences[0].referringColumns,
-                          [s.tables[0].columns[0]])
+                          [s.tables[0].columns[0], s.tables[1].columns[0]])
 
 
     def test_sequenceDefault(self):

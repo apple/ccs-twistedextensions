@@ -145,13 +145,13 @@ from twext.enterprise.dal.syntax import (
     SchemaSyntax, Lock, NamedValue
 )
 
-from twext.enterprise.dal.model import ProcedureCall
+from twext.enterprise.dal.model import ProcedureCall, Sequence
 from twext.enterprise.dal.record import Record, fromTable, NoSuchRecord
 from twisted.python.failure import Failure
 
 from twext.enterprise.dal.model import Table, Schema, SQLType, Constraint
 from twisted.internet.endpoints import TCP4ServerEndpoint
-from twext.enterprise.ienterprise import IQueuer
+from twext.enterprise.ienterprise import IQueuer, ORACLE_DIALECT
 from zope.interface.interface import Interface
 
 import collections
@@ -229,7 +229,7 @@ def makeJobSchema(inSchema):
     # transaction is made aware of somehow.
     JobTable = Table(inSchema, "JOB")
 
-    JobTable.addColumn("JOB_ID", SQLType("integer", None), default=ProcedureCall("nextval", ["JOB_SEQ"]), notNull=True, primaryKey=True)
+    JobTable.addColumn("JOB_ID", SQLType("integer", None), default=Sequence(inSchema, "JOB_SEQ"), notNull=True, primaryKey=True)
     JobTable.addColumn("WORK_TYPE", SQLType("varchar", 255), notNull=True)
     JobTable.addColumn("PRIORITY", SQLType("integer", 0), default=0)
     JobTable.addColumn("WEIGHT", SQLType("integer", 0), default=0)
@@ -579,17 +579,38 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @rtype: L{JobItem}
         """
 
-        jobs = yield cls.query(
-            txn,
-            (cls.notBefore <= now).And(cls.priority >= minPriority).And(
-                (cls.assigned == None).Or(cls.overdue < now)
-            ),
-            order=(cls.assigned, cls.priority),
-            ascending=False,
-            forUpdate=True,
-            noWait=False,
-            limit=limit,
-        )
+        if txn.dialect == ORACLE_DIALECT:
+            # Oracle does not support a "for update" clause with "order by". So do the
+            # "for update" as a second query right after the first. Will need to check
+            # how this might impact concurrency in a multi-host setup.
+            jobs = yield cls.query(
+                txn,
+                (cls.notBefore <= now).And(cls.priority >= minPriority).And(
+                    (cls.assigned == None).Or(cls.overdue < now)
+                ),
+                order=(cls.assigned, cls.priority),
+                ascending=False,
+                limit=limit,
+            )
+            if jobs:
+                yield cls.query(
+                    txn,
+                    (cls.jobID.In([job.jobID for job in jobs])),
+                    forUpdate=True,
+                    noWait=False,
+                )
+        else:
+            jobs = yield cls.query(
+                txn,
+                (cls.notBefore <= now).And(cls.priority >= minPriority).And(
+                    (cls.assigned == None).Or(cls.overdue < now)
+                ),
+                order=(cls.assigned, cls.priority),
+                ascending=False,
+                forUpdate=True,
+                noWait=False,
+                limit=limit,
+            )
 
         returnValue(jobs)
 
