@@ -18,28 +18,33 @@
 
 from __future__ import print_function
 
-from os.path import dirname, abspath, join as joinpath
-from setuptools import setup, find_packages as setuptools_find_packages
-import errno
 import os
+from os.path import dirname, abspath, join as joinpath
 import subprocess
 import sys
 
+import errno
+from setuptools import setup, find_packages as setuptools_find_packages
+from xml.etree import ElementTree
+
+base_version = "0.1"
 
 
 #
 # Utilities
 #
-
 def find_packages():
     modules = [
         "twisted.plugins",
     ]
 
-    for pkg in filter(
-        lambda p: os.path.isdir(p) and os.path.isfile(os.path.join(p, "__init__.py")),
-        os.listdir(".")
-    ):
+    def is_package(path):
+        return (
+            os.path.isdir(path) and
+            os.path.isfile(os.path.join(path, "__init__.py"))
+        )
+
+    for pkg in filter(is_package, os.listdir(".")):
         modules.extend([pkg, ] + [
             "{}.{}".format(pkg, subpkg)
             for subpkg in setuptools_find_packages(pkg)
@@ -47,62 +52,149 @@ def find_packages():
     return modules
 
 
+def svn_info(wc_path):
+    """
+    Look up info on a Subversion working copy.
+    """
+    try:
+        info_xml = subprocess.check_output(
+            ["svn", "info", "--xml", wc_path],
+            stderr=subprocess.STDOUT,
+        )
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return None
+        raise
+    except subprocess.CalledProcessError:
+        return None
+
+    info = ElementTree.fromstring(info_xml)
+    assert info.tag == "info"
+
+    entry = info.find("entry")
+    url = entry.find("url")
+    root = entry.find("repository").find("root")
+    if url.text.startswith(root.text):
+        location = url.text[len(root.text):].strip("/")
+    else:
+        location = url.text.strip("/")
+    project, branch = location.split("/")
+
+    return dict(
+        root=root.text,
+        project=project, branch=branch,
+        revision=info.find("entry").attrib["revision"],
+    )
+
+
+def svn_status(wc_path):
+    """
+    Look up status on a Subversion working copy.
+    Complies with PEP 440: https://www.python.org/dev/peps/pep-0440/
+
+    Examples:
+        C{6.0} (release tag)
+        C{6.1.b2.dev14564} (release branch)
+        C{7.0.b1.dev14564} (trunk)
+        C{6.0.a1.dev14441+branches.pg8000} (other branch)
+    """
+    try:
+        status_xml = subprocess.check_output(
+            ["svn", "status", "--xml", wc_path]
+        )
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return
+        raise
+    except subprocess.CalledProcessError:
+        return
+
+    status = ElementTree.fromstring(status_xml)
+    assert status.tag == "status"
+
+    target = status.find("target")
+
+    for entry in target.findall("entry"):
+        entry_status = entry.find("wc-status")
+        if entry_status is not None:
+            item = entry_status.attrib["item"]
+            if item == "unversioned":
+                continue
+        path = entry.attrib["path"]
+        if wc_path != ".":
+            path = path.lstrip(wc_path)
+        yield dict(path=path)
+
 
 def version():
     """
     Compute the version number.
     """
-
-    base_version = "0.1"
-
-    branches = tuple(
-        branch.format(
-            project="twext",
-            version=base_version,
-        )
-        for branch in (
-            "tags/release/{project}-{version}",
-            "branches/release/{project}-{version}-dev",
-            "trunk",
-        )
-    )
-
     source_root = dirname(abspath(__file__))
 
-    for branch in branches:
-        cmd = ["svnversion", "-n", source_root, branch]
+    info = svn_info(source_root)
+    print(info)
 
-        try:
-            svn_revision = subprocess.check_output(cmd)
+    if info is None:
+        # We don't have Subversion info...
+        return "{}.a1+unknown".format(base_version)
 
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                full_version = base_version + "-unknown"
-                break
-            raise
+    assert info["project"] == project_name, (
+        "Subversion project {!r} != {!r}"
+        .format(info["project"], project_name)
+    )
 
-        if "S" in svn_revision:
-            continue
+    status = svn_status(source_root)
 
-        full_version = base_version
-
-        if branch == "trunk":
-            full_version += "b.trunk"
-        elif branch.endswith("-dev"):
-            full_version += "c.dev"
-
-        if svn_revision in ("exported", "Unversioned directory"):
-            full_version += "-unknown"
-        else:
-            full_version += "-r{revision}".format(revision=svn_revision)
-
+    for entry in status:
+        # We have modifications.
+        modified = "+modified"
         break
     else:
-        full_version = base_version
-        full_version += "a.unknown"
-        full_version += "-r{revision}".format(revision=svn_revision)
+        modified = ""
 
-    return full_version
+
+    if info["branch"].startswith("tags/release/"):
+        project_version = info["branch"].lstrip("tags/release/")
+        project, version = project_version.split("-")
+        assert project == project_name, (
+            "Tagged project {!r} != {!r}".format(project, project_name)
+        )
+        assert version == base_version, (
+            "Tagged version {!r} != {!r}".format(version, base_version)
+        )
+        # This is a correctly tagged release of this project.
+        return "{}{}".format(base_version, modified)
+
+    if info["branch"].startswith("branches/release/"):
+        project_version = info["branch"].lstrip("branches/release/")
+        project, version, dev = project_version.split("-")
+        assert project == project_name, (
+            "Branched project {!r} != {!r}".format(project, project_name)
+        )
+        assert version == base_version, (
+            "Branched version {!r} != {!r}".format(version, base_version)
+        )
+        assert dev == "dev", (
+            "Branch name doesn't end in -dev: {!r}".format(info["branch"])
+        )
+        # This is a release branch of this project.
+        # Designate this as beta2, dev version based on svn revision.
+        return "{}.b2.dev{}{}".format(base_version, info["revision"], modified)
+
+    if info["branch"].startswith("trunk"):
+        # This is trunk.
+        # Designate this as beta1, dev version based on svn revision.
+        return "{}.b1.dev{}{}".format(base_version, info["revision"], modified)
+
+    # This is some unknown branch or tag...
+    return "{}.a1.dev{}+{}{}".format(
+        base_version,
+        info["revision"],
+        info["branch"].replace("/", "."),
+        modified.replace("+", "."),
+    )
+
 
 
 
@@ -110,7 +202,7 @@ def version():
 # Options
 #
 
-name = "twextpy"
+project_name = "twextpy"
 
 description = "Extensions to Twisted"
 
@@ -207,7 +299,7 @@ def doSetup():
         version_file.close()
 
     setup(
-        name=name,
+        name=project_name,
         version=version_string,
         description=description,
         long_description=long_description,
