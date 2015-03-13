@@ -122,7 +122,8 @@ def svn_status(wc_path):
                 continue
         path = entry.attrib["path"]
         if wc_path != ".":
-            path = path.lstrip(wc_path)
+            if path.startswith(wc_path):
+                path = path[len(wc_path):]
         yield dict(path=path)
 
 
@@ -154,7 +155,7 @@ def version():
 
 
     if info["branch"].startswith("tags/release/"):
-        project_version = info["branch"].lstrip("tags/release/")
+        project_version = info["branch"][len("tags/release/"):]
         project, version = project_version.split("-")
         assert project == project_name, (
             "Tagged project {!r} != {!r}".format(project, project_name)
@@ -166,7 +167,7 @@ def version():
         return "{}{}".format(base_version, modified)
 
     if info["branch"].startswith("branches/release/"):
-        project_version = info["branch"].lstrip("branches/release/")
+        project_version = info["branch"][len("branches/release/"):]
         project, version, dev = project_version.split("-")
         assert project == project_name, (
             "Branched project {!r} != {!r}".format(project, project_name)
