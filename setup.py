@@ -133,7 +133,6 @@ def version():
     source_root = dirname(abspath(__file__))
 
     info = svn_info(source_root)
-    print(info)
 
     if info is None:
         # We don't have Subversion info...
@@ -202,7 +201,7 @@ def version():
 # Options
 #
 
-project_name = "twextpy"
+project_name = "twext"
 
 description = "Extensions to Twisted"
 
@@ -299,7 +298,7 @@ def doSetup():
         version_file.close()
 
     setup(
-        name=project_name,
+        name="twextpy",
         version=version_string,
         description=description,
         long_description=long_description,
