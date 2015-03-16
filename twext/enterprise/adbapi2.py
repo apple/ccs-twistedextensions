@@ -302,7 +302,13 @@ class _ConnectedTxn(object):
         else:
             if raiseOnZeroRowCount is not None and self._cursor.rowcount == 0:
                 raise raiseOnZeroRowCount()
-            return None
+            # Oracle with a return into clause returns an empty set or rows, but
+            # we then have to insert the special bind variables for the return into.
+            # Thus we need to know whether there was any rowcount from the actual query.
+            # What we do is always insert a set of empty rows as the result if the
+            # rowcount is non-zero. Then we can detect whether the bind variables
+            # need to be added into the result set.
+            return [[]] * self._cursor.rowcount if self._cursor.rowcount else None
 
 
     def execSQL(self, *args, **kw):

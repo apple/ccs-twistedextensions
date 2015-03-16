@@ -1655,9 +1655,13 @@ class _DMLStatement(_Statement):
             queryGenerator.dialect == ORACLE_DIALECT and
             self.Return is not None
         ):
-            def processIt(shouldBeNone):
-                result = [[v.value for _ignore_k, v in outvars]]
-                return result
+            def processIt(emptyListResult):
+                # See comment in L{adbapi2._ConnectedTxn._reallyExecSQL}. If the
+                # result is L{None} then also return L{None}. If the result is a
+                # L{list} of empty L{list} then there are return into rows to return.
+                if emptyListResult:
+                    emptyListResult = [[v.value for _ignore_k, v in outvars]]
+                return emptyListResult
             return result.addCallback(processIt)
         else:
             return result

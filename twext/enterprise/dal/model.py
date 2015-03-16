@@ -54,7 +54,7 @@ class SQLType(object):
     def __init__(self, name, length):
         _checkstr(name)
         self.name = name
-        self.length = length
+        self.length = length if length else 0
 
 
     def __eq__(self, other):
