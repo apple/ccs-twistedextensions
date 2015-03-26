@@ -82,6 +82,8 @@ find_header () {
 
 # Initialize all the global state required to use this library.
 init_build () {
+  cd "${wd}";
+
   init_py;
 
   # These variables are defaults for things which might be configured by
@@ -109,9 +111,7 @@ init_build () {
     dep_packages="${TWEXT_PKG_CACHE}";
   fi;
 
-  project="$(setup_print name)";
-
-  export _DEVELOP_PROJECT_="${project}";
+  project="$(setup_print name)" || project="<unknown>";
 
   # Find some hashing commands
   # sha1() = sha1 hash, if available
@@ -121,34 +121,35 @@ init_build () {
 
   hash="";
 
-  if type -ft openssl > /dev/null; then
+  if find_cmd openssl > /dev/null; then
     if [ -z "${hash}" ]; then hash="md5"; fi;
-    md5 () { "$(type -p openssl)" dgst -md5 "$@"; }
-  elif type -ft md5 > /dev/null; then
+    # remove "(stdin)= " from the front which openssl emits on some platforms
+    md5 () { "$(find_cmd openssl)" dgst -md5 "$@" | sed 's/^.* //'; }
+  elif find_cmd md5 > /dev/null; then
     if [ -z "${hash}" ]; then hash="md5"; fi;
-    md5 () { "$(type -p md5)" "$@"; }
-  elif type -ft md5sum > /dev/null; then
+    md5 () { "$(find_cmd md5)" "$@"; }
+  elif find_cmd md5sum > /dev/null; then
     if [ -z "${hash}" ]; then hash="md5"; fi;
-    md5 () { "$(type -p md5sum)" "$@"; }
+    md5 () { "$(find_cmd md5sum)" "$@"; }
   fi;
 
-  if type -ft sha1sum > /dev/null; then
+  if find_cmd sha1sum > /dev/null; then
     if [ -z "${hash}" ]; then hash="sha1sum"; fi;
-    sha1 () { "$(type -p sha1sum)" "$@"; }
+    sha1 () { "$(find_cmd sha1sum)" "$@"; }
   fi;
-  if type -ft shasum > /dev/null; then
+  if find_cmd shasum > /dev/null; then
     if [ -z "${hash}" ]; then hash="sha1"; fi;
-    sha1 () { "$(type -p shasum)" "$@"; }
+    sha1 () { "$(find_cmd shasum)" "$@"; }
   fi;
 
   if [ "${hash}" = "sha1" ]; then
     hash () { sha1 "$@"; }
   elif [ "${hash}" = "md5" ]; then
     hash () { md5 "$@"; }
-  elif type -t cksum > /dev/null; then
+  elif find_cmd cksum > /dev/null; then
     hash="hash";
     hash () { cksum "$@" | cut -f 1 -d " "; }
-  elif type -t sum > /dev/null; then
+  elif find_cmd sum > /dev/null; then
     hash="hash";
     hash () { sum "$@" | cut -f 1 -d " "; }
   else
@@ -158,9 +159,9 @@ init_build () {
 
 
 setup_print () {
-  what="$1"; shift;
+  local what="$1"; shift;
 
-  PYTHONPATH="${wd}:${PYTHONPATH:-}" "${bootstrap_python}" - << EOF
+  PYTHONPATH="${wd}:${PYTHONPATH:-}" "${bootstrap_python}" - 2>/dev/null << EOF
 from __future__ import print_function
 import setup
 print(setup.${what})
@@ -175,7 +176,7 @@ www_get () {
   local  md5="";
   local sha1="";
 
-  OPTIND=1;
+  local OPTIND=1;
   while getopts "m:s:" option; do
     case "${option}" in
       'm')  md5="${OPTARG}"; ;;
@@ -193,9 +194,11 @@ www_get () {
   fi;
   if [ ! -d "${path}" ]; then
     local ext="$(echo "${url}" | sed 's|^.*\.\([^.]*\)$|\1|')";
+    local decompress="";
+    local unpack="";
 
     untar () { tar -xvf -; }
-    unzipstream () { tmp="$(mktemp -t ccsXXXXX)"; cat > "${tmp}"; unzip "${tmp}"; rm "${tmp}"; }
+    unzipstream () { local tmp="$(mktemp -t ccsXXXXX)"; cat > "${tmp}"; unzip "${tmp}"; rm "${tmp}"; }
     case "${ext}" in
       gz|tgz) decompress="gzip -d -c"; unpack="untar"; ;;
       bz2)    decompress="bzip2 -d -c"; unpack="untar"; ;;
@@ -320,6 +323,8 @@ www_get () {
 # Run 'make' with the given command line, prepending a -j option appropriate to
 # the number of CPUs on the current machine, if that can be determined.
 jmake () {
+  local ncpu="";
+
   case "$(uname -s)" in
     Darwin|Linux)
       ncpu="$(getconf _NPROCESSORS_ONLN)";
@@ -345,13 +350,18 @@ jmake () {
 c_dependency () {
   local f_hash="";
   local configure="configure";
+  local prebuild_cmd=""; 
+  local build_cmd="jmake"; 
+  local install_cmd="make install";
 
-  OPTIND=1;
-  while getopts "m:s:c:" option; do
+  local OPTIND=1;
+  while getopts "m:s:c:p:b:" option; do
     case "${option}" in
       'm') f_hash="-m ${OPTARG}"; ;;
       's') f_hash="-s ${OPTARG}"; ;;
       'c') configure="${OPTARG}"; ;;
+      'p') prebuild_cmd="${OPTARG}"; ;;
+      'b') build_cmd="${OPTARG}"; ;;
     esac;
   done;
   shift $((${OPTIND} - 1));
@@ -364,8 +374,7 @@ c_dependency () {
 
   mkdir -p "${dep_sources}";
 
-  srcdir="${dep_sources}/${path}";
-  # local dstroot="${srcdir}/_root";
+  local srcdir="${dep_sources}/${path}";
   local dstroot="${dev_roots}/${name}";
 
   www_get ${f_hash} "${name}" "${srcdir}" "${uri}";
@@ -376,7 +385,7 @@ c_dependency () {
   export          CPPFLAGS="-I${dstroot}/include ${CPPFLAGS:-} ";
   export           LDFLAGS="-L${dstroot}/lib -L${dstroot}/lib64 ${LDFLAGS:-} ";
   export DYLD_LIBRARY_PATH="${dstroot}/lib:${dstroot}/lib64:${DYLD_LIBRARY_PATH:-}";
-  export PKG_CONFIG_PATH="${dstroot}/lib/pkgconfig:${PKG_CONFIG_PATH:-}";
+  export   PKG_CONFIG_PATH="${dstroot}/lib/pkgconfig:${PKG_CONFIG_PATH:-}";
 
   if "${do_setup}"; then
     if "${force_setup}"; then
@@ -386,8 +395,11 @@ c_dependency () {
       echo "Building ${name}...";
       cd "${srcdir}";
       "./${configure}" --prefix="${dstroot}" "$@";
-      jmake;
-      jmake install;
+      if [ ! -z "${prebuild_cmd}" ]; then
+        eval ${prebuild_cmd};
+      fi;
+      eval ${build_cmd};
+      eval ${install_cmd};
       cd "${wd}";
     else
       echo "Using built ${name}.";
@@ -432,13 +444,13 @@ c_dependencies () {
   # value of OPENSSL_VERSION_NUBMER for use in inequality comparison.
   ruler;
 
-  local min_ssl_version="9470367000";  # OpenSSL 0.9.8y
+  local min_ssl_version="9470367";  # OpenSSL 0.9.8y
 
   local ssl_version="$(c_macro openssl/ssl.h OPENSSL_VERSION_NUMBER)";
   if [ -z "${ssl_version}" ]; then ssl_version="0x0"; fi;
   ssl_version="$("${bootstrap_python}" -c "print ${ssl_version}")";
 
-  if [ "${ssl_version}" -lt "${min_ssl_version}" ]; then
+  if [ "${ssl_version}" -ge "${min_ssl_version}" ]; then
     using_system "OpenSSL";
   else
     local v="0.9.8y";
@@ -448,8 +460,9 @@ c_dependencies () {
     # use 'config' instead of 'configure'; 'make' instead of 'jmake'.
     # also pass 'shared' to config to build shared libs.
     c_dependency -c "config" -m "47c7fb37f78c970f1d30aa2f9e9e26d8" \
+      -p "make depend" -b "make" \
       "openssl" "${p}" \
-      "http://www.openssl.org/source/${p}.tar.gz" "no-ssl2";
+      "http://www.openssl.org/source/${p}.tar.gz" "shared";
   fi;
 
 
@@ -484,7 +497,7 @@ c_dependencies () {
     c_dependency -m "39831848c731bcaef235a04e0d14412f" \
       "OpenLDAP" "${p}" \
       "http://www.openldap.org/software/download/OpenLDAP/${n}-release/${p}.tgz" \
-      --disable-bdb --disable-hdb;
+      --disable-bdb --disable-hdb --with-tls=openssl;
   fi;
 
 
@@ -503,31 +516,11 @@ c_dependencies () {
     local p="${n}-${v}";
 
     c_dependency -m "a7f4e5e559a0e37b3ffc438c9456e425" \
-      "Cyrus SASL" "${p}" \
+      "CyrusSASL" "${p}" \
       "ftp://ftp.cyrusimap.org/cyrus-sasl/${p}.tar.gz" \
       --disable-macos-framework;
   fi;
 
-
-  ruler;
-  if type -P postgres > /dev/null; then
-    using_system "Postgres";
-  else
-    local v="9.3.1";
-    local n="postgresql";
-    local p="${n}-${v}";
-
-    if type -P dtrace > /dev/null; then
-      local enable_dtrace="--enable-dtrace";
-    else
-      local enable_dtrace="";
-    fi;
-
-    c_dependency -m "c003d871f712d4d3895956b028a96e74" \
-      "PostgreSQL" "${p}" \
-      "http://ftp.postgresql.org/pub/source/v${v}/${p}.tar.bz2" \
-      --with-python ${enable_dtrace};
-  fi;
 
 }
 
@@ -537,10 +530,12 @@ c_dependencies () {
 #
 py_dependencies () {
   python="${py_bindir}/python";
+  py_ve_tools="${dev_home}/ve_tools";
 
   export PATH="${py_virtualenv}/bin:${PATH}";
   export PYTHON="${python}";
-  export PYTHONPATH="${wd}:${PYTHONPATH:-}";
+  export PYTHONPATH="${py_ve_tools}/lib:${wd}:${PYTHONPATH:-}";
+
 
   # Work around a change in Xcode tools that breaks Python modules in OS X
   # 10.9.2 and prior due to a hard error if the -mno-fused-madd is used, as
@@ -563,14 +558,17 @@ py_dependencies () {
 
   if [ ! -d "${py_virtualenv}" ]; then
     bootstrap_virtualenv;
-    "${bootstrap_python}" -m virtualenv --system-site-packages "${py_virtualenv}";
+    "${bootstrap_python}" -m virtualenv  \
+      --system-site-packages             \
+      --no-setuptools                    \
+      "${py_virtualenv}";
   fi;
 
   cd "${wd}";
 
   # Make sure setup got called enough to write the version file.
 
-  "${python}" "${wd}/setup.py" check > /dev/null;
+  PYTHONPATH="${PYTHONPATH}" "${python}" "${wd}/setup.py" check > /dev/null;
 
   if [ -d "${dev_home}/pip_downloads" ]; then
     pip_install="pip_install_from_cache";
@@ -595,33 +593,23 @@ py_dependencies () {
 
 
 bootstrap_virtualenv () {
-  py_ve_tools="${dev_home}/ve_tools";
-
-  if [ -d "${py_ve_tools}/lib" ]; then
-    export PYTHONPATH="${py_ve_tools}/lib:${PYTHONPATH:-}";
-  fi;
-
-  if "${bootstrap_python}" -m virtualenv > /dev/null 2>&1; then
-    return 0;
-  fi;
-
   mkdir -p "${py_ve_tools}";
   mkdir -p "${py_ve_tools}/lib";
   mkdir -p "${py_ve_tools}/junk";
 
   for pkg in             \
-      pip-1.5.4          \
-      virtualenv-1.11.4  \
-      setuptools-3.4.4   \
+      setuptools-12.0.5  \
+      pip-6.0.8          \
+      virtualenv-12.0.7  \
   ; do
-         name="${pkg%-*}";
-      version="${pkg#*-}";
-       first="$(echo "${name}" | sed 's|^\(.\).*$|\1|')";
-         url="https://pypi.python.org/packages/source/${first}/${name}/${pkg}.tar.gz";
+      local    name="${pkg%-*}";
+      local version="${pkg#*-}";
+      local  first="$(echo "${name}" | sed 's|^\(.\).*$|\1|')";
+      local    url="https://pypi.python.org/packages/source/${first}/${name}/${pkg}.tar.gz";
 
       ruler "Downloading ${pkg}";
 
-      tmp="$(mktemp -d -t ccsXXXXX)";
+      local tmp="$(mktemp -d -t ccsXXXXX)";
 
       curl -L "${url}" | tar -C "${tmp}" -xvzf -;
 
@@ -638,8 +626,6 @@ bootstrap_virtualenv () {
 
       rm -rf "${tmp}";
   done;
-
-  export PYTHONPATH="${py_ve_tools}/lib:${PYTHONPATH:-}";
 }
 
 
@@ -667,7 +653,6 @@ pip_install_from_cache () {
 pip_download_and_install () {
   "${python}" -m pip install                 \
     --pre --allow-all-external               \
-    --download-cache="${dev_home}/pip_cache" \
     --log-file="${dev_home}/pip.log"         \
     "$@";
 }
@@ -680,4 +665,21 @@ develop () {
   init_build;
   c_dependencies;
   py_dependencies;
+}
+
+
+develop_clean () {
+  init_build;
+
+  # Clean
+  rm -rf "${dev_roots}";
+  rm -rf "${py_virtualenv}";
+}
+
+
+develop_distclean () {
+  init_build;
+
+  # Clean
+  rm -rf "${dev_home}";
 }
