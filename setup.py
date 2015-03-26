@@ -256,7 +256,7 @@ extras_requirements = {
     "Oracle": ["cx_Oracle"],
 
     # Postgres
-    "Postgres": ["PyGreSQL"],
+    "Postgres": [],
 }
 
 
