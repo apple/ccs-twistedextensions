@@ -75,10 +75,10 @@ def svn_info(wc_path):
     url = entry.find("url")
     root = entry.find("repository").find("root")
     if url.text.startswith(root.text):
-        location = url.text[len(root.text):].strip("/")
+        location = url.text[len(root.text):]
     else:
-        location = url.text.strip("/")
-    project, branch = location.split("/")
+        location = url.text
+    project, branch = location.strip("/").split("/")
 
     return dict(
         root=root.text,
@@ -144,16 +144,6 @@ def version():
         .format(info["project"], project_name)
     )
 
-    status = svn_status(source_root)
-
-    for entry in status:
-        # We have modifications.
-        modified = "+modified"
-        break
-    else:
-        modified = ""
-
-
     if info["branch"].startswith("tags/release/"):
         project_version = info["branch"][len("tags/release/"):]
         project, version = project_version.split("-")
@@ -164,7 +154,7 @@ def version():
             "Tagged version {!r} != {!r}".format(version, base_version)
         )
         # This is a correctly tagged release of this project.
-        return "{}{}".format(base_version, modified)
+        return base_version
 
     if info["branch"].startswith("branches/release/"):
         project_version = info["branch"][len("branches/release/"):]
@@ -180,21 +170,19 @@ def version():
         )
         # This is a release branch of this project.
         # Designate this as beta2, dev version based on svn revision.
-        return "{}.b2.dev{}{}".format(base_version, info["revision"], modified)
+        return "{}.b2.dev{}".format(base_version, info["revision"])
 
     if info["branch"].startswith("trunk"):
         # This is trunk.
         # Designate this as beta1, dev version based on svn revision.
-        return "{}.b1.dev{}{}".format(base_version, info["revision"], modified)
+        return "{}.b1.dev{}".format(base_version, info["revision"])
 
     # This is some unknown branch or tag...
-    return "{}.a1.dev{}+{}{}".format(
+    return "{}.a1.dev{}+{}".format(
         base_version,
         info["revision"],
         info["branch"].replace("/", "."),
-        modified.replace("+", "."),
     )
-
 
 
 
@@ -232,6 +220,16 @@ platforms = ["all"]
 
 
 #
+# Entry points
+#
+
+entry_points = {
+    "console_scripts": [],
+}
+
+
+
+#
 # Dependencies
 #
 
@@ -265,11 +263,7 @@ extras_requirements = {
 # Set up Extension modules that need to be built
 #
 
-# from distutils.core import Extension
-
-extensions = [
-    # Extension("twext.python.sendmsg", sources=["twext/python/sendmsg.c"])
-]
+extensions = []
 
 if sys.platform == "darwin":
     try:
@@ -281,7 +275,6 @@ if sys.platform == "darwin":
         pass
 
 
-
 #
 # Run setup
 #
@@ -289,8 +282,11 @@ if sys.platform == "darwin":
 def doSetup():
     # Write version file
     version_string = version()
-    version_filename = joinpath(dirname(__file__), "twext", "version.py")
+    version_filename = joinpath(
+        dirname(__file__), "twext", "version.py"
+    )
     version_file = file(version_filename, "w")
+
     try:
         version_file.write(
             'version = "{0}"\n\n'.format(version_string)
@@ -311,6 +307,7 @@ def doSetup():
         platforms=platforms,
         packages=find_packages(),
         package_data={},
+        entry_points=entry_points,
         scripts=[],
         data_files=[],
         ext_modules=extensions,
@@ -319,6 +316,7 @@ def doSetup():
         install_requires=install_requirements,
         extras_require=extras_requirements,
     )
+
 
 
 #
