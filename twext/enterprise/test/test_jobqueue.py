@@ -38,14 +38,13 @@ from twext.enterprise.dal.record import fromTable
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
 from twext.enterprise.fixtures import SteppablePoolHelper
-from twext.enterprise.jobqueue import (
-    inTransaction, PeerConnectionPool, astimestamp,
-    LocalPerformer, _IJobPerformer, WorkItem, WorkerConnectionPool,
-    ConnectionFromPeerNode,
-    _BaseQueuer, NonPerformingQueuer, JobItem,
-    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM,
-    JobDescriptor, SingletonWorkItem, JobFailedError
-)
+from twext.enterprise.jobqueue import \
+    inTransaction, PeerConnectionPool, astimestamp, \
+    LocalPerformer, _IJobPerformer, WorkItem, WorkerConnectionPool, \
+    ConnectionFromPeerNode, \
+    _BaseQueuer, NonPerformingQueuer, JobItem, \
+    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM, \
+    JobDescriptor, SingletonWorkItem, JobFailedError, JobTemporaryError
 import twext.enterprise.jobqueue
 
 # TODO: There should be a store-building utility within twext.enterprise.
@@ -280,6 +279,8 @@ class DummyWorkItem(WorkItem, DummyWorkItemTable):
     def doWork(self):
         if self.a == -1:
             raise ValueError("Ooops")
+        elif self.a == -2:
+            raise JobTemporaryError(120)
         self.results[self.jobID] = self.a + self.b
         return succeed(None)
 
@@ -1000,29 +1001,22 @@ class PeerConnectionPoolUnitTests(TestCase):
         @transactionally(dbpool.pool.connection)
         @inlineCallbacks
         def setup(txn):
-            # First, one that's right now.
+            # OK
             yield DummyWorkItem.makeJob(
                 txn, a=1, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60)
             )
 
-            # Next, create one that's actually far enough into the past to run.
+            # Error
             yield DummyWorkItem.makeJob(
                 txn, a=-1, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
             )
 
-            # Finally, one that's actually scheduled for the future.
+            # OK
             yield DummyWorkItem.makeJob(
                 txn, a=2, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60)
             )
         yield setup
         clock.advance(20 - 12)
-
-        # Wait for job
-#        while True:
-#            jobs = yield inTransaction(dbpool.pool.connection, lambda txn: JobItem.all(txn))
-#            if all([job.a == -1 for job in jobs]):
-#                break
-#            clock.advance(1)
 
         # Work item complete
         self.assertTrue(DummyWorkItem.results == {1: 1, 3: 2})
@@ -1060,6 +1054,40 @@ class PeerConnectionPoolUnitTests(TestCase):
         self.assertTrue(jobs[0].assigned is None)
         self.assertTrue(jobs[0].failed == 1)
         self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow())
+
+
+    @inlineCallbacks
+    def test_temporaryFailure(self):
+        """
+        When a work item temporARILY fails it should appear as unassigned in the JOB
+        table and have the failure count bumped, and a notBefore set to the temporary delay.
+        """
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
+        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+
+        # Let's create a couple of work items directly, not via the enqueue
+        # method, so that they exist but nobody will try to immediately execute
+        # them.
+
+        @transactionally(dbpool.pool.connection)
+        @inlineCallbacks
+        def setup(txn):
+            # Next, create failing work that's actually far enough into the past to run.
+            yield DummyWorkItem.makeJob(
+                txn, a=-2, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+        yield setup
+        clock.advance(20 - 12)
+
+        @transactionally(dbpool.pool.connection)
+        def check(txn):
+            return JobItem.all(txn)
+
+        jobs = yield check
+        self.assertTrue(len(jobs) == 1)
+        self.assertTrue(jobs[0].assigned is None)
+        self.assertTrue(jobs[0].failed == 1)
+        self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow() + datetime.timedelta(seconds=90))
 
 
 

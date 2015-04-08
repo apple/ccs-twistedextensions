@@ -326,6 +326,21 @@ class JobFailedError(Exception):
 
 
 
+class JobTemporaryError(Exception):
+    """
+    A job failed to run due to a temporary failure. We will get the job to run again after the specified
+    interval (with a built-in back-off based on the number of failures also applied).
+    """
+
+    def __init__(self, delay):
+        """
+        @param delay: amount of time in seconds before it should run again
+        @type delay: L{int}
+        """
+        self.delay = delay
+
+
+
 class JobRunningError(Exception):
     """
     A job is already running.
@@ -452,6 +467,28 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         def _overtm(nb):
             return "{:.0f}".format(1000 * (t - astimestamp(nb)))
 
+        # Failed job clean-up
+        def _failureCleanUp(delay=None):
+            @inlineCallbacks
+            def _cleanUp2(txn2):
+                try:
+                    job = yield cls.load(txn2, jobID)
+                except NoSuchRecord:
+                    log.debug(
+                        "JobItem: {jobid} disappeared t={tm}",
+                        jobid=jobID,
+                        tm=_tm(),
+                    )
+                else:
+                    log.debug(
+                        "JobItem: {jobid} marking as failed {count} t={tm}",
+                        jobid=jobID,
+                        count=job.failed + 1,
+                        tm=_tm(),
+                    )
+                    yield job.failedToRun(locked=isinstance(e, JobRunningError), delay=delay)
+            return inTransaction(txnFactory, _cleanUp2, "ultimatelyPerform._failureCleanUp")
+
         log.debug("JobItem: {jobid} starting to run", jobid=jobID)
         txn = txnFactory(label="ultimatelyPerform: {}".format(jobID))
         try:
@@ -475,28 +512,24 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 tm=_tm(),
             )
 
+        except JobTemporaryError as e:
+
+            # Temporary failure delay with back-off
+            def _temporaryFailure():
+                return _failureCleanUp(delay=e.delay * (job.failed + 1))
+            log.debug(
+                "JobItem: {jobid} {desc} {work} t={tm}",
+                jobid=jobID,
+                desc="temporary failure #{}".format(job.failed + 1),
+                work=job.workType,
+                tm=_tm(),
+            )
+            txn.postAbort(_temporaryFailure)
+            yield txn.abort()
+
         except (JobFailedError, JobRunningError) as e:
-            # Job failed: abort with cleanup, but pretend this method succeeded
-            def _cleanUp():
-                @inlineCallbacks
-                def _cleanUp2(txn2):
-                    try:
-                        job = yield cls.load(txn2, jobID)
-                    except NoSuchRecord:
-                        log.debug(
-                            "JobItem: {jobid} disappeared t={tm}",
-                            jobid=jobID,
-                            tm=_tm(),
-                        )
-                    else:
-                        log.debug(
-                            "JobItem: {jobid} marking as failed {count} t={tm}",
-                            jobid=jobID,
-                            count=job.failed + 1,
-                            tm=_tm(),
-                        )
-                        yield job.failedToRun(locked=isinstance(e, JobRunningError))
-                return inTransaction(txnFactory, _cleanUp2, "ultimatelyPerform._cleanUp")
+
+            # Permanent failure
             log.debug(
                 "JobItem: {jobid} {desc} {work} t={tm}",
                 jobid=jobID,
@@ -504,7 +537,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 work=job.workType,
                 tm=_tm(),
             )
-            txn.postAbort(_cleanUp)
+            txn.postAbort(_failureCleanUp)
             yield txn.abort()
 
         except:
@@ -645,7 +678,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                     workid=workItem.workID,
                     exc=f,
                 )
-                raise JobFailedError(e)
+                if isinstance(e, JobTemporaryError):
+                    raise
+                else:
+                    raise JobFailedError(e)
 
         try:
             # Once the work is done we delete ourselves - NB this must be the last thing done
