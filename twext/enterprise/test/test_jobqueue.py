@@ -1059,7 +1059,7 @@ class PeerConnectionPoolUnitTests(TestCase):
     @inlineCallbacks
     def test_temporaryFailure(self):
         """
-        When a work item temporARILY fails it should appear as unassigned in the JOB
+        When a work item temporarily fails it should appear as unassigned in the JOB
         table and have the failure count bumped, and a notBefore set to the temporary delay.
         """
         dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
@@ -1088,6 +1088,159 @@ class PeerConnectionPoolUnitTests(TestCase):
         self.assertTrue(jobs[0].assigned is None)
         self.assertTrue(jobs[0].failed == 1)
         self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow() + datetime.timedelta(seconds=90))
+
+
+    @inlineCallbacks
+    def test_loopFailure_noRecovery(self):
+        """
+        When L{_workCheck} fails in its loop we need the problem job marked as failed.
+        """
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
+        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+
+        oldNextJob = JobItem.nextjob
+        @inlineCallbacks
+        def _nextJob(cls, txn, now, minPriority):
+            job = yield oldNextJob(txn, now, minPriority)
+            work = yield job.workItem()
+            if work.a == -2:
+                raise ValueError("oops")
+
+        self.patch(JobItem, "nextjob", classmethod(_nextJob))
+
+        # Let's create a couple of work items directly, not via the enqueue
+        # method, so that they exist but nobody will try to immediately execute
+        # them.
+
+        @transactionally(dbpool.pool.connection)
+        @inlineCallbacks
+        def setup(txn):
+            # Failing
+            yield DummyWorkItem.makeJob(
+                txn, a=-2, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+            # OK
+            yield DummyWorkItem.makeJob(
+                txn, a=1, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60, 5)
+            )
+        yield setup
+        clock.advance(20 - 12)
+
+        @transactionally(dbpool.pool.connection)
+        def check(txn):
+            return JobItem.all(txn)
+
+        jobs = yield check
+        self.assertEqual(len(jobs), 2)
+        self.assertEqual(jobs[0].assigned, None)
+        self.assertEqual(jobs[0].failed, 0)
+        self.assertEqual(jobs[0].notBefore, fakeNow - datetime.timedelta(20 * 60))
+        self.assertEqual(jobs[1].assigned, None)
+        self.assertEqual(jobs[1].failed, 0)
+        self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
+
+
+    @inlineCallbacks
+    def test_loopFailure_recovery(self):
+        """
+        When L{_workCheck} fails in its loop we need the problem job marked as failed.
+        """
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
+        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+
+        oldAssign = JobItem.assign
+        @inlineCallbacks
+        def _assign(self, when, overdue):
+            work = yield self.workItem()
+            if work.a == -2:
+                raise ValueError("oops")
+            yield oldAssign(self, when, overdue)
+
+        self.patch(JobItem, "assign", _assign)
+
+        # Let's create a couple of work items directly, not via the enqueue
+        # method, so that they exist but nobody will try to immediately execute
+        # them.
+
+        @transactionally(dbpool.pool.connection)
+        @inlineCallbacks
+        def setup(txn):
+            # Failing
+            yield DummyWorkItem.makeJob(
+                txn, a=-2, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+            # OK
+            yield DummyWorkItem.makeJob(
+                txn, a=1, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60, 5)
+            )
+        yield setup
+        clock.advance(20 - 12)
+
+        @transactionally(dbpool.pool.connection)
+        def check(txn):
+            return JobItem.all(txn)
+
+        jobs = yield check
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0].assigned, None)
+        self.assertEqual(jobs[0].failed, 1)
+        self.assertGreater(jobs[0].notBefore, datetime.datetime.utcnow() + datetime.timedelta(seconds=30))
+
+
+    @inlineCallbacks
+    def test_loopFailure_failedRecovery(self):
+        """
+        When L{_workCheck} fails in its loop we need the problem job marked as failed.
+        """
+        dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
+        fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
+
+        oldAssign = JobItem.assign
+        @inlineCallbacks
+        def _assign(self, when, overdue):
+            work = yield self.workItem()
+            if work.a == -2:
+                raise ValueError("oops")
+            yield oldAssign(self, when, overdue)
+
+        self.patch(JobItem, "assign", _assign)
+
+        @inlineCallbacks
+        def _failedToRun(self, locked=False, delay=None):
+            raise ValueError("oops")
+
+        self.patch(JobItem, "failedToRun", _failedToRun)
+
+        # Let's create a couple of work items directly, not via the enqueue
+        # method, so that they exist but nobody will try to immediately execute
+        # them.
+
+        @transactionally(dbpool.pool.connection)
+        @inlineCallbacks
+        def setup(txn):
+            # Failing
+            yield DummyWorkItem.makeJob(
+                txn, a=-2, b=1, notBefore=fakeNow - datetime.timedelta(20 * 60)
+            )
+            # OK
+            yield DummyWorkItem.makeJob(
+                txn, a=1, b=0, notBefore=fakeNow - datetime.timedelta(20 * 60, 5)
+            )
+        yield setup
+        clock.advance(20 - 12)
+
+        @transactionally(dbpool.pool.connection)
+        def check(txn):
+            return JobItem.all(txn)
+
+        jobs = yield check
+        self.assertEqual(len(jobs), 2)
+        self.assertEqual(jobs[0].assigned, None)
+        self.assertEqual(jobs[0].failed, 0)
+        self.assertEqual(jobs[0].notBefore, fakeNow - datetime.timedelta(20 * 60))
+        self.assertEqual(jobs[1].assigned, None)
+        self.assertEqual(jobs[1].failed, 0)
+        self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
 
 
 

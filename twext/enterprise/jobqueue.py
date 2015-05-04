@@ -2102,6 +2102,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             nowTime = datetime.utcfromtimestamp(self.reactor.seconds())
 
             txn = self.transactionFactory(label="jobqueue.workCheck")
+            nextJob = None
             try:
                 nextJob = yield JobItem.nextjob(txn, nowTime, minPriority)
                 if nextJob is None:
@@ -2137,13 +2138,49 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                 loopCounter += 1
 
             except Exception as e:
-                log.error("Failed to pick a new job, {exc}", exc=e)
+                log.error(
+                    "Failed to pick a new job: {jobID}, {exc}",
+                    jobID=nextJob.jobID if nextJob else "?",
+                    exc=e,
+                )
                 yield txn.abort()
                 txn = None
-                nextJob = None
+
+                # If we can identify the problem job, try and set it to failed so that it
+                # won't block other jobs behind it (it will be picked again when the failure
+                # interval is exceeded - but that has a back off so a permanently stuck item
+                # should fade away. We probably want to have some additional logic to simply
+                # remove something that is permanently failing.
+                if nextJob is not None:
+                    txn = self.transactionFactory(label="jobqueue.workCheck.failed")
+                    try:
+                        failedJob = yield JobItem.load(txn, nextJob.jobID)
+                        yield failedJob.failedToRun()
+                    except Exception as e:
+                        # Could not mark as failed - break out of the next job loop
+                        log.error(
+                            "Failed to mark failed new job:{}, {exc}",
+                            jobID=nextJob.jobID,
+                            exc=e,
+                        )
+                        yield txn.abort()
+                        txn = None
+                        nextJob = None
+                        break
+                    else:
+                        # Marked the problem one as failed, so keep going and get the next job
+                        log.error("Marked failed new job: {jobID}", jobID=nextJob.jobID)
+                        yield txn.commit()
+                        txn = None
+                        nextJob = None
+                else:
+                    # Cannot mark anything as failed - break out of next job loop
+                    log.error("Cannot mark failed new job")
+                    break
             finally:
                 if txn:
                     yield txn.commit()
+                    txn = None
 
             if nextJob is not None:
                 try:
