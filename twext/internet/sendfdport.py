@@ -511,6 +511,9 @@ class InheritedPort(FileDescriptor, object):
                     peeraddr = skt.getpeername()
                 except SocketError:
                     peeraddr = ('0.0.0.0', 0)
+                # FIXME: when using UNIX Domain sockets, peeraddr = ""
+                if not peeraddr:
+                    peeraddr = ('0.0.0.0', 0)
                 protocol = self.protocolFactory.buildProtocol(peeraddr)
                 transport = self.transportFactory(skt, peeraddr,
                                                   description, protocol)
