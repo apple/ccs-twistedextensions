@@ -25,7 +25,7 @@ __all__ = [
 
 from twisted.application import service
 from twisted.internet import endpoints
-from twisted.internet.defer import succeed, inlineCallbacks
+from twisted.internet.defer import inlineCallbacks
 
 from twext.python.log import Logger
 
@@ -33,49 +33,12 @@ log = Logger()
 
 
 
-# class MaxAcceptPortMixin(object):
-#     """
-#     Mixin for resetting maxAccepts.
-#     """
-#     def doRead(self):
-#         self.numberAccepts = min(
-#             self.factory.maxRequests - self.factory.outstandingRequests,
-#             self.factory.maxAccepts
-#         )
-#         tcp.Port.doRead(self)
-
-
-
-# class MaxAcceptTCPPort(MaxAcceptPortMixin, tcp.Port):
-#     """
-#     Use for non-inheriting tcp ports.
-#     """
-
-
-
-
-
-
-
-def _allConnectionsClosed(protocolFactory):
-    """
-    Check to see if protocolFactory implements allConnectionsClosed( ) and
-    if so, call it.  Otherwise, return immediately.
-    This allows graceful shutdown by waiting for all requests to be completed.
-
-    @param protocolFactory: (usually) an HTTPFactory implementing
-        allConnectionsClosed which returns a Deferred which fires when all
-        connections are closed.
-
-    @return: A Deferred firing None when all connections are closed, or
-        immediately if the given factory does not track its connections (e.g.
-        InheritingProtocolFactory)
-    """
-    if hasattr(protocolFactory, "allConnectionsClosed"):
-        return protocolFactory.allConnectionsClosed()
-    return succeed(None)
-
-
+def maxAcceptDoRead(self):
+    self.numberAccepts = min(
+        self.factory.maxRequests - self.factory.outstandingRequests,
+        self.factory.maxAccepts
+    )
+    self.realDoRead()
 
 
 class MaxAcceptSocketFileServer(service.Service):
@@ -102,6 +65,12 @@ class MaxAcceptSocketFileServer(service.Service):
         )
         self.myPort = yield endpoint.listen(self.protocolFactory)
 
+        # intercept doRead() to set numberAccepts
+        self.myPort.realDoRead = self.myPort.doRead
+        self.myPort.doRead = maxAcceptDoRead.__get__(
+            self.myPort, self.myPort.__class__
+        )
+
 
     @inlineCallbacks
     def stopService(self):
@@ -113,4 +82,6 @@ class MaxAcceptSocketFileServer(service.Service):
         """
         if self.myPort is not None:
             yield self.myPort.stopListening()
-        yield _allConnectionsClosed(self.protocolFactory)
+
+        if hasattr(self.protocolFactory, "allConnectionsClosed"):
+            yield self.protocolFactory.allConnectionsClosed()
