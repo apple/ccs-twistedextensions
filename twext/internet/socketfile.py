@@ -61,7 +61,7 @@ class MaxAcceptSocketFileServer(service.Service):
     def startService(self):
         from twisted.internet import reactor
         endpoint = endpoints.UNIXServerEndpoint(
-            reactor, self.address, backlog=self.backlog,
+            reactor, self.address, backlog=self.backlog, wantPID=1
         )
         self.myPort = yield endpoint.listen(self.protocolFactory)
 
