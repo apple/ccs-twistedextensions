@@ -146,7 +146,8 @@ from twext.enterprise.dal.syntax import (
 )
 
 from twext.enterprise.dal.model import ProcedureCall, Sequence
-from twext.enterprise.dal.record import Record, fromTable, NoSuchRecord
+from twext.enterprise.dal.record import Record, fromTable, NoSuchRecord, \
+    SerializableRecord
 from twisted.python.failure import Failure
 
 from twext.enterprise.dal.model import Table, Schema, SQLType, Constraint
@@ -237,6 +238,7 @@ def makeJobSchema(inSchema):
     JobTable.addColumn("ASSIGNED", SQLType("timestamp", None), default=None)
     JobTable.addColumn("OVERDUE", SQLType("timestamp", None), default=None)
     JobTable.addColumn("FAILED", SQLType("integer", 0), default=0)
+    JobTable.addColumn("PAUSE", SQLType("integer", 0), default=0)
 
     return inSchema
 
@@ -351,6 +353,7 @@ class JobRunningError(Exception):
 
 class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     """
+    @DynamicAttrs
     An item in the job table. This is typically not directly used by code
     creating work items, but rather is used for internal book keeping of jobs
     associated with work items.
@@ -441,6 +444,21 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             failed=self.failed + (0 if locked else 1),
             notBefore=datetime.utcnow() + timedelta(seconds=delay)
         )
+
+
+    def pauseIt(self, pause=False):
+        """
+        Pause the L{JobItem} leaving all other attributes the same. The job processing loop
+        will skip paused items.
+
+        @param pause: indicates whether the job should be paused.
+        @type pause: L{bool}
+        @param delay: how long before the job is run again, or C{None} for a default
+            staggered delay behavior.
+        @type delay: L{int}
+        """
+
+        return self.update(pause=pause)
 
 
     @classmethod
@@ -612,15 +630,17 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @rtype: L{JobItem}
         """
 
+        queryExpr = (cls.notBefore <= now).And(cls.priority >= minPriority).And(cls.pause == 0).And(
+            (cls.assigned == None).Or(cls.overdue < now)
+        )
+
         if txn.dialect == ORACLE_DIALECT:
             # Oracle does not support a "for update" clause with "order by". So do the
             # "for update" as a second query right after the first. Will need to check
             # how this might impact concurrency in a multi-host setup.
             jobs = yield cls.query(
                 txn,
-                (cls.notBefore <= now).And(cls.priority >= minPriority).And(
-                    (cls.assigned == None).Or(cls.overdue < now)
-                ),
+                queryExpr,
                 order=(cls.assigned, cls.priority),
                 ascending=False,
                 limit=limit,
@@ -635,9 +655,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         else:
             jobs = yield cls.query(
                 txn,
-                (cls.notBefore <= now).And(cls.priority >= minPriority).And(
-                    (cls.assigned == None).Or(cls.overdue < now)
-                ),
+                queryExpr,
                 order=(cls.assigned, cls.priority),
                 ascending=False,
                 forUpdate=True,
@@ -900,7 +918,7 @@ WORK_WEIGHT_CAPACITY = 10   # Total amount of work any one worker can manage
 
 
 
-class WorkItem(Record):
+class WorkItem(SerializableRecord):
     """
     A L{WorkItem} is an item of work which may be stored in a database, then
     executed later.
@@ -1028,6 +1046,7 @@ class WorkItem(Record):
         _transferArg("priority")
         _transferArg("weight")
         _transferArg("notBefore")
+        _transferArg("pause")
 
         # Always need a notBefore
         if "notBefore" not in jobargs:

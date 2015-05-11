@@ -594,6 +594,21 @@ class Record(object):
 
 
     @classmethod
+    def updatesome(cls, transaction, where, **kw):
+        """
+        Update rows matching the where expression from the table that corresponds to C{cls}.
+        """
+        colmap = {}
+        for k, v in kw.iteritems():
+            colmap[cls.__attrmap__[k]] = v
+
+        return Update(
+            colmap,
+            Where=where
+        ).on(transaction)
+
+
+    @classmethod
     def deleteall(cls, transaction):
         """
         Delete all rows from the table that corresponds to C{cls}.

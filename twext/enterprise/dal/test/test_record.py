@@ -363,6 +363,45 @@ class TestCRUD(TestCase):
 
 
     @inlineCallbacks
+    def test_updatesome(self):
+        """
+        L{Record.updatesome} will update all instances of the matching records.
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+
+        yield TestRecord.updatesome(txn, where=(TestRecord.beta == 123), gamma=u"changed")
+        yield txn.commit()
+
+        txn = self.pool.connection()
+        records = yield TestRecord.all(txn)
+        self.assertEqual(
+            set([(record.beta, record.gamma,) for record in records]),
+            set([
+                (123, u"changed"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")
+            ])
+        )
+
+        yield TestRecord.updatesome(txn, where=(TestRecord.beta.In((234, 345,))), gamma=u"changed-2")
+        yield txn.commit()
+
+        txn = self.pool.connection()
+        records = yield TestRecord.all(txn)
+        self.assertEqual(
+            set([(record.beta, record.gamma,) for record in records]),
+            set([
+                (123, u"changed"), (456, u"four"), (345, u"changed-2"),
+                (234, u"changed-2"), (356, u"three")
+            ])
+        )
+
+
+    @inlineCallbacks
     def test_deleteall(self):
         """
         L{Record.deleteall} will delete all instances of the record.

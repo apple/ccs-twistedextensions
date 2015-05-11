@@ -207,7 +207,8 @@ jobSchema = SQL(
       NOT_BEFORE  timestamp not null,
       ASSIGNED    timestamp default null,
       OVERDUE     timestamp default null,
-      FAILED      integer default 0
+      FAILED      integer default 0,
+      PAUSE       integer default 0
     );
     """
 )
@@ -532,6 +533,31 @@ class WorkItemTests(TestCase):
         job, work = yield inTransaction(dbpool.connection, _next)
         self.assertTrue(job is None)
         self.assertTrue(work is None)
+
+        # Unassigned, paused job with past notBefore not returned
+        yield self._enqueue(dbpool, 3, 1, now + datetime.timedelta(days=-1), priority=WORK_PRIORITY_HIGH)
+        @inlineCallbacks
+        def pauseJob(txn, pause=True):
+            works = yield DummyWorkItem.all(txn)
+            for work in works:
+                if work.a == 3:
+                    job = yield JobItem.load(txn, work.jobID)
+                    yield job.pauseIt(pause)
+        yield inTransaction(dbpool.connection, pauseJob)
+        job, work = yield inTransaction(dbpool.connection, _next)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
+
+        # Unassigned, paused then unpaused job with past notBefore is returned
+        yield inTransaction(dbpool.connection, pauseJob, pause=False)
+        job, work = yield inTransaction(dbpool.connection, _next)
+        self.assertTrue(job is not None)
+        self.assertTrue(work.a == 3)
+        @inlineCallbacks
+        def deleteJob(txn, jobID):
+            job = yield JobItem.load(txn, jobID)
+            yield job.delete()
+        yield inTransaction(dbpool.connection, deleteJob, jobID=job.jobID)
 
         # Unassigned low priority job with past notBefore not returned if high priority required
         yield self._enqueue(dbpool, 4, 1, now + datetime.timedelta(days=-1))
