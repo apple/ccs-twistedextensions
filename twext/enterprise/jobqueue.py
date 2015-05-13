@@ -1134,6 +1134,19 @@ class WorkItem(SerializableRecord):
         return succeed(None)
 
 
+    @inlineCallbacks
+    def remove(self):
+        """
+        Remove this L{WorkItem} and the associated L{JobItem}. Typically work is not removed directly, but goes away
+        when processed, but in some cases (e.g., pod-2-pod migration) old work needs to be removed along with the
+        job (which is in a pause state and would otherwise never run).
+        """
+
+        # Delete the job, then self
+        yield JobItem.deletesome(self.transaction, JobItem.jobID == self.jobID)
+        yield self.delete()
+
+
     @classmethod
     @inlineCallbacks
     def reschedule(cls, transaction, seconds, **kwargs):
