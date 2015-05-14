@@ -921,30 +921,34 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
         # Two items with IN only
         items = set(("A", "B"))
+        test = Select(
+            From=self.schema.FOO,
+            Where=self.schema.FOO.BAR.In(
+                Parameter("names", len(items))
+            )
+        ).toSQL().bind(names=items)
+        test.parameters.sort()
         self.assertEquals(
-            Select(
-                From=self.schema.FOO,
-                Where=self.schema.FOO.BAR.In(
-                    Parameter("names", len(items))
-                )
-            ).toSQL().bind(names=items),
+            test,
             SQLFragment(
                 "select * from FOO where BAR in (?, ?)", ["A", "B"]
             )
         )
 
         # Two items with preceding AND
-        self.assertEquals(
-            Select(
-                From=self.schema.FOO,
-                Where=(
-                    (
-                        self.schema.FOO.BAZ == Parameter("P1")
-                    ).And(
-                        self.schema.FOO.BAR.In(Parameter("names", len(items)))
-                    )
+        test = Select(
+            From=self.schema.FOO,
+            Where=(
+                (
+                    self.schema.FOO.BAZ == Parameter("P1")
+                ).And(
+                    self.schema.FOO.BAR.In(Parameter("names", len(items)))
                 )
-            ).toSQL().bind(P1="P1", names=items),
+            )
+        ).toSQL().bind(P1="P1", names=items)
+        test.parameters = [test.parameters[0], ] + sorted(test.parameters[1:])
+        self.assertEquals(
+            test,
             SQLFragment(
                 "select * from FOO where BAZ = ? and BAR in (?, ?)",
                 ["P1", "A", "B"]
@@ -952,17 +956,19 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
 
         # Two items with following AND
-        self.assertEquals(
-            Select(
-                From=self.schema.FOO,
-                Where=(
-                    (
-                        self.schema.FOO.BAR.In(Parameter("names", len(items)))
-                    ).And(
-                        self.schema.FOO.BAZ == Parameter("P2")
-                    )
+        test = Select(
+            From=self.schema.FOO,
+            Where=(
+                (
+                    self.schema.FOO.BAR.In(Parameter("names", len(items)))
+                ).And(
+                    self.schema.FOO.BAZ == Parameter("P2")
                 )
-            ).toSQL().bind(P2="P2", names=items),
+            )
+        ).toSQL().bind(P2="P2", names=items)
+        test.parameters = sorted(test.parameters[:-1]) + [test.parameters[-1], ]
+        self.assertEquals(
+            test,
             SQLFragment(
                 "select * from FOO where BAR in (?, ?) and BAZ = ?",
                 ["A", "B", "P2"]
@@ -970,17 +976,19 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
 
         # Two items with preceding OR and following AND
+        test = Select(
+            From=self.schema.FOO,
+            Where=((
+                self.schema.FOO.BAZ == Parameter("P1")
+            ).Or(
+                self.schema.FOO.BAR.In(Parameter("names", len(items))).And(
+                    self.schema.FOO.BAZ == Parameter("P2")
+                )
+            ))
+        ).toSQL().bind(P1="P1", P2="P2", names=items)
+        test.parameters = [test.parameters[0], ] + sorted(test.parameters[1:-1]) + [test.parameters[-1], ]
         self.assertEquals(
-            Select(
-                From=self.schema.FOO,
-                Where=((
-                    self.schema.FOO.BAZ == Parameter("P1")
-                ).Or(
-                    self.schema.FOO.BAR.In(Parameter("names", len(items))).And(
-                        self.schema.FOO.BAZ == Parameter("P2")
-                    )
-                ))
-            ).toSQL().bind(P1="P1", P2="P2", names=items),
+            test,
             SQLFragment(
                 "select * from FOO where BAZ = ? or BAR in (?, ?) and BAZ = ?",
                 ["P1", "A", "B", "P2"]
@@ -1023,30 +1031,34 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
 
         # Two items with IN only
-        items = set(("A", "B"))
+        items = ("A", "B")
         for items in (set(items), list(items), tuple(items),):
+            test = Select(
+                From=self.schema.FOO,
+                Where=self.schema.FOO.BAR.In(items),
+            ).toSQL().bind(names=items)
+            test.parameters.sort()
             self.assertEquals(
-                Select(
-                    From=self.schema.FOO,
-                    Where=self.schema.FOO.BAR.In(items),
-                ).toSQL().bind(names=items),
+                test,
                 SQLFragment(
                     "select * from FOO where BAR in (?, ?)", ["A", "B"]
                 )
             )
 
             # Two items with preceding AND
-            self.assertEquals(
-                Select(
-                    From=self.schema.FOO,
-                    Where=(
-                        (
-                            self.schema.FOO.BAZ == Parameter("P1")
-                        ).And(
-                            self.schema.FOO.BAR.In(items)
-                        )
+            test = Select(
+                From=self.schema.FOO,
+                Where=(
+                    (
+                        self.schema.FOO.BAZ == Parameter("P1")
+                    ).And(
+                        self.schema.FOO.BAR.In(items)
                     )
-                ).toSQL().bind(P1="P1"),
+                )
+            ).toSQL().bind(P1="P1")
+            test.parameters = [test.parameters[0], ] + sorted(test.parameters[1:])
+            self.assertEquals(
+                test,
                 SQLFragment(
                     "select * from FOO where BAZ = ? and BAR in (?, ?)",
                     ["P1", "A", "B"]
@@ -1054,17 +1066,19 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
 
             # Two items with following AND
-            self.assertEquals(
-                Select(
-                    From=self.schema.FOO,
-                    Where=(
-                        (
-                            self.schema.FOO.BAR.In(items)
-                        ).And(
-                            self.schema.FOO.BAZ == Parameter("P2")
-                        )
+            test = Select(
+                From=self.schema.FOO,
+                Where=(
+                    (
+                        self.schema.FOO.BAR.In(items)
+                    ).And(
+                        self.schema.FOO.BAZ == Parameter("P2")
                     )
-                ).toSQL().bind(P2="P2"),
+                )
+            ).toSQL().bind(P2="P2")
+            test.parameters = sorted(test.parameters[:-1]) + [test.parameters[-1], ]
+            self.assertEquals(
+                test,
                 SQLFragment(
                     "select * from FOO where BAR in (?, ?) and BAZ = ?",
                     ["A", "B", "P2"]
@@ -1072,17 +1086,19 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
 
             # Two items with preceding OR and following AND
+            test = Select(
+                From=self.schema.FOO,
+                Where=((
+                    self.schema.FOO.BAZ == Parameter("P1")
+                ).Or(
+                    self.schema.FOO.BAR.In(items).And(
+                        self.schema.FOO.BAZ == Parameter("P2")
+                    )
+                ))
+            ).toSQL().bind(P1="P1", P2="P2")
+            test.parameters = [test.parameters[0], ] + sorted(test.parameters[1:-1]) + [test.parameters[-1], ]
             self.assertEquals(
-                Select(
-                    From=self.schema.FOO,
-                    Where=((
-                        self.schema.FOO.BAZ == Parameter("P1")
-                    ).Or(
-                        self.schema.FOO.BAR.In(items).And(
-                            self.schema.FOO.BAZ == Parameter("P2")
-                        )
-                    ))
-                ).toSQL().bind(P1="P1", P2="P2"),
+                test,
                 SQLFragment(
                     "select * from FOO where BAZ = ? or BAR in (?, ?) and BAZ = ?",
                     ["P1", "A", "B", "P2"]
