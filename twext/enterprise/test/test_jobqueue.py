@@ -1269,6 +1269,43 @@ class PeerConnectionPoolUnitTests(TestCase):
         self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
 
 
+    @inlineCallbacks
+    def test_enableDisable(self):
+        """
+        L{PeerConnectionPool.enable} and L{PeerConnectionPool.disable} control queue processing.
+        """
+        dbpool, qpool, clock, performerChosen = self._setupPools()
+
+        # Disable processing
+        qpool.disable()
+
+        @transactionally(dbpool.pool.connection)
+        def check(txn):
+            return qpool.enqueueWork(
+                txn, DummyWorkItem, a=3, b=9,
+                notBefore=datetime.datetime(2012, 12, 12, 12, 12, 0)
+            )
+
+        yield check
+
+        # Advance far beyond the given timestamp.
+        clock.advance(1000)
+        self.assertEquals(performerChosen, [])
+
+        # Enable processing
+        qpool.enable()
+
+        clock.advance(1000)
+        self.assertEquals(performerChosen, [True])
+
+        # Wait for job
+        while (yield inTransaction(dbpool.pool.connection, lambda txn: JobItem.all(txn))):
+            clock.advance(1)
+
+        # Work item complete
+        self.assertTrue(DummyWorkItem.results == {1: 12})
+
+
 
 class HalfConnection(object):
     def __init__(self, protocol):

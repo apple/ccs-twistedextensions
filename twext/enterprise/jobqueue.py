@@ -1952,7 +1952,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
     highPriorityLevel = 80      # Percentage load level above which only high priority jobs are processed
     mediumPriorityLevel = 50    # Percentage load level above which high and medium priority jobs are processed
 
-    def __init__(self, reactor, transactionFactory, ampPort, useWorkerPool=True):
+    def __init__(self, reactor, transactionFactory, ampPort, useWorkerPool=True, disableWorkProcessing=False):
         """
         Initialize a L{PeerConnectionPool}.
 
@@ -1977,6 +1977,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         self.ampPort = ampPort
         self.thisProcess = None
         self.workerPool = WorkerConnectionPool() if useWorkerPool else None
+        self.disableWorkProcessing = disableWorkProcessing
         self.peers = []
         self.mappedPeers = {}
         self._startingUp = None
@@ -1993,6 +1994,20 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         Add a L{ConnectionFromPeerNode} to the active list of peers.
         """
         self.peers.append(peer)
+
+
+    def enable(self):
+        """
+        Turn on work queue processing.
+        """
+        self.disableWorkProcessing = False
+
+
+    def disable(self):
+        """
+        Turn off work queue processing.
+        """
+        self.disableWorkProcessing = True
 
 
     def totalLoad(self):
@@ -2096,7 +2111,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
 
         loopCounter = 0
         while True:
-            if not self.running:
+            if not self.running or self.disableWorkProcessing:
                 returnValue(None)
 
             # Check the overall service load - if overloaded skip this poll cycle.
