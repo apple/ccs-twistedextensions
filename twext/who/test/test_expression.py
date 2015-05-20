@@ -142,7 +142,7 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertEquals(
             "<MatchExpression: u'full names' starts with u'Wilfredo' "
-            "(not|case insensitive)>",
+            "(case insensitive|not)>",
             repr(MatchExpression(
                 FieldName.fullNames,
                 u"Wilfredo",

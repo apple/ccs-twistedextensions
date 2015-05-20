@@ -156,7 +156,7 @@ def firstResult(values):
 def describe(constant):
     if isinstance(constant, FlagConstant):
         return "|".join(
-            getattr(flag, "description", flag.name) for flag in constant
+            sorted(getattr(flag, "description", flag.name) for flag in constant)
         )
 
     if isinstance(constant, (NamedConstant, ValueConstant)):

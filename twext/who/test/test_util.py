@@ -302,8 +302,8 @@ class UtilTest(unittest.TestCase):
         descriptions with C{"|"}.
         """
         self.assertEquals(u"blue", describe(Switches.b))
-        self.assertEquals(u"red|green", describe(Switches.r | Switches.g))
-        self.assertEquals(u"blue|black", describe(Switches.b | Switches.black))
+        self.assertEquals(u"green|red", describe(Switches.r | Switches.g))
+        self.assertEquals(u"black|blue", describe(Switches.b | Switches.black))
 
 
     def test_describeObject(self):
