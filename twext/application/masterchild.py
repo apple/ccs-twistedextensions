@@ -475,7 +475,8 @@ class ChildProcessProtocol(ProcessProtocol, object):
         self.service = service
         self.inheritedSocket = inheritedSocket
 
-        # Always tell any metafd socket that we have started, so it can re-initialize state.
+        # Always tell any metafd socket that we have started, so it can
+        # re-initialize state.
         self.inheritedSocket.start()
 
 
@@ -491,7 +492,8 @@ class ChildProcessProtocol(ProcessProtocol, object):
 
 
     def processExited(self, reason):
-        # Always tell any metafd socket that we have started, so it can re-initialize state.
+        # Always tell any metafd socket that we have started, so it can
+        # re-initialize state.
         self.inheritedSocket.stop()
         self.service.childDidExit(self, reason)
 
@@ -754,8 +756,9 @@ class ChildStatus(FancyStrMixin, object):
 
     def start(self):
         """
-        The child process for this L{WorkerStatus} is about to (re)start. Reset the status to indicate it
-        is starting - that should prevent any new connections being dispatched.
+        The child process for this L{WorkerStatus} is about to (re)start.
+        Reset the status to indicate it is starting - that should prevent any
+        new connections being dispatched.
         """
         return self.reset(
             starting=1,
@@ -765,8 +768,9 @@ class ChildStatus(FancyStrMixin, object):
 
     def restarted(self):
         """
-        The child process for this L{WorkerStatus} has indicated it is now available to accept
-        connections, so reset the starting status so this socket will be available for dispatch.
+        The child process for this L{WorkerStatus} has indicated it is now
+        available to accept connections, so reset the starting status so this
+        socket will be available for dispatch.
         """
         return self.reset(
             started=self.started + 1,
@@ -776,8 +780,8 @@ class ChildStatus(FancyStrMixin, object):
 
     def stop(self):
         """
-        The child process for this L{WorkerStatus} has stopped. Stop the socket and clear out
-        existing counters, but track abandoned connections.
+        The child process for this L{WorkerStatus} has stopped. Stop the socket
+        and clear out existing counters, but track abandoned connections.
         """
         return self.reset(
             acknowledged=0,
@@ -790,7 +794,8 @@ class ChildStatus(FancyStrMixin, object):
 
     def adjust(self, **kwargs):
         """
-        Update the L{WorkerStatus} by adding the supplied values to the specified attributes.
+        Update the L{WorkerStatus} by adding the supplied values to the
+        specified attributes.
         """
         for k, v in kwargs.items():
             newval = getattr(self, k) + v
@@ -800,7 +805,8 @@ class ChildStatus(FancyStrMixin, object):
 
     def reset(self, **kwargs):
         """
-        Reset the L{WorkerStatus} by setting the supplied values in the specified attributes.
+        Reset the L{WorkerStatus} by setting the supplied values in the
+        specified attributes.
         """
         for k, v in kwargs.items():
             setattr(self, k, v)
