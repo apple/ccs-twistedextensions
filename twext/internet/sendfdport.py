@@ -29,10 +29,10 @@ from socket import (
 from zope.interface import Interface
 
 from twisted.python.sendmsg import send1msg, recv1msg, getsockfam
+from twisted.logger import Logger
 from twisted.internet.abstract import FileDescriptor
 from twisted.internet.protocol import Protocol, Factory
 
-from twext.python.log import Logger
 from twext.python.sendfd import sendfd, recvfd
 
 log = Logger()

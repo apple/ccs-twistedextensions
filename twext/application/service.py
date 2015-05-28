@@ -26,9 +26,8 @@ import sys
 import os
 import signal
 
+from twisted.logger import Logger
 from twisted.application.service import MultiService
-
-from twext.python.log import Logger
 
 
 
