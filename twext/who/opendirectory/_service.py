@@ -25,10 +25,11 @@ from time import time
 from uuid import UUID
 from zope.interface import implementer
 
-from twisted.logger import Logger
 from twisted.internet.defer import succeed, fail, inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThread
 from twisted.web.guard import DigestCredentialFactory
+
+from twext.python.log import Logger
 
 from ..idirectory import (
     DirectoryServiceError, DirectoryAvailabilityError,

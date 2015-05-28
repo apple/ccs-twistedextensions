@@ -29,13 +29,13 @@ import collections
 import ldap.async
 
 from twisted.python.constants import Names, NamedConstant
-from twisted.python.threadpool import ThreadPool
-from twisted.logger import Logger
-from twisted.internet import reactor
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
 from twisted.internet.threads import deferToThreadPool
 from twisted.cred.credentials import IUsernamePassword
+from twisted.python.threadpool import ThreadPool
+from twisted.internet import reactor
 
+from twext.python.log import Logger
 from twext.python.types import MappingProxyType
 
 from ..idirectory import (

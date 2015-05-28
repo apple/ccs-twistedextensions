@@ -130,8 +130,6 @@ from collections import namedtuple
 
 from zope.interface import implements
 
-from twisted.python.reflect import qual
-from twisted.logger import Logger
 from twisted.application.service import MultiService
 from twisted.internet.protocol import Factory
 from twisted.internet.defer import (
@@ -140,6 +138,8 @@ from twisted.internet.defer import (
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet.error import AlreadyCalled, AlreadyCancelled
 from twisted.protocols.amp import AMP, Command, Integer, String, Argument
+from twisted.python.reflect import qual
+from twext.python.log import Logger
 
 from twext.enterprise.dal.syntax import (
     SchemaSyntax, Lock, NamedValue

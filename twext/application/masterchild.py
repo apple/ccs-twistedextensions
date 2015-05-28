@@ -44,7 +44,6 @@ from twisted.python.sendmsg import getsockfam
 from twisted.python.usage import Options, UsageError
 from twisted.python.reflect import namedClass
 from twisted.python.util import FancyStrMixin
-from twisted.logger import Logger
 from twisted.application.service import MultiService, Service
 from twisted.application.service import IServiceMaker
 from twisted.application.internet import TCPServer
@@ -53,6 +52,7 @@ from twisted.internet.protocol import Protocol
 from twisted.internet.protocol import ServerFactory
 from twisted.internet.protocol import ProcessProtocol
 
+from twext.python.log import Logger
 from twext.internet.sendfdport import InheritingProtocolFactory, IStatus
 from twext.internet.sendfdport import InheritedSocketDispatcher
 from twext.internet.sendfdport import IStatusWatcher

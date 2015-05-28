@@ -23,11 +23,11 @@ __all__ = [
 ]
 
 
-from twisted.logger import Logger
 from twisted.application import service
 from twisted.internet import endpoints
 from twisted.internet.defer import inlineCallbacks
 
+from twext.python.log import Logger
 
 log = Logger()
 

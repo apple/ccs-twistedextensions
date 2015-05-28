@@ -26,11 +26,11 @@ __all__ = [
 import socket
 from OpenSSL import SSL
 
-from twisted.logger import Logger
 from twisted.application import internet
 from twisted.internet import tcp, ssl
 from twisted.internet.defer import succeed
 
+from twext.python.log import Logger
 
 log = Logger()
 
