@@ -21,7 +21,6 @@ from __future__ import print_function
 OpenDirectory directory service implementation.
 """
 
-from time import time
 from uuid import UUID
 from zope.interface import implementer
 
@@ -47,8 +46,7 @@ from ..expression import (
 )
 from ..util import ConstantsContainer, firstResult, uniqueResult
 
-from Foundation import NSAutoreleasePool
-from ._odframework import ODSession, ODNode, ODQuery
+from ...platform.osx.opendirectory import ODSession, ODNode, ODQuery, ODError
 from ._constants import (
     FieldName,
     ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod,
@@ -80,26 +78,6 @@ QUOTING_TABLE = {
 
     ord(u"\0"): u"\\00",
 }
-
-
-def wrapWithAutoreleasePool(f):
-    """
-    A decorator which creates an autorelease pool and deletes it, causing it
-    to drain
-    """
-    def wrapped(*args, **kwds):
-        pool = NSAutoreleasePool.alloc().init()
-        try:
-            return f(*args, **kwds)
-        finally:
-            del pool
-    return wrapped
-
-
-
-def deferToThreadWithAutoReleasePool(f, *args, **kwargs):
-    return deferToThread(wrapWithAutoreleasePool(f), *args, **kwargs)
-
 
 
 #
@@ -165,10 +143,6 @@ class DirectoryService(BaseDirectoryService):
 
     fieldName = ConstantsContainer((BaseDirectoryService.fieldName, FieldName))
 
-    # The auto release pool is a class attribute; if _poolDeletionRegistered
-    # is True, that means someone has already added a SystemEventTrigger
-    _poolDeletionRegistered = False
-
     def __init__(
         self,
         nodeName=ODSearchPath.search.value,
@@ -184,51 +158,6 @@ class DirectoryService(BaseDirectoryService):
         """
         self._nodeName = nodeName
         self._suppressSystemRecords = suppressSystemRecords
-
-
-        # Create an autorelease pool which will get deleted when someone
-        # calls _maybeResetPool( ), but no more often than 60 seconds, hence
-        # the "maybe"
-        DirectoryService._resetAutoreleasePool()
-
-        # Register a pool delete to happen at shutdown
-        if not DirectoryService._poolDeletionRegistered:
-            from twisted.internet import reactor
-            DirectoryService._poolDeletionRegistered = True
-            reactor.addSystemEventTrigger("after", "shutdown", DirectoryService._deletePool)
-
-
-    @classmethod
-    def _deletePool(cls):
-        """
-        Delete the autorelease pool if we have one
-        """
-        if hasattr(cls, "_autoReleasePool"):
-            del cls._autoReleasePool
-
-
-    @classmethod
-    def _resetAutoreleasePool(cls):
-        """
-        Create an autorelease pool, deleting the old one if we had one.
-        """
-        cls._deletePool()
-
-        cls._autoReleasePool = NSAutoreleasePool.alloc().init()
-        cls._poolCreationTime = time()
-
-
-    @classmethod
-    def _maybeResetPool(cls):
-        """
-        If it's been at least 60 seconds since the last time we created the
-        pool, delete the pool (which drains it) and create a new one.
-        """
-        poolCreationTime = getattr(cls, "_poolCreationTime", 0)
-        now = time()
-        if (now - poolCreationTime) > 60:
-            cls._resetAutoreleasePool()
-
 
 
     @property
@@ -260,10 +189,9 @@ class DirectoryService(BaseDirectoryService):
         if not hasattr(self, "_localNode"):
 
             if self.nodeName == ODSearchPath.search.value:
-                details, error = self.node.nodeDetailsForKeys_error_(
-                    (ODAttribute.searchPath.value,), None
-                )
-                if error:
+                try:
+                    details = self.node.details((ODAttribute.searchPath.value,))
+                except ODError as error:
                     self.log.error(
                         "Error while examining Search path",
                         error=error
@@ -296,8 +224,7 @@ class DirectoryService(BaseDirectoryService):
         Get the underlying directory session.
         """
         if not hasattr(self, "_session"):
-            session = ODSession.defaultSession()
-            self._session = session
+            self._session = ODSession.defaultSession()
         return self._session
 
 
@@ -313,11 +240,9 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{OpenDirectoryConnectionError} if unable to connect.
         """
 
-        node, error = ODNode.nodeWithSession_name_error_(
-            self.session, nodeName, None
-        )
-
-        if error:
+        try:
+            node = ODNode(self.session, nodeName)
+        except ODError as error:
             self.log.error(
                 "Error while trying to connect to OpenDirectory node "
                 "{source.nodeName!r}: {error}",
@@ -542,18 +467,17 @@ class DirectoryService(BaseDirectoryService):
         else:
             maxResults = limitResults
 
-        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            node,
-            scrubbedRecordTypes,
-            None,
-            matchType,
-            queryString,
-            self._getFetchAttributes(),
-            maxResults,
-            None
-        )
-
-        if error:
+        try:
+            query = ODQuery.newQuery(
+                node,
+                scrubbedRecordTypes,
+                None,
+                matchType,
+                queryString,
+                self._getFetchAttributes(),
+                maxResults,
+            )
+        except ODError as error:
             self.log.error(
                 "Error while forming OpenDirectory compound query: {error}",
                 error=error
@@ -676,18 +600,17 @@ class DirectoryService(BaseDirectoryService):
                 u",".join(r.name for r in recordTypes)
             )
 
-        query, error = ODQuery.queryWithNode_forRecordTypes_attribute_matchType_queryValues_returnAttributes_maximumResults_error_(
-            node,
-            scrubbedRecordTypes,
-            queryAttribute,
-            matchType | caseInsensitive,
-            queryValue,
-            self._getFetchAttributes(),
-            maxResults,
-            None
-        )
-
-        if error:
+        try:
+            query = ODQuery.newQuery(
+                node,
+                scrubbedRecordTypes,
+                queryAttribute,
+                matchType | caseInsensitive,
+                queryValue,
+                self._getFetchAttributes(),
+                maxResults,
+            )
+        except ODError as error:
             self.log.error(
                 "Error while forming OpenDirectory match query: {error}",
                 error=error
@@ -708,9 +631,10 @@ class DirectoryService(BaseDirectoryService):
         @return: True if system account record, False otherwise
         @rtype: C{Boolean}
         """
-        details, error = odRecord.recordDetailsForAttributes_error_(None, None)
 
-        if error:
+        try:
+            details = odRecord.details()
+        except ODError as error:
             self.log.error(
                 "Error while reading OpenDirectory record: {error}",
                 error=error
@@ -784,18 +708,17 @@ class DirectoryService(BaseDirectoryService):
         if query is None:
             returnValue(())
 
-        if DEFER_TO_THREAD:
-            odRecords, error = (
-                yield deferToThreadWithAutoReleasePool(
-                    query.resultsAllowingPartial_error_,
-                    False,
-                    None
+        try:
+            if DEFER_TO_THREAD:
+                odRecords = (
+                    yield deferToThread(
+                        query.results,
+                        False,
+                    )
                 )
-            )
-        else:
-            odRecords, error = query.resultsAllowingPartial_error_(False, None)
-
-        if error:
+            else:
+                odRecords = query.results(False)
+        except ODError as error:
             self.log.error(
                 "Error while executing OpenDirectory query: {error}",
                 error=error
@@ -834,9 +757,6 @@ class DirectoryService(BaseDirectoryService):
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
     ):
-        DirectoryService._maybeResetPool()
-
-
         if isinstance(expression, MatchExpression):
             self.log.debug("OD call: {}".format(expression))
             try:
@@ -874,8 +794,6 @@ class DirectoryService(BaseDirectoryService):
         CompoundExpression up into MatchExpressions for sending to the local
         node.
         """
-        DirectoryService._maybeResetPool()
-
         try:
             self.log.debug("OD call: {}".format(expression))
             query = self._queryFromCompoundExpression(
@@ -984,10 +902,9 @@ class DirectoryService(BaseDirectoryService):
 
         @return: ODRecord, or None
         """
-        record, error = self.node.recordWithRecordType_name_attributes_error_(
-            ODRecordType.user.value, username, None, None
-        )
-        if error:
+        try:
+            record = self.node.record(ODRecordType.user.value, username)
+        except ODError as error:
             self.log.error(
                 "Error while looking up user: {error}",
                 error=error
@@ -1037,7 +954,6 @@ class DirectoryService(BaseDirectoryService):
 
 
 
-
 @implementer(IPlaintextPasswordVerifier, IHTTPDigestVerifier)
 class DirectoryRecord(BaseDirectoryRecord):
     """
@@ -1051,9 +967,10 @@ class DirectoryRecord(BaseDirectoryRecord):
 
 
     def __init__(self, service, odRecord):
-        details, error = odRecord.recordDetailsForAttributes_error_(None, None)
 
-        if error:
+        try:
+            details = odRecord.details()
+        except ODError as error:
             self.log.error(
                 "Error while reading OpenDirectory record: {error}",
                 error=error
@@ -1104,7 +1021,7 @@ class DirectoryRecord(BaseDirectoryRecord):
             if type(values) is bytes:
                 values = (coerceType(fieldName, values),)
             else:
-                values = tuple(coerceType(fieldName, v) for v in values)
+                values = tuple(coerceType(fieldName, v.decode("utf-8")) for v in values)
 
             if service.fieldName.isMultiValue(fieldName):
                 fields[fieldName] = values
@@ -1146,20 +1063,19 @@ class DirectoryRecord(BaseDirectoryRecord):
     @inlineCallbacks
     def verifyPlaintextPassword(self, password):
 
-        if DEFER_TO_THREAD:
-            result, error = (
-                yield deferToThreadWithAutoReleasePool(
-                    self._odRecord.verifyPassword_error_,
-                    password,
-                    None
+        try:
+            if DEFER_TO_THREAD:
+                result = (
+                    yield deferToThread(
+                        self._odRecord.verifyPassword,
+                        password,
+                    )
                 )
-            )
-        else:
-            result, error = self._odRecord.verifyPassword_error_(
-                password, None
-            )
-
-        if error:
+            else:
+                result = self._odRecord.verifyPassword(
+                    password,
+                )
+        except ODError:
             returnValue(False)
 
         returnValue(result)
@@ -1199,23 +1115,21 @@ class DirectoryRecord(BaseDirectoryRecord):
             response=response
         )
 
-        if DEFER_TO_THREAD:
-            result, _ignore_m1, _ignore_m2, error = (
-                yield deferToThreadWithAutoReleasePool(
-                    self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_,
+        try:
+            if DEFER_TO_THREAD:
+                result = (
+                    yield deferToThread(
+                        self._odRecord.verifyPasswordExtended,
+                        ODAuthMethod.digestMD5.value,
+                        [username, challenge, responseArg, method],
+                    )
+                )
+            else:
+                result = self._odRecord.verifyPasswordExtended(
                     ODAuthMethod.digestMD5.value,
                     [username, challenge, responseArg, method],
-                    None, None, None
                 )
-            )
-        else:
-            result, _ignore_m1, _ignore_m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-                ODAuthMethod.digestMD5.value,
-                [username, challenge, responseArg, method],
-                None, None, None
-            )
-
-        if error:
+        except ODError:
             returnValue(False)
 
         returnValue(result)

@@ -52,6 +52,7 @@ def find_packages():
     return modules
 
 
+
 def svn_info(wc_path):
     """
     Look up info on a Subversion working copy.
@@ -85,6 +86,7 @@ def svn_info(wc_path):
         project=project, branch=branch,
         revision=info.find("entry").attrib["revision"],
     )
+
 
 
 def svn_status(wc_path):
@@ -125,6 +127,7 @@ def svn_status(wc_path):
             if path.startswith(wc_path):
                 path = path[len(wc_path):]
         yield dict(path=path)
+
 
 
 def version():
@@ -235,8 +238,12 @@ entry_points = {
 
 setup_requirements = []
 
+cffi_requirements = [
+    "twext/platform/osx/_corefoundation_cffi_build.py:ffi",
+]
+
 install_requirements = [
-    "cffi>=0.6",
+    "cffi>=1.1.0",
     "twisted>=15.2.0",
 ]
 
@@ -248,7 +255,7 @@ extras_requirements = {
     "LDAP": ["python-ldap"],
 
     # OpenDirectory
-    "OpenDirectory": ["pyobjc-framework-OpenDirectory"],
+    "OpenDirectory": ["cffi>=1.1.0"],
 
     # Oracle
     "Oracle": ["cx_Oracle"],
@@ -273,6 +280,7 @@ if sys.platform == "darwin":
         extensions.append(sacl.ffi.verifier.get_extension())
     except ImportError:
         pass
+
 
 
 #
@@ -313,6 +321,7 @@ def doSetup():
         ext_modules=extensions,
         py_modules=[],
         setup_requires=setup_requirements,
+        cffi_modules=cffi_requirements,
         install_requires=install_requirements,
         extras_require=extras_requirements,
     )

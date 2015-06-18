@@ -1,5 +1,5 @@
 ##
-# Copyright (c) 2010-2015 Apple Inc. All rights reserved.
+# Copyright (c) 2015 Apple Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,17 +14,8 @@
 # limitations under the License.
 ##
 
-"""
-OpenDirectory.framework
-"""
-
-import objc as _objc
-
-__bundle__ = _objc.initFrameworkWrapper(
-    "OpenDirectory",
-    frameworkIdentifier="com.apple.OpenDirectory",
-    frameworkPath=_objc.pathForFramework(
-        "/System/Library/Frameworks/OpenDirectory.framework"
-    ),
-    globals=globals()
-)
+all = [
+    "_corefoundation_cffi",
+    "_opendirectory_cffi",
+    "_utils_cffi",
+]

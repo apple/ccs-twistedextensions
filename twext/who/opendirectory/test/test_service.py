@@ -38,9 +38,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     def setUp(self):
         self.service = DirectoryService()
 
-    def tearDown(self):
-        self.service._deletePool()
-
 
     def test_queryFromMatchExpression_recordType(self):
         """
