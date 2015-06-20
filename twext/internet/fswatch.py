@@ -26,9 +26,18 @@ from twisted.python.log import Logger
 try:
     from select import (
         kevent, KQ_FILTER_VNODE, KQ_EV_ADD, KQ_EV_ENABLE,
-        KQ_EV_CLEAR, KQ_NOTE_DELETE, KQ_NOTE_RENAME, KQ_EV_EOF
+        KQ_EV_CLEAR, KQ_EV_EOF
     )
     kqueueSupported = True
+
+    try:
+        from select import (
+            KQ_NOTE_DELETE, KQ_NOTE_RENAME
+        )
+    except ImportError:
+        # PyPy does not currently define these
+        KQ_NOTE_DELETE = 0x01
+        KQ_NOTE_RENAME = 0x20
 except ImportError:
     # kqueue not supported on this platform
     kqueueSupported = False

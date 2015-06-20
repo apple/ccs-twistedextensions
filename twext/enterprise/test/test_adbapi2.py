@@ -644,10 +644,14 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
 
         # Remove the holders for the existing connections, so that the "extra"
         # connection() call wins the race and gets executed first.
+        oldholders = list(self.holders)
         self.holders[:] = []
         self.createTransaction()
         self.flushHolders()
         self.assertEquals(len(self.factory.connections), 2)
+
+        self.holders = oldholders
+        self.flushHolders()
 
 
     def setParamstyle(self, paramstyle):

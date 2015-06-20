@@ -16,6 +16,7 @@
 
 from twisted.trial import unittest
 from ..corefoundation import CFArrayRef, CFStringRef
+import gc
 
 
 """
@@ -56,6 +57,7 @@ class CFArrayRefTestCase(unittest.TestCase):
         self.assertEqual(array1.retainCount(), 2)
         self.assertEqual(array2.retainCount(), 2)
         del array1
+        gc.collect()
         self.assertEqual(array2.retainCount(), 1)
 
 

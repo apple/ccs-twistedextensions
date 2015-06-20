@@ -73,7 +73,8 @@ class CFDataRefTestCase(unittest.TestCase):
             for i in range(100):
                 f.write(chr(i))
 
-        binary = open(tmp, "r").read()
+        with open(tmp, "r") as f:
+            binary = f.read()
 
         data = CFDataRef.fromString(binary)
         self.assertEqual(data.count(), 100)

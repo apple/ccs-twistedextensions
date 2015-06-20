@@ -16,6 +16,7 @@
 
 from twisted.trial import unittest
 from ..corefoundation import CFStringRef
+import gc
 
 
 """
@@ -58,6 +59,7 @@ class CFStringRefTestCase(unittest.TestCase):
         self.assertEqual(str1.retainCount(), 2)
         self.assertEqual(str2.retainCount(), 2)
         del str1
+        gc.collect()
         self.assertEqual(str2.retainCount(), 1)
 
         str3 = CFStringRef.fromString("def")
@@ -66,6 +68,7 @@ class CFStringRefTestCase(unittest.TestCase):
         self.assertEqual(str3.retainCount(), 2)
         self.assertEqual(str4.retainCount(), 2)
         del str3
+        gc.collect()
         self.assertEqual(str4.retainCount(), 1)
 
 
