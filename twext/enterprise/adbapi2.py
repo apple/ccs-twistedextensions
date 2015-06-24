@@ -1138,6 +1138,7 @@ class ConnectionPool(Service, object):
 
         def finishInit((connection, cursor)):
             if txn._aborted:
+                connection.close()
                 return
             baseTxn = _ConnectedTxn(
                 pool=self,
