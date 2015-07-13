@@ -912,6 +912,7 @@ class _ConnectingPseudoTxn(object):
         """
         self._pool = pool
         self._holder = holder
+        self._connection = False
         self._aborted = False
 
 
@@ -924,6 +925,13 @@ class _ConnectingPseudoTxn(object):
         self._aborted = True
         if self._retry is not None:
             self._retry.cancel()
+
+        def _reallyClose():
+            if self._connection:
+                self._connection.close()
+
+        self._holder.submit(_reallyClose)
+
         d = self._holder.stop()
 
         def removeme(ignored):
@@ -1121,7 +1129,10 @@ class ConnectionPool(Service, object):
 
     def _startOneMore(self):
         """
-        Start one more _ConnectedTxn.
+        Start one more L{_ConnectedTxn}. What happens here is that we first create a
+        L{_ConnectingPseudoTxn} to hold a busy slot whilst the connection is starting
+        up. Once the connection is up, we replace the L{_ConnectingPseudoTxn} with the
+        L{_ConnectedTxn} that will do the actual DB work.
         """
         holder = self._createHolder()
         holder.start()
@@ -1132,9 +1143,9 @@ class ConnectionPool(Service, object):
         def initCursor():
             # support threadlevel=1; we can't necessarily cursor() in a
             # different thread than we do transactions in.
-            connection = self.connectionFactory()
-            cursor = connection.cursor()
-            return (connection, cursor)
+            txn._connection = self.connectionFactory()
+            cursor = txn._connection.cursor()
+            return (txn._connection, cursor)
 
         def finishInit((connection, cursor)):
             if txn._aborted:
