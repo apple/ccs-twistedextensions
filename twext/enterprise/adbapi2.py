@@ -164,6 +164,10 @@ class _ConnectedTxn(object):
         self._label = label
 
 
+    def __repr__(self):
+        return "_ConnectedTxn({})".format(self._label)
+
+
     @_forward
     def paramstyle(self):
         """
@@ -425,6 +429,10 @@ class _NoTxn(object):
         self._label = label
 
 
+    def __repr__(self):
+        return "_NoTxn({})".format(self._label)
+
+
     def _everything(self, *a, **kw):
         """
         Everything fails with a L{ConnectionError}.
@@ -457,6 +465,10 @@ class _WaitingTxn(object):
         self.paramstyle = pool.paramstyle
         self.dialect = pool.dialect
         self._label = label
+
+
+    def __repr__(self):
+        return "_WaitingTxn({})".format(self._label)
 
 
     def _enspool(self, cmd, a=(), kw={}):
