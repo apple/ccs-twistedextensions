@@ -1987,6 +1987,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         self._lastMinPriority = WORK_PRIORITY_LOW
         self._timeOfLastWork = time.time()
         self._actualPollInterval = self.queuePollInterval
+        self._inWorkCheck = False
 
 
     def addPeerConnection(self, peer):
@@ -2114,6 +2115,8 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             if not self.running or self.disableWorkProcessing:
                 returnValue(None)
 
+            self._inWorkCheck = True
+
             # Check the overall service load - if overloaded skip this poll cycle.
             # FIXME: need to include capacity of other nodes. For now we only check
             # our own capacity and stop processing if too busy. Other nodes that
@@ -2228,6 +2231,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                 if txn:
                     yield txn.commit()
                     txn = None
+                self._inWorkCheck = False
 
             if nextJob is not None:
                 try:
@@ -2381,6 +2385,12 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
 
         for peer in self.peers:
             peer.transport.abortConnection()
+
+        # Wait for any active work check to finish
+        while self._inWorkCheck:
+            d = Deferred()
+            self.reactor.callLater(0.5, lambda : d.callback(None))
+            yield d
 
 
     def activeNodes(self, txn):
