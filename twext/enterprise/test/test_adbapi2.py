@@ -334,6 +334,24 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(holder.stopped, True)
 
 
+    def test_stopServicePseudoTxn(self):
+        """
+        When L{ConnectionPool.stopService} is called with a pending
+        L{_ConnectingPseudoTxn} active, the DB connection being created
+        is closed.
+        """
+        self.pauseHolders()
+        self.createTransaction()
+        stopResult = self.resultOf(self.pool.stopService())
+        self.assertEquals(stopResult, [])
+        self.flushHolders()
+        [holder] = self.holders
+        self.assertEquals(holder.started, True)
+        self.assertEquals(holder.stopped, True)
+        self.assertEquals(len(self.factory.connections), 1)
+        self.assertEquals(self.factory.connections[0].closed, True)
+
+
     def test_stopServiceMidAbort(self):
         """
         When L{ConnectionPool.stopService} is called with deferreds from
