@@ -177,6 +177,8 @@ class ODAttribute(Values):
     primaryGroupId = ValueConstant(u"dsAttrTypeStandard:PrimaryGroupID")
     isHidden = ValueConstant(u"dsAttrTypeNative:IsHidden")
 
+    streetAddress = ValueConstant(u"dsAttrTypeStandard:Street")
+
     # # Single value fields
     # AdminLimits = ValueConstant(u"dsAttrTypeStandard:AdminLimits")
     # AppleAliasData = ValueConstant(u"dsAttrTypeStandard:AppleAliasData")
