@@ -2115,8 +2115,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             if not self.running or self.disableWorkProcessing:
                 returnValue(None)
 
-            self._inWorkCheck = True
-
             # Check the overall service load - if overloaded skip this poll cycle.
             # FIXME: need to include capacity of other nodes. For now we only check
             # our own capacity and stop processing if too busy. Other nodes that
@@ -2151,9 +2149,10 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             # that are due, ordered by priority, notBefore etc
             nowTime = datetime.utcfromtimestamp(self.reactor.seconds())
 
-            txn = self.transactionFactory(label="jobqueue.workCheck")
-            nextJob = None
+            self._inWorkCheck = True
+            txn = nextJob = None
             try:
+                txn = self.transactionFactory(label="jobqueue.workCheck")
                 nextJob = yield JobItem.nextjob(txn, nowTime, minPriority)
                 if nextJob is None:
                     break
@@ -2193,8 +2192,9 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     jobID=nextJob.jobID if nextJob else "?",
                     exc=e,
                 )
-                yield txn.abort()
-                txn = None
+                if txn is not None:
+                    yield txn.abort()
+                    txn = None
 
                 # If we can identify the problem job, try and set it to failed so that it
                 # won't block other jobs behind it (it will be picked again when the failure
@@ -2228,7 +2228,7 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                     log.error("Cannot mark failed new job")
                     break
             finally:
-                if txn:
+                if txn is not None:
                     yield txn.commit()
                     txn = None
                 self._inWorkCheck = False
@@ -2386,11 +2386,14 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         for peer in self.peers:
             peer.transport.abortConnection()
 
-        # Wait for any active work check to finish
+        # Wait for any active work check to finish (but no more than 1 minute)
+        start = time.time()
         while self._inWorkCheck:
             d = Deferred()
             self.reactor.callLater(0.5, lambda : d.callback(None))
             yield d
+            if time.time() - start >= 60:
+                break
 
 
     def activeNodes(self, txn):
