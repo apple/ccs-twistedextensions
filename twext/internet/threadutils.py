@@ -24,9 +24,10 @@ from twisted.internet.defer import Deferred
 
 _DONE = object()
 
-_STATE_STOPPED = 'STOPPED'
+_STATE_STARTING = 'STARTING'
 _STATE_RUNNING = 'RUNNING'
 _STATE_STOPPING = 'STOPPING'
+_STATE_STOPPED = 'STOPPED'
 
 class ThreadHolder(object):
     """
@@ -39,12 +40,14 @@ class ThreadHolder(object):
         self._state = _STATE_STOPPED
         self._stopper = None
         self._q = None
+        self._retryCallback = None
 
 
     def _run(self):
         """
         Worker function which runs in a non-reactor thread.
         """
+        self._state = _STATE_RUNNING
         while self._qpull():
             pass
 
@@ -90,7 +93,7 @@ class ThreadHolder(object):
 
         @return: L{Deferred} that fires with the result of L{work}
         """
-        if self._state != _STATE_RUNNING:
+        if self._state not in (_STATE_RUNNING, _STATE_STARTING):
             raise RuntimeError("not running")
         d = Deferred()
         self._q.put((d, work))
@@ -103,18 +106,31 @@ class ThreadHolder(object):
         """
         if self._state != _STATE_STOPPED:
             raise RuntimeError("Not stopped.")
-        self._state = _STATE_RUNNING
+        self._state = _STATE_STARTING
         self._q = Queue(0)
         self._reactor.callInThread(self._run)
+        self.retry()
+
+
+    def retry(self):
+        if self._state == _STATE_STARTING:
+            if self._retryCallback is not None:
+                self._reactor.threadpool._startSomeWorkers()
+            self._retryCallback = self._reactor.callLater(0.1, self.retry)
+        else:
+            self._retryCallback = None
 
 
     def stop(self):
         """
         Stop this thing and release its thread, if it's running.
         """
-        if self._state != _STATE_RUNNING:
+        if self._state not in (_STATE_RUNNING, _STATE_STARTING):
             raise RuntimeError("Not running.")
         s = self._stopper = Deferred()
         self._state = _STATE_STOPPING
         self._q.put(_DONE)
+        if self._retryCallback:
+            self._retryCallback.cancel()
+            self._retryCallback = None
         return s
