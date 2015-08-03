@@ -627,7 +627,7 @@ class DirectoryService(BaseDirectoryService):
                     ldap.dn.str2dn(rdn.lower()) +
                     ldap.dn.str2dn(self._baseDN.lower())
                 )
-                filteredQuery=self._addExtraFilter(recordType, queryString)
+                filteredQuery = self._addExtraFilter(recordType, queryString)
                 self.log.debug(
                     "Performing LDAP query: {rdn} {query} {recordType}{limit}{timeout}",
                     rdn=rdn,
@@ -804,9 +804,15 @@ class DirectoryService(BaseDirectoryService):
                                     newValues.append(v)
                                 else:
                                     newValues.append(unicode(v, "utf-8"))
-                            # newValues = [unicode(v, "utf-8") for v in values]
                         else:
-                            newValues = [valueType(v) for v in values]
+                            try:
+                                newValues = [valueType(v) for v in values]
+                            except Exception, e:
+                                self.log.warn(
+                                    "Can't parse value {name} {values} ({error})",
+                                    name=fieldName, values=values, error=str(e)
+                                )
+                                continue
 
                         if self.fieldName.isMultiValue(fieldName):
                             fields[fieldName] = newValues
