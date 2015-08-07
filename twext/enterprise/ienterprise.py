@@ -282,26 +282,12 @@ class IQueuer(Interface):
 
         @param workItemType: the type of work item to create.
         @type workItemType: L{type}, specifically, a subtype of L{WorkItem
-            <twext.enterprise.jobqueue.WorkItem>}
+            <twext.enterprise.jobs.workitem.WorkItem>}
 
         @param kw: The keyword parameters are relayed to C{workItemType.create}
             to create an appropriately initialized item.
 
         @return: a work proposal that allows tracking of the various phases of
             completion of the work item.
-        @rtype: L{twext.enterprise.jobqueue.WorkItem}
-        """
-
-    def callWithNewProposals(self, callback):
-        """
-        Tells the IQueuer to call a callback method whenever a new WorkProposal
-        is created.
-
-        @param callback: a callable which accepts a single parameter, a
-            L{WorkProposal}
-        """
-
-    def transferProposalCallbacks(self, newQueuer):
-        """
-        Transfer the registered callbacks to the new queuer.
+        @rtype: L{twext.enterprise.jobs.workitem.WorkItem}
         """

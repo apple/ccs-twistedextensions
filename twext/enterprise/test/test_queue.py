@@ -775,7 +775,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
 
         @inlineCallbacks
         def doit(txn):
-            for statement in splitSQLString(schemaText):
+            for statement in splitSQLString(nodeSchema + schemaText):
                 yield txn.execSQL(statement)
 
         yield inTransaction(
@@ -794,6 +794,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             def deletestuff(txn):
                 for stmt in dropSQL:
                     yield txn.execSQL(stmt)
+                txn.execSQL("drop table node_info")
             return inTransaction(
                 lambda *a: self.store.newTransaction(*a), deletestuff
             )

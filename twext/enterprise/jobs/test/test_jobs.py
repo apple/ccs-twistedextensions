@@ -38,14 +38,16 @@ from twext.enterprise.dal.record import fromTable
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.fixtures import buildConnectionPool
 from twext.enterprise.fixtures import SteppablePoolHelper
-from twext.enterprise.jobqueue import \
-    inTransaction, PeerConnectionPool, astimestamp, \
-    LocalPerformer, _IJobPerformer, WorkItem, WorkerConnectionPool, \
-    ConnectionFromPeerNode, \
-    _BaseQueuer, NonPerformingQueuer, JobItem, \
-    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM, \
-    JobDescriptor, SingletonWorkItem, JobFailedError, JobTemporaryError
-import twext.enterprise.jobqueue
+from twext.enterprise.jobs.utils import inTransaction, astimestamp
+from twext.enterprise.jobs.workitem import \
+    WorkItem, SingletonWorkItem, \
+    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM
+from twext.enterprise.jobs.jobitem import \
+    JobItem, JobDescriptor, JobFailedError, JobTemporaryError
+from twext.enterprise.jobs.queue import \
+    WorkerConnectionPool, ControllerQueue, \
+    LocalPerformer, _IJobPerformer, \
+    NonPerformingQueuer
 
 # TODO: There should be a store-building utility within twext.enterprise.
 try:
@@ -411,7 +413,7 @@ class WorkItemTests(TestCase):
         sinceEpoch = astimestamp(fakeNow)
         clock = Clock()
         clock.advance(sinceEpoch)
-        qpool = PeerConnectionPool(clock, dbpool.connection, 0, useWorkerPool=False)
+        qpool = ControllerQueue(clock, dbpool.connection, useWorkerPool=False)
         realChoosePerformer = qpool.choosePerformer
         performerChosen = []
 
@@ -438,7 +440,7 @@ class WorkItemTests(TestCase):
     @inlineCallbacks
     def test_enqueue(self):
         """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
         dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
         yield self._enqueue(dbpool, 1, 2)
@@ -481,7 +483,7 @@ class WorkItemTests(TestCase):
         @inlineCallbacks
         def assignJob(txn):
             job = yield JobItem.load(txn, jobs[0].jobID)
-            yield job.assign(datetime.datetime.utcnow(), PeerConnectionPool.queueOverdueTimeout)
+            yield job.assign(datetime.datetime.utcnow(), ControllerQueue.queueOverdueTimeout)
         yield inTransaction(dbpool.connection, assignJob)
 
         jobs = yield inTransaction(dbpool.connection, checkJob)
@@ -528,7 +530,7 @@ class WorkItemTests(TestCase):
         @inlineCallbacks
         def assignJob(txn, when=None):
             assignee = yield JobItem.load(txn, assignID)
-            yield assignee.assign(now if when is None else when, PeerConnectionPool.queueOverdueTimeout)
+            yield assignee.assign(now if when is None else when, ControllerQueue.queueOverdueTimeout)
         yield inTransaction(dbpool.connection, assignJob)
         job, work = yield inTransaction(dbpool.connection, _next)
         self.assertTrue(job is None)
@@ -581,7 +583,7 @@ class WorkItemTests(TestCase):
     @inlineCallbacks
     def test_notsingleton(self):
         """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
         dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
 
@@ -602,7 +604,7 @@ class WorkItemTests(TestCase):
     @inlineCallbacks
     def test_singleton(self):
         """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
         dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
 
@@ -623,7 +625,7 @@ class WorkItemTests(TestCase):
     @inlineCallbacks
     def test_singleton_reschedule(self):
         """
-        L{PeerConnectionPool.enqueueWork} will insert a job and a work item.
+        L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
         dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
 
@@ -665,22 +667,22 @@ class WorkerConnectionPoolTests(TestCase):
 
 
 
-class PeerConnectionPoolUnitTests(TestCase):
+class ControllerQueueUnitTests(TestCase):
     """
-    L{PeerConnectionPool} has many internal components.
+    L{ControllerQueue} has many internal components.
     """
     def setUp(self):
         """
-        Create a L{PeerConnectionPool} that is just initialized enough.
+        Create a L{ControllerQueue} that is just initialized enough.
         """
-        self.pcp = PeerConnectionPool(None, None, 4321)
+        self.pcp = ControllerQueue(None, None)
         DummyWorkItem.results = {}
 
 
     def checkPerformer(self, cls):
         """
         Verify that the performer returned by
-        L{PeerConnectionPool.choosePerformer}.
+        L{ControllerQueue.choosePerformer}.
         """
         performer = self.pcp.choosePerformer()
         self.failUnlessIsInstance(performer, cls)
@@ -696,7 +698,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         then = datetime.datetime(2012, 12, 12, 12, 12, 12)
         reactor.advance(astimestamp(then))
         cph.setUp(self)
-        qpool = PeerConnectionPool(reactor, cph.pool.connection, 4321, useWorkerPool=False)
+        qpool = ControllerQueue(reactor, cph.pool.connection, useWorkerPool=False)
 
         realChoosePerformer = qpool.choosePerformer
         performerChosen = []
@@ -717,7 +719,7 @@ class PeerConnectionPoolUnitTests(TestCase):
 
     def test_choosingPerformerWhenNoPeersAndNoWorkers(self):
         """
-        If L{PeerConnectionPool.choosePerformer} is invoked when no workers
+        If L{ControllerQueue.choosePerformer} is invoked when no workers
         have spawned and no peers have established connections (either incoming
         or outgoing), then it chooses an implementation of C{performJob} that
         simply executes the work locally.
@@ -732,13 +734,13 @@ class PeerConnectionPoolUnitTests(TestCase):
             self.fail("Didn't raise JobFailedError")
 
         # If we're not using worker pool, we should get back LocalPerformer
-        self.pcp = PeerConnectionPool(None, None, 4321, useWorkerPool=False)
+        self.pcp = ControllerQueue(None, None, useWorkerPool=False)
         self.checkPerformer(LocalPerformer)
 
 
     def test_choosingPerformerWithLocalCapacity(self):
         """
-        If L{PeerConnectionPool.choosePerformer} is invoked when some workers
+        If L{ControllerQueue.choosePerformer} is invoked when some workers
         have spawned, then it should choose the worker pool as the local
         performer.
         """
@@ -746,7 +748,7 @@ class PeerConnectionPoolUnitTests(TestCase):
 
         # In this case we want pcp to have a workerPool, so create a new pcp
         # for this test
-        self.pcp = PeerConnectionPool(None, None, 4321)
+        self.pcp = ControllerQueue(None, None)
         wlf = self.pcp.workerListenerFactory()
         proto = wlf.buildProtocol(None)
         proto.makeConnection(StringTransport())
@@ -757,93 +759,10 @@ class PeerConnectionPoolUnitTests(TestCase):
         self.checkPerformer(WorkerConnectionPool)
 
 
-    def test_choosingPerformerFromNetwork(self):
-        """
-        If L{PeerConnectionPool.choosePerformer} is invoked when no workers
-        have spawned but some peers have connected, then it should choose a
-        connection from the network to perform it.
-        """
-        peer = PeerConnectionPool(None, None, 4322)
-        local = self.pcp.peerFactory().buildProtocol(None)
-        remote = peer.peerFactory().buildProtocol(None)
-        connection = Connection(local, remote)
-        connection.start()
-        self.checkPerformer(ConnectionFromPeerNode)
-
-
-    def test_performingWorkOnNetwork(self):
-        """
-        The L{performJob} command will get relayed to the remote peer
-        controller.
-        """
-        peer = PeerConnectionPool(None, None, 4322)
-        local = self.pcp.peerFactory().buildProtocol(None)
-        remote = peer.peerFactory().buildProtocol(None)
-        connection = Connection(local, remote)
-        connection.start()
-        d = Deferred()
-
-        class DummyPerformer(object):
-            def performJob(self, job):
-                self.jobID = job.jobID
-                return d
-
-        # Doing real database I/O in this test would be tedious so fake the
-        # first method in the call stack which actually talks to the DB.
-        dummy = DummyPerformer()
-
-        def chooseDummy(onlyLocally=False):
-            return dummy
-
-        peer.choosePerformer = chooseDummy
-        performed = local.performJob(JobDescriptor(7384, 1, "ABC"))
-        performResult = []
-        performed.addCallback(performResult.append)
-
-        # Sanity check.
-        self.assertEquals(performResult, [])
-        connection.flush()
-        self.assertEquals(dummy.jobID, 7384)
-        self.assertEquals(performResult, [])
-        d.callback(128374)
-        connection.flush()
-        self.assertEquals(performResult, [None])
-
-
-    def test_choosePerformerSorted(self):
-        """
-        If L{PeerConnectionPool.choosePerformer} is invoked make it
-        return the peer with the least load.
-        """
-        peer = PeerConnectionPool(None, None, 4322)
-
-        class DummyPeer(object):
-            def __init__(self, name, load):
-                self.name = name
-                self.load = load
-
-            def currentLoadEstimate(self):
-                return self.load
-
-        apeer = DummyPeer("A", 1)
-        bpeer = DummyPeer("B", 0)
-        cpeer = DummyPeer("C", 2)
-        peer.addPeerConnection(apeer)
-        peer.addPeerConnection(bpeer)
-        peer.addPeerConnection(cpeer)
-
-        performer = peer.choosePerformer(onlyLocally=False)
-        self.assertEqual(performer, bpeer)
-
-        bpeer.load = 2
-        performer = peer.choosePerformer(onlyLocally=False)
-        self.assertEqual(performer, apeer)
-
-
     @inlineCallbacks
     def test_notBeforeWhenCheckingForWork(self):
         """
-        L{PeerConnectionPool._workCheck} should execute any
+        L{ControllerQueue._workCheck} should execute any
         outstanding work items, but only those that are expired.
         """
         dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
@@ -885,7 +804,7 @@ class PeerConnectionPoolUnitTests(TestCase):
     @inlineCallbacks
     def test_notBeforeWhenEnqueueing(self):
         """
-        L{PeerConnectionPool.enqueueWork} enqueues some work immediately, but
+        L{ControllerQueue.enqueueWork} enqueues some work immediately, but
         only executes it when enough time has elapsed to allow the C{notBefore}
         attribute of the given work item to have passed.
         """
@@ -924,7 +843,7 @@ class PeerConnectionPoolUnitTests(TestCase):
     @inlineCallbacks
     def test_notBeforeBefore(self):
         """
-        L{PeerConnectionPool.enqueueWork} will execute its work immediately if
+        L{ControllerQueue.enqueueWork} will execute its work immediately if
         the C{notBefore} attribute of the work item in question is in the past.
         """
         dbpool, qpool, clock, performerChosen = self._setupPools()
@@ -956,7 +875,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         L{ConnectionFromWorker} and sending it a L{PerformJOB} command.
         """
         clock = Clock()
-        peerPool = PeerConnectionPool(clock, None, 4322)
+        peerPool = ControllerQueue(clock, None)
         factory = peerPool.workerListenerFactory()
 
         def peer():
@@ -981,14 +900,14 @@ class PeerConnectionPoolUnitTests(TestCase):
 
     def test_poolStartServiceChecksForWork(self):
         """
-        L{PeerConnectionPool.startService} kicks off the idle work-check loop.
+        L{ControllerQueue.startService} kicks off the idle work-check loop.
         """
         reactor = MemoryReactorWithClock()
         cph = SteppablePoolHelper(nodeSchema + jobSchema + schemaText)
         then = datetime.datetime(2012, 12, 12, 12, 12, 0)
         reactor.advance(astimestamp(then))
         cph.setUp(self)
-        pcp = PeerConnectionPool(reactor, cph.pool.connection, 4321, useWorkerPool=False)
+        pcp = ControllerQueue(reactor, cph.pool.connection, useWorkerPool=False)
         now = then + datetime.timedelta(seconds=20)
 
         @transactionally(cph.pool.connection)
@@ -1014,7 +933,7 @@ class PeerConnectionPoolUnitTests(TestCase):
     @inlineCallbacks
     def test_exceptionWhenWorking(self):
         """
-        L{PeerConnectionPool._workCheck} should execute any
+        L{ControllerQueue._workCheck} should execute any
         outstanding work items, and keep going if some raise an exception.
         """
         dbpool, _ignore_qpool, clock, _ignore_performerChosen = self._setupPools()
@@ -1272,7 +1191,7 @@ class PeerConnectionPoolUnitTests(TestCase):
     @inlineCallbacks
     def test_enableDisable(self):
         """
-        L{PeerConnectionPool.enable} and L{PeerConnectionPool.disable} control queue processing.
+        L{ControllerQueue.enable} and L{ControllerQueue.disable} control queue processing.
         """
         dbpool, qpool, clock, performerChosen = self._setupPools()
 
@@ -1383,16 +1302,16 @@ class Connection(object):
 
 
 
-class PeerConnectionPoolIntegrationTests(TestCase):
+class ControllerQueueIntegrationTests(TestCase):
     """
-    L{PeerConnectionPool} is the service responsible for coordinating
+    L{ControllerQueue} is the service responsible for coordinating
     eventually-consistent task queuing within a cluster.
     """
 
     @inlineCallbacks
     def setUp(self):
         """
-        L{PeerConnectionPool} requires access to a database and the reactor.
+        L{ControllerQueue} requires access to a database and the reactor.
         """
         self.store = yield buildStore(self, None)
 
@@ -1424,10 +1343,10 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             )
         self.addCleanup(deschema)
 
-        self.node1 = PeerConnectionPool(
-            reactor, indirectedTransactionFactory, 0, useWorkerPool=False)
-        self.node2 = PeerConnectionPool(
-            reactor, indirectedTransactionFactory, 0, useWorkerPool=False)
+        self.node1 = ControllerQueue(
+            reactor, indirectedTransactionFactory, useWorkerPool=False)
+        self.node2 = ControllerQueue(
+            reactor, indirectedTransactionFactory, useWorkerPool=False)
 
         class FireMeService(Service, object):
             def __init__(self, d):
@@ -1457,23 +1376,11 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         DummyWorkItem.results = {}
 
 
-    def test_currentNodeInfo(self):
-        """
-        There will be two C{NODE_INFO} rows in the database, retrievable as two
-        L{NodeInfo} objects, once both nodes have started up.
-        """
-        @inlineCallbacks
-        def check(txn):
-            self.assertEquals(len((yield self.node1.activeNodes(txn))), 2)
-            self.assertEquals(len((yield self.node2.activeNodes(txn))), 2)
-        return inTransaction(self.store.newTransaction, check)
-
-
     @inlineCallbacks
     def test_enqueueWorkDone(self):
         """
         When a L{WorkItem} is scheduled for execution via
-        L{PeerConnectionPool.enqueueWork} its C{doWork} method will be
+        L{ControllerQueue.enqueueWork} its C{doWork} method will be
         run.
         """
         # TODO: this exact test should run against LocalQueuer as well.
@@ -1865,7 +1772,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         """
 
         # Speed up the backoff process
-        self.patch(PeerConnectionPool, "queuePollingBackoff", ((1.0, 60.0),))
+        self.patch(ControllerQueue, "queuePollingBackoff", ((1.0, 60.0),))
 
         # Wait for backoff
         while self.node1._actualPollInterval == self.node1.queuePollInterval:
@@ -1901,38 +1808,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             yield d
 
         self.assertEqual(self.node1._actualPollInterval, 60.0)
-
-
-
-class DummyProposal(object):
-
-    def __init__(self, *ignored):
-        pass
-
-
-    def _start(self):
-        pass
-
-
-
-class BaseQueuerTests(TestCase):
-
-    def setUp(self):
-        self.proposal = None
-        self.patch(twext.enterprise.jobqueue, "WorkProposal", DummyProposal)
-
-
-    def _proposalCallback(self, proposal):
-        self.proposal = proposal
-
-
-    @inlineCallbacks
-    def test_proposalCallbacks(self):
-        queuer = _BaseQueuer()
-        queuer.callWithNewProposals(self._proposalCallback)
-        self.assertEqual(self.proposal, None)
-        yield queuer.enqueueWork(None, None)
-        self.assertNotEqual(self.proposal, None)
 
 
 
