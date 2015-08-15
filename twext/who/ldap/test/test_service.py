@@ -121,7 +121,9 @@ class TestFieldName(Names):
 
 
 TEST_FIELDNAME_MAP = dict(DEFAULT_FIELDNAME_ATTRIBUTE_MAP)
-TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__",)
+TEST_FIELDNAME_MAP[BaseFieldName.uid] = (u"__who_uid__", u"altuid")
+
+TEST_FIELDNAME_MAP[BaseFieldName.fullNames] = (u"altname", u"cn")
 
 TEST_FIELDNAME_MAP[TestFieldName.multiChoice] = (
     u"testField:One:one",
@@ -522,6 +524,61 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
 
         # "Four" is not a valid value, so it won't get set
         self.assertFalse(service.fieldName.multiChoice in records[1].fields)
+
+
+    def test_multipleAttributes(self):
+        """
+        Multiple LDAP attributes can be the source for a single record field.
+        If it's a single-value field, the *first* attribute in the map that
+        is in the results will be used for the field value.  If it's a multi
+        value field, then the value will be a list extended from the values
+        in each associated LDAP attribute, in the order of the map entry.
+
+        For example, in the test map above, the uid field is mapped to __who_uid__
+        and altuid in that order.  When the LDAP results are parsed, the __who_uid__
+        attribute is checked first, and if it has a value it is used; otherwise
+        the value from altuid would be used.
+
+        In the case of "fullNames" which is multi-value, because the order in the test
+        map is "altname" then "cn", when the LDAP results are parsed, fullNames
+        will end up being set to a list comprising of first the altname values
+        then the cn values.
+        """
+        service = self.service()
+        reply = (
+            (
+                "dn",
+                {
+                    "__who_uid__": u"zero",
+                    "altuid": u"altzero",
+                    "cn": [u"cn-name", "another-cn"],
+                    "altname": [u"alt-name", "another-alt"],
+                }
+            ),
+            (
+                "dn",
+                {
+                    "altuid": u"one",
+                    "altname": [u"alt-name"],
+                    "cn": [u"cn-name"],
+                }
+            ),
+            (
+                "dn",
+                {
+                    "__who_uid__": u"two",
+                    "cn": [u"cn-name"],
+                }
+            ),
+        )
+        records = service._recordsFromReply(reply, recordType=RecordType.user)
+
+        self.assertEquals(records[0].uid, "zero")
+        self.assertEquals(records[0].fullNames, ["alt-name", "another-alt", "cn-name", "another-cn"])
+        self.assertEquals(records[1].uid, "one")
+        self.assertEquals(records[1].fullNames, ["alt-name", "cn-name"])
+        self.assertEquals(records[2].uid, "two")
+        self.assertEquals(records[2].fullNames, ["cn-name"])
 
 
 def mockDirectoryDataFromXMLService(service):

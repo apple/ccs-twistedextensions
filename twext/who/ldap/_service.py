@@ -776,73 +776,67 @@ class DirectoryService(BaseDirectoryService):
             # Populate a fields dictionary
             fields = {}
 
-            for attribute, values in recordData.iteritems():
-                fieldNames = self._attributeToFieldNameMap.get(attribute, ())
-                for fieldName in fieldNames:
-                    attributeRules = self._fieldNameToAttributesMap[fieldName]
+            for fieldName, attributeRules in self._fieldNameToAttributesMap.iteritems():
+                valueType = self.fieldName.valueType(fieldName)
 
-                    if fieldName is None:
-                        # self.log.debug(
-                        #     "Unmapped LDAP attribute {attribute!r} in record "
-                        #     "data: {recordData!r}",
-                        #     attribute=attribute, recordData=recordData,
-                        # )
-                        continue
+                for attributeRule in attributeRules:
+                    attributeName = attributeRule.split(":")[0]
+                    if attributeName in recordData:
+                        values = recordData[attributeName]
 
-                    valueType = self.fieldName.valueType(fieldName)
+                        if valueType in (unicode, UUID):
+                            if not isinstance(values, list):
+                                values = [values]
 
-                    if valueType in (unicode, UUID):
-                        if not isinstance(values, list):
-                            values = [values]
+                            if valueType is unicode:
+                                newValues = []
+                                for v in values:
+                                    if isinstance(v, unicode):
+                                        # because the ldap unit test produces
+                                        # unicode values (?)
+                                        newValues.append(v)
+                                    else:
+                                        newValues.append(unicode(v, "utf-8"))
+                            else:
+                                try:
+                                    newValues = [valueType(v) for v in values]
+                                except Exception, e:
+                                    self.log.warn(
+                                        "Can't parse value {name} {values} ({error})",
+                                        name=fieldName, values=values, error=str(e)
+                                    )
+                                    continue
 
-                        if valueType is unicode:
-                            newValues = []
-                            for v in values:
-                                if isinstance(v, unicode):
-                                    # because the ldap unit test produces
-                                    # unicode values (?)
-                                    newValues.append(v)
+                            if self.fieldName.isMultiValue(fieldName):
+                                if fieldName in fields:
+                                    fields[fieldName].extend(newValues)
                                 else:
-                                    newValues.append(unicode(v, "utf-8"))
-                        else:
-                            try:
-                                newValues = [valueType(v) for v in values]
-                            except Exception, e:
-                                self.log.warn(
-                                    "Can't parse value {name} {values} ({error})",
-                                    name=fieldName, values=values, error=str(e)
-                                )
-                                continue
+                                    fields[fieldName] = newValues
+                            else:
+                                # First one in the list wins
+                                if fieldName not in fields:
+                                    fields[fieldName] = newValues[0]
 
-                        if self.fieldName.isMultiValue(fieldName):
-                            fields[fieldName] = newValues
-                        else:
-                            fields[fieldName] = newValues[0]
+                        elif valueType is bool:
+                            if not isinstance(values, list):
+                                values = [values]
+                            if ":" in attributeRule:
+                                ignored, trueValue = attributeRule.split(":")
+                            else:
+                                trueValue = "true"
 
-                    elif valueType is bool:
-                        if not isinstance(values, list):
-                            values = [values]
+                            for value in values:
+                                if value == trueValue:
+                                    fields[fieldName] = True
+                                    break
+                            else:
+                                fields[fieldName] = False
 
+                        elif issubclass(valueType, Names):
+                            if not isinstance(values, list):
+                                values = [values]
 
-                        rule = attributeRules[0]  # there is only one true value
-                        if ":" in rule:
-                            ignored, trueValue = rule.split(":")
-                        else:
-                            trueValue = "true"
-
-                        for value in values:
-                            if value == trueValue:
-                                fields[fieldName] = True
-                                break
-                        else:
-                            fields[fieldName] = False
-
-                    elif issubclass(valueType, Names):
-                        if not isinstance(values, list):
-                            values = [values]
-
-                        for rule in attributeRules:
-                            attribute, attributeValue, fieldValue = rule.split(":")
+                            attribute, attributeValue, fieldValue = attributeRule.split(":")
 
                             for value in values:
                                 if value == attributeValue:
@@ -854,12 +848,12 @@ class DirectoryService(BaseDirectoryService):
                                         pass
                                     break
 
-                    else:
-                        raise LDAPConfigurationError(
-                            "Unknown value type {0} for field {1}".format(
-                                valueType, fieldName
+                        else:
+                            raise LDAPConfigurationError(
+                                "Unknown value type {0} for field {1}".format(
+                                    valueType, fieldName
+                                )
                             )
-                        )
 
             # Skip any results missing the uid, which is a required field
             if self.fieldName.uid not in fields:
