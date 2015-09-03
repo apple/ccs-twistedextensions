@@ -18,7 +18,8 @@
 from twext.enterprise.dal.model import Sequence
 from twext.enterprise.dal.model import Table, Schema, SQLType
 from twext.enterprise.dal.record import Record, fromTable, NoSuchRecord
-from twext.enterprise.dal.syntax import SchemaSyntax
+from twext.enterprise.dal.syntax import SchemaSyntax, Count, NullIf, Constant, \
+    Sum
 from twext.enterprise.ienterprise import ORACLE_DIALECT
 from twext.enterprise.jobs.utils import inTransaction, astimestamp
 from twext.python.log import Logger
@@ -107,6 +108,12 @@ class JobRunningError(Exception):
 
 
 
+# Priority for work - used to order work items in the job queue
+JOB_PRIORITY_LOW = 0
+JOB_PRIORITY_MEDIUM = 1
+JOB_PRIORITY_HIGH = 2
+
+
 class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     """
     @DynamicAttrs
@@ -165,6 +172,13 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         return self.update(assigned=when, overdue=when + timedelta(seconds=overdue))
 
 
+    def unassign(self):
+        """
+        Mark this job as unassigned by setting the assigned and overdue columns to L{None}.
+        """
+        return self.update(assigned=None, overdue=None)
+
+
     def bumpOverdue(self, bump):
         """
         Increment the overdue value by the specified number of seconds. Used when an overdue job
@@ -219,7 +233,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
-    def ultimatelyPerform(cls, txnFactory, jobID):
+    def ultimatelyPerform(cls, txnFactory, jobDescriptor):
         """
         Eventually, after routing the job to the appropriate place, somebody
         actually has to I{do} it. This method basically calls L{JobItem.run}
@@ -229,8 +243,8 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @param txnFactory: a 0- or 1-argument callable that creates an
             L{IAsyncTransaction}
         @type txnFactory: L{callable}
-        @param jobID: the ID of the job to be performed
-        @type jobID: L{int}
+        @param jobDescriptor: the job descriptor
+        @type jobID: L{JobDescriptor}
         @return: a L{Deferred} which fires with C{None} when the job has been
             performed, or fails if the job can't be performed.
         """
@@ -246,32 +260,35 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             @inlineCallbacks
             def _cleanUp2(txn2):
                 try:
-                    job = yield cls.load(txn2, jobID)
+                    job = yield cls.load(txn2, jobDescriptor.jobID)
                 except NoSuchRecord:
                     log.debug(
-                        "JobItem: {jobid} disappeared t={tm}",
-                        jobid=jobID,
+                        "JobItem: {workType} {jobid} disappeared t={tm}",
+                        workType=jobDescriptor.workType,
+                        jobid=jobDescriptor.jobID,
                         tm=_tm(),
                     )
                 else:
                     log.debug(
-                        "JobItem: {jobid} marking as failed {count} t={tm}",
-                        jobid=jobID,
+                        "JobItem: {workType} {jobid} marking as failed {count} t={tm}",
+                        workType=jobDescriptor.workType,
+                        jobid=jobDescriptor.jobID,
                         count=job.failed + 1,
                         tm=_tm(),
                     )
                     yield job.failedToRun(locked=isinstance(e, JobRunningError), delay=delay)
             return inTransaction(txnFactory, _cleanUp2, "ultimatelyPerform._failureCleanUp")
 
-        log.debug("JobItem: {jobid} starting to run", jobid=jobID)
-        txn = txnFactory(label="ultimatelyPerform: {}".format(jobID))
+        log.debug("JobItem: {workType} {jobid} starting to run", workType=jobDescriptor.workType, jobid=jobDescriptor.jobID)
+        txn = txnFactory(label="ultimatelyPerform: {workType} {jobid}".format(workType=jobDescriptor.workType, jobid=jobDescriptor.jobID))
         try:
-            job = yield cls.load(txn, jobID)
+            job = yield cls.load(txn, jobDescriptor.jobID)
             if hasattr(txn, "_label"):
                 txn._label = "{} <{}>".format(txn._label, job.workType)
             log.debug(
-                "JobItem: {jobid} loaded {work} t={tm}",
-                jobid=jobID,
+                "JobItem: {workType} {jobid} loaded {work} t={tm}",
+                workType=jobDescriptor.workType,
+                jobid=jobDescriptor.jobID,
                 work=job.workType,
                 tm=_tm(),
             )
@@ -281,8 +298,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             # The record has already been removed
             yield txn.commit()
             log.debug(
-                "JobItem: {jobid} already removed t={tm}",
-                jobid=jobID,
+                "JobItem: {workType} {jobid} already removed t={tm}",
+                workType=jobDescriptor.workType,
+                jobid=jobDescriptor.jobID,
                 tm=_tm(),
             )
 
@@ -292,10 +310,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             def _temporaryFailure():
                 return _failureCleanUp(delay=e.delay * (job.failed + 1))
             log.debug(
-                "JobItem: {jobid} {desc} {work} t={tm}",
-                jobid=jobID,
+                "JobItem: {workType} {jobid} {desc} t={tm}",
+                workType=jobDescriptor.workType,
+                jobid=jobDescriptor.jobID,
                 desc="temporary failure #{}".format(job.failed + 1),
-                work=job.workType,
                 tm=_tm(),
             )
             txn.postAbort(_temporaryFailure)
@@ -305,10 +323,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
             # Permanent failure
             log.debug(
-                "JobItem: {jobid} {desc} {work} t={tm}",
-                jobid=jobID,
+                "JobItem: {workType} {jobid} {desc} t={tm}",
+                workType=jobDescriptor.workType,
+                jobid=jobDescriptor.jobID,
                 desc="failed" if isinstance(e, JobFailedError) else "locked",
-                work=job.workType,
                 tm=_tm(),
             )
             txn.postAbort(_failureCleanUp)
@@ -317,8 +335,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         except:
             f = Failure()
             log.error(
-                "JobItem: {jobid} unknown exception t={tm} {exc}",
-                jobid=jobID,
+                "JobItem: {workType} {jobid} exception t={tm} {exc}",
+                workType=jobDescriptor.workType,
+                jobid=jobDescriptor.jobID,
                 tm=_tm(),
                 exc=f,
             )
@@ -328,9 +347,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         else:
             yield txn.commit()
             log.debug(
-                "JobItem: {jobid} completed {work} t={tm} over={over}",
-                jobid=jobID,
-                work=job.workType,
+                "JobItem: {workType} {jobid} completed t={tm} over={over}",
+                workType=jobDescriptor.workType,
+                jobid=jobDescriptor.jobID,
                 tm=_tm(),
                 over=_overtm(job.notBefore),
             )
@@ -344,7 +363,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         """
         Find the next available job based on priority, also return any that are overdue. This
         method uses an SQL query to find the matching jobs, and sorts based on the NOT_BEFORE
-        value and priority..
+        value and priority.
 
         @param txn: the transaction to use
         @type txn: L{IAsyncTransaction}
@@ -362,7 +381,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
         # Must only be one or zero
         if jobs and len(jobs) > 1:
-            raise AssertionError("next_job() returned more than one row")
+            raise AssertionError("nextjob() returned more than one row")
 
         returnValue(jobs[0] if jobs else None)
 
@@ -386,9 +405,23 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @rtype: L{JobItem}
         """
 
-        queryExpr = (cls.notBefore <= now).And(cls.priority >= minPriority).And(cls.pause == 0).And(
-            (cls.assigned == None).Or(cls.overdue < now)
-        )
+        # Only add the PRIORITY term if minimum is greater than zero
+        queryExpr = (cls.assigned == None).And(cls.pause == 0).And(cls.notBefore <= now)
+
+        # PRIORITY can only be 0, 1, or 2. So we can convert an inequality into
+        # an equality test as follows:
+        #
+        # PRIORITY >= 0 - no test needed all values match all the time
+        # PRIORITY >= 1 === PRIORITY != 0
+        # PRIORITY >= 2 === PRIORITY == 2
+        #
+        # Doing this allows use of the PRIORITY column in an index since we already
+        # have one inequality in the index (NOT_BEFORE)
+
+        if minPriority == JOB_PRIORITY_MEDIUM:
+            queryExpr = (cls.priority != JOB_PRIORITY_LOW).And(queryExpr)
+        elif minPriority == JOB_PRIORITY_HIGH:
+            queryExpr = (cls.priority == JOB_PRIORITY_HIGH).And(queryExpr)
 
         if txn.dialect == ORACLE_DIALECT:
             # Oracle does not support a "for update" clause with "order by". So do the
@@ -397,7 +430,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             jobs = yield cls.query(
                 txn,
                 queryExpr,
-                order=(cls.assigned, cls.priority),
+                order=cls.priority,
                 ascending=False,
                 limit=limit,
             )
@@ -412,12 +445,42 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             jobs = yield cls.query(
                 txn,
                 queryExpr,
-                order=(cls.assigned, cls.priority),
+                order=cls.priority,
                 ascending=False,
                 forUpdate=True,
                 noWait=False,
                 limit=limit,
             )
+
+        returnValue(jobs)
+
+
+    @classmethod
+    @inlineCallbacks
+    def overduejobs(cls, txn, now, limit=None):
+        """
+        Find the next overdue job based on priority.
+
+        @param txn: the transaction to use
+        @type txn: L{IAsyncTransaction}
+        @param now: current timestamp
+        @type now: L{datetime.datetime}
+        @param limit: limit on number of jobs to return
+        @type limit: L{int}
+
+        @return: the job record
+        @rtype: L{JobItem}
+        """
+
+        queryExpr = (cls.assigned != None).And(cls.overdue < now)
+
+        jobs = yield cls.query(
+            txn,
+            queryExpr,
+            forUpdate=True,
+            noWait=False,
+            limit=limit,
+        )
 
         returnValue(jobs)
 
@@ -613,6 +676,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         Generate a histogram of work items currently in the queue.
         """
         from twext.enterprise.jobs.queue import WorkerConnectionPool
+
+        # Fill out an empty set of results for all the known work types. The SQL
+        # query will only return work types that are currently queued, but we want
+        # results for all possible work.
         results = {}
         now = datetime.utcnow()
         for workItemType in cls.workTypes():
@@ -626,22 +693,32 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 "time": WorkerConnectionPool.timing.get(workType, 0.0)
             })
 
-        jobs = yield cls.all(txn)
+        # Use an aggregate query to get the results for each currently queued
+        # work type.
+        jobs = yield cls.queryExpr(
+            expr=None,
+            attributes=(
+                cls.workType,
+                Count(cls.workType),
+                Count(cls.assigned),
+                Count(NullIf(cls.assigned is not None and cls.notBefore < now, Constant(False))),
+                Sum(cls.failed),
+            ),
+            group=cls.workType
+        ).on(txn)
 
-        for job in jobs:
-            r = results[job.workType]
-            r["queued"] += 1
-            if job.assigned is not None:
-                r["assigned"] += 1
-            if job.assigned is None and job.notBefore < now:
-                r["late"] += 1
-            if job.failed:
-                r["failed"] += 1
+        for workType, queued, assigned, late, failed in jobs:
+            results[workType].update({
+                "queued": queued,
+                "assigned": assigned,
+                "late": late,
+                "failed": failed,
+            })
 
         returnValue(results)
 
 
-JobDescriptor = namedtuple("JobDescriptor", ["jobID", "weight", "type"])
+JobDescriptor = namedtuple("JobDescriptor", ["jobID", "weight", "workType"])
 
 class JobDescriptorArg(Argument):
     """

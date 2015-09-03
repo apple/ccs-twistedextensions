@@ -573,11 +573,11 @@ class WorkItemTests(TestCase):
         self.assertTrue(job is None)
         self.assertTrue(work is None)
 
-        # Assigned job with past notBefore, but overdue is returned
+        # Assigned job with past notBefore, but overdue is not returned
         yield inTransaction(dbpool.connection, assignJob, when=now + datetime.timedelta(days=-1))
         job, work = yield inTransaction(dbpool.connection, _next, priority=WORK_PRIORITY_HIGH)
-        self.assertTrue(job is not None)
-        self.assertTrue(work.a == 2)
+        self.assertTrue(job is None)
+        self.assertTrue(work is None)
 
 
     @inlineCallbacks
@@ -1481,6 +1481,8 @@ class ControllerQueueIntegrationTests(TestCase):
             return _oldBumped(self, 100)
         self.patch(JobItem, "bumpOverdue", _newBump)
 
+        self.patch(ControllerQueue, "queueOverduePollInterval", 0.5)
+
         DummyWorkPauseItem.workStarted = Deferred()
         DummyWorkPauseItem.unpauseWork = Deferred()
 
@@ -1567,6 +1569,8 @@ class ControllerQueueIntegrationTests(TestCase):
         DummyWorkPauseItem.workStarted = Deferred()
         self.patch(DummyWorkPauseItem, "doWork", _newDoWorkRaise)
 
+        self.patch(ControllerQueue, "queueOverduePollInterval", 0.5)
+
         @transactionally(self.store.newTransaction)
         def _enqueue(txn):
             return txn.enqueue(
@@ -1634,6 +1638,8 @@ class ControllerQueueIntegrationTests(TestCase):
 
         DummyWorkPauseItem.workStarted = Deferred()
         self.patch(DummyWorkPauseItem, "doWork", _newDoWorkRaise)
+
+        self.patch(ControllerQueue, "queueOverduePollInterval", 0.5)
 
         @transactionally(self.store.newTransaction)
         def _enqueue(txn):

@@ -24,7 +24,7 @@ from twext.enterprise.jobs.workitem import WORK_WEIGHT_CAPACITY, \
 from twext.python.log import Logger
 
 from twisted.application.service import MultiService
-from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, passthru, succeed
+from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, succeed
 from twisted.internet.error import AlreadyCalled, AlreadyCancelled
 from twisted.internet.protocol import Factory
 from twisted.protocols.amp import AMP, Command
@@ -181,7 +181,10 @@ class WorkerConnectionPool(object):
         @return: a worker connection with the lowest current load.
         @rtype: L{ConnectionFromWorker}
         """
-        return sorted(self.workers[:], key=lambda w: w.currentLoad)[0]
+
+        # Stable sort based on worker load
+        self.workers.sort(key=lambda w: w.currentLoad)
+        return self.workers[0]
 
 
     @inlineCallbacks
@@ -203,8 +206,8 @@ class WorkerConnectionPool(object):
         try:
             result = yield preferredWorker.performJob(job)
         finally:
-            self.completed[job.type] += 1
-            self.timing[job.type] += time.time() - t
+            self.completed[job.workType] += 1
+            self.timing[job.workType] += time.time() - t
         returnValue(result)
 
 
@@ -352,7 +355,7 @@ class ConnectionFromController(AMP):
         process has instructed this worker to do it; so, look up the data in
         the row, and do it.
         """
-        d = JobItem.ultimatelyPerform(self.transactionFactory, job.jobID)
+        d = JobItem.ultimatelyPerform(self.transactionFactory, job)
         d.addCallback(lambda ignored: {})
         return d
 
@@ -452,6 +455,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
     implements(IQueuer)
 
     queuePollInterval = 0.1             # How often to poll for new work
+    queueOverduePollInterval = 60.0     # How often to poll for overdue work
     queueOverdueTimeout = 5.0 * 60.0    # How long before assigned work is possibly overdue
     queuePollingBackoff = ((60.0, 60.0), (5.0, 1.0),)   # Polling backoffs
 
@@ -478,6 +482,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         self._timeOfLastWork = time.time()
         self._actualPollInterval = self.queuePollInterval
         self._inWorkCheck = False
+        self._inOverdueCheck = False
 
 
     def enable(self):
@@ -576,30 +581,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                 if nextJob is None:
                     break
 
-                if nextJob.assigned is not None:
-                    if nextJob.overdue > nowTime:
-                        # If it is now assigned but not overdue, ignore as this may have
-                        # been returned after another txn just assigned it
-                        continue
-                    else:
-                        # It is overdue - check to see whether the work item is currently locked - if so no
-                        # need to re-assign
-                        running = yield nextJob.isRunning()
-                        if running:
-                            # Change the overdue to further in the future whilst we wait for
-                            # the running job to complete
-                            yield nextJob.bumpOverdue(self.queueOverdueTimeout)
-                            log.debug(
-                                "workCheck: bumped overdue timeout on jobid={jobid}",
-                                jobid=nextJob.jobID,
-                            )
-                            continue
-                        else:
-                            log.debug(
-                                "workCheck: overdue re-assignment for jobid={jobid}",
-                                jobid=nextJob.jobID,
-                            )
-
                 # Always assign as a new job even when it is an orphan
                 yield nextJob.assign(nowTime, self.queueOverdueTimeout)
                 self._timeOfLastWork = time.time()
@@ -664,44 +645,167 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         if loopCounter:
             log.debug("workCheck: processed {ctr} jobs in one loop", ctr=loopCounter)
 
-    _currentWorkDeferred = None
     _workCheckCall = None
 
+    @inlineCallbacks
     def _workCheckLoop(self):
         """
-        While the service is running, keep checking for any overdue / lost work
-        items and re-submit them to the cluster for processing.
+        While the service is running, keep check for work items and execute
+        them. Use a back-off strategy for polling to avoid using too much CPU
+        when there is not a lot to do.
         """
         self._workCheckCall = None
 
         if not self.running:
-            return
+            returnValue(None)
 
-        @passthru(
-            self._workCheck().addErrback(lambda result: log.error("_workCheckLoop: {exc}", exc=result)).addCallback
+        try:
+            yield self._workCheck()
+        except Exception as e:
+            log.error("_workCheckLoop: {exc}", exc=e)
+
+        if not self.running:
+            returnValue(None)
+
+        # Check for adjustment to poll interval - if the workCheck is idle for certain
+        # periods of time we will gradually increase the poll interval to avoid consuming
+        # excessive power when there is nothing to do
+        interval = self.queuePollInterval
+        idle = time.time() - self._timeOfLastWork
+        for threshold, poll in self.queuePollingBackoff:
+            if idle > threshold:
+                interval = poll
+                break
+        if self._actualPollInterval != interval:
+            log.debug("workCheckLoop: interval set to {interval}s", interval=interval)
+        self._actualPollInterval = interval
+        self._workCheckCall = self.reactor.callLater(
+            self._actualPollInterval, self._workCheckLoop
         )
-        def scheduleNext(result):
-            self._currentWorkDeferred = None
-            if not self.running:
-                return
 
-            # Check for adjustment to poll interval - if the workCheck is idle for certain
-            # periods of time we will gradually increase the poll interval to avoid consuming
-            # excessive power when there is nothing to do
-            interval = self.queuePollInterval
-            idle = time.time() - self._timeOfLastWork
-            for threshold, poll in self.queuePollingBackoff:
-                if idle > threshold:
-                    interval = poll
+
+    @inlineCallbacks
+    def _overdueCheck(self):
+        """
+        Every controller will periodically check for any overdue work and unassign that
+        work so that it gets execute during the next regular work check.
+        """
+
+        loopCounter = 0
+        while True:
+            if not self.running or self.disableWorkProcessing:
+                returnValue(None)
+
+            # Determine what the timestamp cutoff
+            # TODO: here is where we should iterate over the unlocked items
+            # that are due, ordered by priority, notBefore etc
+            nowTime = datetime.utcfromtimestamp(self.reactor.seconds())
+
+            self._inOverdueCheck = True
+            txn = overdueJob = None
+            try:
+                txn = self.transactionFactory(label="jobqueue.overdueCheck")
+                overdueJobs = yield JobItem.overduejobs(txn, nowTime, limit=1)
+                if overdueJobs:
+                    overdueJob = overdueJobs[0]
+                else:
                     break
-            if self._actualPollInterval != interval:
-                log.debug("workCheckLoop: interval set to {interval}s", interval=interval)
-            self._actualPollInterval = interval
-            self._workCheckCall = self.reactor.callLater(
-                self._actualPollInterval, self._workCheckLoop
-            )
 
-        self._currentWorkDeferred = scheduleNext
+                # It is overdue - check to see whether the work item is currently locked - if so no
+                # need to re-assign
+                running = yield overdueJob.isRunning()
+                if running:
+                    # Change the overdue to further in the future whilst we wait for
+                    # the running job to complete
+                    yield overdueJob.bumpOverdue(self.queueOverdueTimeout)
+                    log.debug(
+                        "overdueCheck: bumped overdue timeout on jobid={jobid}",
+                        jobid=overdueJob.jobID,
+                    )
+                else:
+                    # Unassign the job so it is picked up by the next L{_workCheck}
+                    yield overdueJob.unassign()
+                    log.debug(
+                        "overdueCheck: overdue unassigned for jobid={jobid}",
+                        jobid=overdueJob.jobID,
+                    )
+                loopCounter += 1
+
+            except Exception as e:
+                log.error(
+                    "Failed to process overdue job: {jobID}, {exc}",
+                    jobID=overdueJob.jobID if overdueJob else "?",
+                    exc=e,
+                )
+                if txn is not None:
+                    yield txn.abort()
+                    txn = None
+
+                # If we can identify the problem job, try and set it to failed so that it
+                # won't block other jobs behind it (it will be picked again when the failure
+                # interval is exceeded - but that has a back off so a permanently stuck item
+                # should fade away. We probably want to have some additional logic to simply
+                # remove something that is permanently failing.
+                if overdueJob is not None:
+                    txn = self.transactionFactory(label="jobqueue.overdueCheck.failed")
+                    try:
+                        failedJob = yield JobItem.load(txn, overdueJob.jobID)
+                        yield failedJob.failedToRun()
+                    except Exception as e:
+                        # Could not mark as failed - break out of the overdue job loop
+                        log.error(
+                            "Failed to mark failed overdue job:{}, {exc}",
+                            jobID=overdueJob.jobID,
+                            exc=e,
+                        )
+                        yield txn.abort()
+                        txn = None
+                        overdueJob = None
+                        break
+                    else:
+                        # Marked the problem one as failed, so keep going and get the next overdue job
+                        log.error("Marked failed overdue job: {jobID}", jobID=overdueJob.jobID)
+                        yield txn.commit()
+                        txn = None
+                        overdueJob = None
+                else:
+                    # Cannot mark anything as failed - break out of overdue job loop
+                    log.error("Cannot mark failed overdue job")
+                    break
+            finally:
+                if txn is not None:
+                    yield txn.commit()
+                    txn = None
+                self._inOverdueCheck = False
+
+        if loopCounter:
+            # Make sure the regular work check loop runs immediately if we processed any overdue items
+            yield self.enqueuedJob()
+            log.debug("overdueCheck: processed {ctr} jobs in one loop", ctr=loopCounter)
+
+    _overdueCheckCall = None
+
+    @inlineCallbacks
+    def _overdueCheckLoop(self):
+        """
+        While the service is running, keep checking for any overdue items.
+        """
+        self._overdueCheckCall = None
+
+        if not self.running:
+            returnValue(None)
+
+        try:
+            yield self._overdueCheck()
+        except Exception as e:
+            log.error("_overdueCheckLoop: {exc}", exc=e)
+
+        if not self.running:
+            returnValue(None)
+
+        self._overdueCheckCall = self.reactor.callLater(
+            self.queueOverduePollInterval, self._overdueCheckLoop
+        )
 
 
     def enqueuedJob(self):
@@ -733,6 +837,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         """
         super(ControllerQueue, self).startService()
         self._workCheckLoop()
+        self._overdueCheckLoop()
 
 
     @inlineCallbacks
@@ -747,13 +852,13 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             self._workCheckCall.cancel()
             self._workCheckCall = None
 
-        if self._currentWorkDeferred is not None:
-            self._currentWorkDeferred.cancel()
-            self._currentWorkDeferred = None
+        if self._overdueCheckCall is not None:
+            self._overdueCheckCall.cancel()
+            self._overdueCheckCall = None
 
         # Wait for any active work check to finish (but no more than 1 minute)
         start = time.time()
-        while self._inWorkCheck:
+        while self._inWorkCheck and self._inOverdueCheck:
             d = Deferred()
             self.reactor.callLater(0.5, lambda : d.callback(None))
             yield d
@@ -780,7 +885,7 @@ class LocalPerformer(object):
         """
         Perform the given job right now.
         """
-        return JobItem.ultimatelyPerform(self.txnFactory, job.jobID)
+        return JobItem.ultimatelyPerform(self.txnFactory, job)
 
 
 
