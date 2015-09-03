@@ -363,6 +363,23 @@ class TestCRUD(TestCase):
 
 
     @inlineCallbacks
+    def test_count(self):
+        """
+        L{Record.count} will return count of the records
+        """
+        txn = self.pool.connection()
+        data = [(123, u"one"), (456, u"four"), (345, u"three"),
+                (234, u"two"), (356, u"three")]
+        for beta, gamma in data:
+            yield txn.execSQL("insert into ALPHA values (:1, :2)",
+                              [beta, gamma])
+        self.assertEqual(
+            (yield TestRecord.count(txn)),
+            len(data)
+        )
+
+
+    @inlineCallbacks
     def test_updatesome(self):
         """
         L{Record.updatesome} will update all instances of the matching records.

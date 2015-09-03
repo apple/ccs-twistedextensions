@@ -31,8 +31,8 @@ __all__ = [
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twext.enterprise.dal.syntax import (
-    Select, Tuple, Constant, ColumnSyntax, Insert, Update, Delete, SavepointAction
-)
+    Select, Tuple, Constant, ColumnSyntax, Insert, Update, Delete, SavepointAction,
+    Count, ALL_COLUMNS)
 from twext.enterprise.util import parseSQLTimestamp
 # from twext.enterprise.dal.syntax import ExpressionSyntax
 
@@ -591,6 +591,20 @@ class Record(object):
             ),
             None
         )
+
+
+    @classmethod
+    @inlineCallbacks
+    def count(cls, transaction, where=None):
+        """
+        Count the number of rows in the table that corresponds to C{cls}.
+        """
+        rows = yield Select(
+            [Count(ALL_COLUMNS), ],
+            From=cls.table,
+            Where=where,
+        ).on(transaction)
+        returnValue(rows[0][0])
 
 
     @classmethod
