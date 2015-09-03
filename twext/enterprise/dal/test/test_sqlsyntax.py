@@ -33,7 +33,7 @@ from twext.enterprise.dal.syntax import (
     Savepoint, RollbackToSavepoint, ReleaseSavepoint, SavepointAction,
     Union, Intersect, Except, SetExpression, DALError,
     ResultAliasSyntax, Count, QueryGenerator, ALL_COLUMNS,
-    DatabaseLock, DatabaseUnlock, Not, Coalesce)
+    DatabaseLock, DatabaseUnlock, Not, Coalesce, NullIf)
 from twext.enterprise.dal.syntax import FixedPlaceholder, NumericPlaceholder
 from twext.enterprise.dal.syntax import Function
 from twext.enterprise.dal.syntax import SchemaSyntax
@@ -1140,6 +1140,20 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 Where=Coalesce(self.schema.BOZ.QUX, self.schema.BOZ.QUUX) == 1
             ).toSQL(),
             SQLFragment("select QUX from BOZ where coalesce(QUX, QUUX) = ?", [1])
+        )
+
+
+    def test_nullif(self):
+        """
+        L{Coalesce}C{(column)} produces an object in the C{columns} clause that
+        renders the C{coalesce} conditional in SQL.
+        """
+        self.assertEquals(
+            Select(
+                [NullIf(self.schema.BOZ.QUX, Constant(False))],
+                From=self.schema.BOZ,
+            ).toSQL(),
+            SQLFragment("select nullif(QUX, ?) from BOZ", [False])
         )
 
 

@@ -614,6 +614,7 @@ Len = Function("character_length", "length")
 Upper = Function("upper")
 Lower = Function("lower")
 Coalesce = Function("coalesce")
+NullIf = Function("nullif")
 
 _sqliteLastInsertRowID = Function("last_insert_rowid")
 
