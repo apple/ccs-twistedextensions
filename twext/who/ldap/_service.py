@@ -603,104 +603,123 @@ class DirectoryService(BaseDirectoryService):
         This method is always called in a thread.
         """
 
-        records = []
+        if recordTypes is None:
+            recordTypes = list(self.recordTypes())
 
-        with DirectoryService.Connection(self) as connection:
+        # Retry if we get ldap.SERVER_DOWN
+        TRIES = 3
 
+        for self._retryNumber in xrange(TRIES):
 
-            if recordTypes is None:
-                recordTypes = self.recordTypes()
+            records = []
 
-            for recordType in recordTypes:
+            try:
 
-                if limitResults is not None:
-                    if limitResults < 1:
-                        break
+                with DirectoryService.Connection(self) as connection:
 
-                try:
-                    rdn = self._recordTypeSchemas[recordType].relativeDN
-                except KeyError:
-                    # Skip this unknown record type
-                    continue
+                    for recordType in recordTypes:
 
-                rdn = (
-                    ldap.dn.str2dn(rdn.lower()) +
-                    ldap.dn.str2dn(self._baseDN.lower())
+                        if limitResults is not None:
+                            if limitResults < 1:
+                                break
+
+                        try:
+                            rdn = self._recordTypeSchemas[recordType].relativeDN
+                        except KeyError:
+                            # Skip this unknown record type
+                            continue
+
+                        rdn = (
+                            ldap.dn.str2dn(rdn.lower()) +
+                            ldap.dn.str2dn(self._baseDN.lower())
+                        )
+                        filteredQuery = self._addExtraFilter(recordType, queryString)
+                        self.log.debug(
+                            "Performing LDAP query: {rdn} {query} {recordType}{limit}{timeout}",
+                            rdn=rdn,
+                            query=filteredQuery,
+                            recordType=recordType,
+                            limit=" limit={}".format(limitResults) if limitResults else "",
+                            timeout=" timeout={}".format(timeoutSeconds) if timeoutSeconds else "",
+                        )
+                        try:
+                            s = ldap.async.List(connection)
+                            s.startSearch(
+                                ldap.dn.dn2str(rdn),
+                                ldap.SCOPE_SUBTREE,
+                                filteredQuery,
+                                attrList=self._attributesToFetch,
+                                timeout=timeoutSeconds if timeoutSeconds else -1,
+                                sizelimit=limitResults if limitResults else 0
+                            )
+                            s.processResults()
+
+                        except ldap.SIZELIMIT_EXCEEDED as e:
+                            self.log.debug("LDAP result limit exceeded: {}".format(limitResults,))
+
+                        except ldap.TIMELIMIT_EXCEEDED as e:
+                            self.log.warn("LDAP timeout exceeded: {} seconds".format(timeoutSeconds,))
+
+                        except ldap.FILTER_ERROR as e:
+                            self.log.error(
+                                "Unable to perform query {query!r}: {err}",
+                                query=queryString, err=e
+                            )
+                            raise LDAPQueryError("Unable to perform query", e)
+
+                        except ldap.NO_SUCH_OBJECT as e:
+                            # self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
+                            continue
+
+                        except ldap.INVALID_SYNTAX as e:
+                            self.log.error(
+                                "LDAP invalid syntax {query!r}: {err}",
+                                query=queryString, err=e
+                            )
+                            continue
+
+                        except ldap.SERVER_DOWN as e:
+                            # Catch this below for retry
+                            raise e
+
+                        except Exception as e:
+                            self.log.error(
+                                "LDAP error {query!r}: {err}",
+                                query=queryString, err=e
+                            )
+                            raise LDAPQueryError("Unable to perform query", e)
+
+                        reply = [resultItem for _ignore_resultType, resultItem in s.allResults]
+
+                        newRecords = self._recordsFromReply(reply, recordType=recordType)
+
+                        self.log.debug(
+                            "Records from LDAP query ({rdn} {query} {recordType}): {count}",
+                            rdn=rdn,
+                            query=queryString,
+                            recordType=recordType,
+                            count=len(newRecords)
+                        )
+
+                        if limitResults is not None:
+                            limitResults = limitResults - len(newRecords)
+
+                        records.extend(newRecords)
+
+            except ldap.SERVER_DOWN as e:
+                self.log.error(
+                    "LDAP server unavailable"
                 )
-                filteredQuery = self._addExtraFilter(recordType, queryString)
-                self.log.debug(
-                    "Performing LDAP query: {rdn} {query} {recordType}{limit}{timeout}",
-                    rdn=rdn,
-                    query=filteredQuery,
-                    recordType=recordType,
-                    limit=" limit={}".format(limitResults) if limitResults else "",
-                    timeout=" timeout={}".format(timeoutSeconds) if timeoutSeconds else "",
-                )
-                try:
-                    s = ldap.async.List(connection)
-                    s.startSearch(
-                        ldap.dn.dn2str(rdn),
-                        ldap.SCOPE_SUBTREE,
-                        filteredQuery,
-                        attrList=self._attributesToFetch,
-                        timeout=timeoutSeconds if timeoutSeconds else -1,
-                        sizelimit=limitResults if limitResults else 0
-                    )
-                    s.processResults()
-
-                except ldap.SIZELIMIT_EXCEEDED as e:
-                    self.log.debug("LDAP result limit exceeded: {}".format(limitResults,))
-
-                except ldap.TIMELIMIT_EXCEEDED as e:
-                    self.log.warn("LDAP timeout exceeded: {} seconds".format(timeoutSeconds,))
-
-                except ldap.FILTER_ERROR as e:
-                    self.log.error(
-                        "Unable to perform query {query!r}: {err}",
-                        query=queryString, err=e
-                    )
-                    raise LDAPQueryError("Unable to perform query", e)
-
-                except ldap.NO_SUCH_OBJECT as e:
-                    # self.log.warn("RDN {rdn} does not exist, skipping", rdn=rdn)
-                    continue
-
-                except ldap.INVALID_SYNTAX as e:
-                    self.log.error(
-                        "LDAP invalid syntax {query!r}: {err}",
-                        query=queryString, err=e
-                    )
-                    continue
-
-                except ldap.SERVER_DOWN as e:
-                    self.log.error(
-                        "LDAP server unavailable"
-                    )
+                if self._retryNumber + 1 == TRIES:
+                    # We've hit SERVER_DOWN TRIES times, giving up
                     raise LDAPQueryError("LDAP server down", e)
+                else:
+                    self.log.error("LDAP connection failure; retrying...")
 
-                except Exception as e:
-                    self.log.error(
-                        "LDAP error {query!r}: {err}",
-                        query=queryString, err=e
-                    )
-                    raise LDAPQueryError("Unable to perform query", e)
-
-                reply = [resultItem for _ignore_resultType, resultItem in s.allResults]
-
-                newRecords = self._recordsFromReply(reply, recordType=recordType)
-
-                self.log.debug(
-                    "Records from LDAP query ({rdn} {query} {recordType}): {count}",
-                    rdn=rdn,
-                    query=queryString,
-                    recordType=recordType,
-                    count=len(newRecords)
-                )
-
-                if limitResults is not None:
-                    limitResults = limitResults - len(newRecords)
-
-                records.extend(newRecords)
+            else:
+                # Only retry if we got ldap.SERVER_DOWN, otherwise break out of
+                # loop
+                break
 
         self.log.debug(
             "LDAP result count ({query}): {count}",
@@ -725,23 +744,48 @@ class DirectoryService(BaseDirectoryService):
         @param dn: The DN of the record to search for
         @type dn: C{str}
         """
-        with DirectoryService.Connection(self) as connection:
 
-            self.log.debug("Performing LDAP DN query: {dn}", dn=dn)
+        records = []
+
+        # Retry if we get ldap.SERVER_DOWN
+        TRIES = 3
+
+        for self._retryNumber in xrange(TRIES):
 
             try:
-                reply = connection.search_s(
-                    dn,
-                    ldap.SCOPE_SUBTREE,
-                    "(objectClass=*)",
-                    attrlist=self._attributesToFetch
+
+                with DirectoryService.Connection(self) as connection:
+
+                    self.log.debug("Performing LDAP DN query: {dn}", dn=dn)
+
+                    try:
+                        reply = connection.search_s(
+                            dn,
+                            ldap.SCOPE_SUBTREE,
+                            "(objectClass=*)",
+                            attrlist=self._attributesToFetch
+                        )
+                        records = self._recordsFromReply(reply)
+                    except ldap.NO_SUCH_OBJECT:
+                        records = []
+                    except ldap.INVALID_DN_SYNTAX:
+                        self.log.warn("Invalid LDAP DN syntax: '{dn}'", dn=dn)
+                        records = []
+
+            except ldap.SERVER_DOWN as e:
+                self.log.error(
+                    "LDAP server unavailable"
                 )
-                records = self._recordsFromReply(reply)
-            except ldap.NO_SUCH_OBJECT:
-                records = []
-            except ldap.INVALID_DN_SYNTAX:
-                self.log.warn("Invalid LDAP DN syntax: '{dn}'", dn=dn)
-                records = []
+                if self._retryNumber + 1 == TRIES:
+                    # We've hit SERVER_DOWN TRIES times, giving up
+                    raise LDAPQueryError("LDAP server down", e)
+                else:
+                    self.log.error("LDAP connection failure; retrying...")
+
+            else:
+                # Only retry if we got ldap.SERVER_DOWN, otherwise break out of
+                # loop
+                break
 
         if len(records):
             return records[0]

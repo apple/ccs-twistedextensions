@@ -23,6 +23,7 @@ __all__ = [
     "LDAPConfigurationError",
     "LDAPConnectionError",
     "LDAPBindAuthError",
+    "LDAPQueryError",
     "RecordTypeSchema",
     "DirectoryService",
     "LDAPAttribute",
@@ -36,6 +37,7 @@ from ._service import (
     LDAPConfigurationError,
     LDAPConnectionError,
     LDAPBindAuthError,
+    LDAPQueryError,
     RecordTypeSchema,
     DirectoryService,
     FieldName

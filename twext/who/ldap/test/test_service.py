@@ -58,7 +58,7 @@ except ImportError:
 from twext.python.types import MappingProxyType
 from twext.who.idirectory import RecordType
 from twext.who.ldap import (
-    LDAPAttribute, RecordTypeSchema, LDAPObjectClass
+    LDAPAttribute, RecordTypeSchema, LDAPObjectClass, LDAPQueryError
 )
 from twext.who.util import ConstantsContainer
 
@@ -443,6 +443,55 @@ class DirectoryServiceTest(
         service = self.service()
 
         self.assertEquals(repr(service), u"<TestService u'ldap://localhost/'>")
+
+
+    def test_server_down(self):
+        """
+        Verify an ldap.SERVER_DOWN error will retry 2 more times and that
+        the connection is closed if all attempts fail.
+        """
+
+        service = self.service()
+
+        # Verify that without a SERVER_DOWN we don't need to retry, and we
+        # still have a connection in the pool
+        service._recordsFromQueryString_inThread("(this=that)")
+        self.assertEquals(service._retryNumber, 0)
+        self.assertEquals(len(service.connections), 1)
+
+        service._recordWithDN_inThread("cn=test")
+        self.assertEquals(service._retryNumber, 0)
+        self.assertEquals(len(service.connections), 1)
+
+        # Force a search to raise SERVER_DOWN
+        def raiseServerDown(*args, **kwds):
+            raise ldap.SERVER_DOWN
+        self.patch(LDAPObject, "search_ext", raiseServerDown)
+        self.patch(LDAPObject, "search_s", raiseServerDown)
+
+        # Now try recordsFromQueryString
+        try:
+            service._recordsFromQueryString_inThread("(this=that)")
+        except LDAPQueryError:
+            # Verify the number of times we retried
+            self.assertEquals(service._retryNumber, 2)
+        except:
+            self.fail("Should have raised LDAPQueryError")
+
+        # Verify the connections are all closed
+        self.assertEquals(len(service.connections), 0)
+
+        # Now try recordWithDN
+        try:
+            service._recordWithDN_inThread("cn=test")
+        except LDAPQueryError:
+            # Verify the number of times we retried
+            self.assertEquals(service._retryNumber, 2)
+        except:
+            self.fail("Should have raised LDAPQueryError")
+
+        # Verify the connections are all closed
+        self.assertEquals(len(service.connections), 0)
 
 
 class ExtraFiltersTest(BaseTestCase, unittest.TestCase):
