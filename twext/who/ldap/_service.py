@@ -233,6 +233,7 @@ class DirectoryService(BaseDirectoryService):
         ownThreadpool=True,
         threadPoolMax=10,
         connectionMax=10,
+        tries=3,
         _debug=False,
     ):
         """
@@ -278,6 +279,7 @@ class DirectoryService(BaseDirectoryService):
         self._credentials = credentials
         self._timeout = timeout
         self._extraFilters = extraFilters
+        self._tries = tries
 
         if tlsCACertificateFile is None:
             self._tlsCACertificateFile = None
@@ -602,14 +604,11 @@ class DirectoryService(BaseDirectoryService):
         """
         This method is always called in a thread.
         """
-
         if recordTypes is None:
             recordTypes = list(self.recordTypes())
 
         # Retry if we get ldap.SERVER_DOWN
-        TRIES = 3
-
-        for self._retryNumber in xrange(TRIES):
+        for self._retryNumber in xrange(self._tries):
 
             records = []
 
@@ -710,8 +709,8 @@ class DirectoryService(BaseDirectoryService):
                 self.log.error(
                     "LDAP server unavailable"
                 )
-                if self._retryNumber + 1 == TRIES:
-                    # We've hit SERVER_DOWN TRIES times, giving up
+                if self._retryNumber + 1 == self._tries:
+                    # We've hit SERVER_DOWN self._tries times, giving up
                     raise LDAPQueryError("LDAP server down", e)
                 else:
                     self.log.error("LDAP connection failure; retrying...")
@@ -748,9 +747,7 @@ class DirectoryService(BaseDirectoryService):
         records = []
 
         # Retry if we get ldap.SERVER_DOWN
-        TRIES = 3
-
-        for self._retryNumber in xrange(TRIES):
+        for self._retryNumber in xrange(self._tries):
 
             try:
 
@@ -776,8 +773,8 @@ class DirectoryService(BaseDirectoryService):
                 self.log.error(
                     "LDAP server unavailable"
                 )
-                if self._retryNumber + 1 == TRIES:
-                    # We've hit SERVER_DOWN TRIES times, giving up
+                if self._retryNumber + 1 == self._tries:
+                    # We've hit SERVER_DOWN self._tries times, giving up
                     raise LDAPQueryError("LDAP server down", e)
                 else:
                     self.log.error("LDAP connection failure; retrying...")
