@@ -594,6 +594,19 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
 
     @classmethod
+    def allWorkTypes(cls):
+        """
+        Map all L{WorkItem} sub-classes table names to the class type.
+
+        @return: All of the work item types.
+        @rtype: L{dict}
+        """
+        if cls._workTypeMap is None:
+            cls.workTypes()
+        return cls._workTypeMap
+
+
+    @classmethod
     def numberOfWorkTypes(cls):
         return len(cls.workTypes())
 

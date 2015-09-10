@@ -194,6 +194,83 @@ class WorkItem(SerializableRecord):
         returnValue(workItems)
 
 
+    @classmethod
+    def updateWorkTypes(cls, updates):
+        """
+        Update the priority and weight values of each specified work type.
+
+        @param updates: a dict whose workType is the work class name, and whose
+            settings is a dict containing one or both of "weight" and "priority"
+            keys and numeric values to change to.
+        @type updates: L{dict}
+        """
+
+        for workType, settings in updates.items():
+            try:
+                workItem = JobItem.workItemForType(workType)
+            except KeyError:
+                log.error(
+                    "updateWorkTypes: '{workType}' is not a valid work type",
+                    workType=workType,
+                )
+                continue
+            if "priority" in settings:
+                priority = settings["priority"]
+                try:
+                    priority = int(priority)
+                    if not (WORK_PRIORITY_LOW <= priority <= WORK_PRIORITY_HIGH):
+                        raise ValueError
+                except ValueError:
+                    log.error(
+                        "updateWorkTypes: '{workType}' priority '{priority}' is not value",
+                        workType=workType, priority=priority,
+                    )
+                else:
+                    workItem.default_priority = priority
+            else:
+                priority = "unchanged"
+            if "weight" in settings:
+                weight = settings["weight"]
+                try:
+                    weight = int(weight)
+                    if not (WORK_WEIGHT_0 <= weight <= WORK_WEIGHT_10):
+                        raise ValueError
+                except ValueError:
+                    log.error(
+                        "updateWorkTypes: '{workType}' weight '{weight}' is not value",
+                        workType=workType, weight=weight,
+                    )
+                else:
+                    workItem.default_weight = weight
+            else:
+                weight = "unchanged"
+            log.info(
+                "updateWorkTypes: '{workType}' priority: '{priority}' weight: '{weight}' ",
+                workType=workType, priority=priority,
+            )
+
+
+    @classmethod
+    def dumpWorkTypes(cls):
+        """
+        Dump the priority and weight values of each known work type.
+
+        @return: a dict whose workType is the work class name, and whose
+            settings is a dict containing one or both of "weight" and "priority"
+            keys and numeric values to change to.
+        @rtype: L{dict}
+        """
+
+        results = {}
+        for workType, workClass in JobItem.allWorkTypes().items():
+            results[workType] = {
+                "priority": workClass.default_priority,
+                "weight": workClass.default_weight,
+            }
+
+        return results
+
+
     @inlineCallbacks
     def runlock(self):
         """

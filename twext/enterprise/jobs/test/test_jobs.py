@@ -41,7 +41,8 @@ from twext.enterprise.fixtures import SteppablePoolHelper
 from twext.enterprise.jobs.utils import inTransaction, astimestamp
 from twext.enterprise.jobs.workitem import \
     WorkItem, SingletonWorkItem, \
-    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM
+    WORK_PRIORITY_LOW, WORK_PRIORITY_HIGH, WORK_PRIORITY_MEDIUM, WORK_WEIGHT_5, \
+    WORK_WEIGHT_1, WORK_WEIGHT_10, WORK_WEIGHT_0
 from twext.enterprise.jobs.jobitem import \
     JobItem, JobDescriptor, JobFailedError, JobTemporaryError
 from twext.enterprise.jobs.queue import \
@@ -187,18 +188,6 @@ class SimpleSchemaHelper(SchemaTestHelper):
 
 SQL = passthru
 
-nodeSchema = SQL(
-    """
-    create table NODE_INFO (
-      HOSTNAME varchar(255) not null,
-      PID integer not null,
-      PORT integer not null,
-      TIME timestamp default current_timestamp not null,
-      primary key (HOSTNAME, PORT)
-    );
-    """
-)
-
 jobSchema = SQL(
     """
     create table JOB (
@@ -241,6 +230,12 @@ schemaText = SQL(
       A integer, B integer,
       DELETE_ON_LOAD integer default 0
     );
+    create table UPDATE_WORK_ITEM (
+      WORK_ID integer primary key,
+      JOB_ID integer references JOB,
+      A integer, B integer,
+      DELETE_ON_LOAD integer default 0
+    );
     """
 )
 
@@ -253,7 +248,8 @@ try:
             "DUMMY_WORK_ITEM",
             "DUMMY_WORK_SINGLETON_ITEM",
             "DUMMY_WORK_PAUSE_ITEM",
-            "AGGREGATOR_WORK_ITEM"
+            "AGGREGATOR_WORK_ITEM",
+            "UPDATE_WORK_ITEM",
         )
     ] + ["delete from job"]
 except SkipTest as e:
@@ -261,12 +257,14 @@ except SkipTest as e:
     DummyWorkSingletonItemTable = object
     DummyWorkPauseItemTable = object
     AggregatorWorkItemTable = object
+    UpdateWorkItemTable = object
     skip = e
 else:
     DummyWorkItemTable = fromTable(schema.DUMMY_WORK_ITEM)
     DummyWorkSingletonItemTable = fromTable(schema.DUMMY_WORK_SINGLETON_ITEM)
     DummyWorkPauseItemTable = fromTable(schema.DUMMY_WORK_PAUSE_ITEM)
     AggregatorWorkItemTable = fromTable(schema.AGGREGATOR_WORK_ITEM)
+    UpdateWorkItemTable = fromTable(schema.UPDATE_WORK_ITEM)
     skip = False
 
 
@@ -358,6 +356,17 @@ class AggregatorWorkItem(WorkItem, AggregatorWorkItemTable):
 
 
 
+class UpdateWorkItem(WorkItem, UpdateWorkItemTable):
+    """
+    Sample L{WorkItem} subclass that will have its weight and
+    priority changed.
+    """
+
+    default_priority = WORK_PRIORITY_MEDIUM
+    default_weight = WORK_WEIGHT_5
+
+
+
 class AMPTests(TestCase):
     """
     Tests for L{AMP} faithfully relaying ids across the wire.
@@ -442,7 +451,7 @@ class WorkItemTests(TestCase):
         """
         L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        dbpool = buildConnectionPool(self, jobSchema + schemaText)
         yield self._enqueue(dbpool, 1, 2)
 
         # Make sure we have one JOB and one DUMMY_WORK_ITEM
@@ -469,7 +478,7 @@ class WorkItemTests(TestCase):
         """
         L{JobItem.assign} will mark a job as assigned.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        dbpool = buildConnectionPool(self, jobSchema + schemaText)
         yield self._enqueue(dbpool, 1, 2)
 
         # Make sure we have one JOB and one DUMMY_WORK_ITEM
@@ -497,7 +506,7 @@ class WorkItemTests(TestCase):
         L{JobItem.nextjob} returns the correct job based on priority.
         """
 
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        dbpool = buildConnectionPool(self, jobSchema + schemaText)
         now = datetime.datetime.utcnow()
 
         # Empty job queue
@@ -585,7 +594,7 @@ class WorkItemTests(TestCase):
         """
         L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        dbpool = buildConnectionPool(self, jobSchema + schemaText)
 
         yield self._enqueue(dbpool, 1, 2, cl=DummyWorkItem)
 
@@ -606,7 +615,7 @@ class WorkItemTests(TestCase):
         """
         L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        dbpool = buildConnectionPool(self, jobSchema + schemaText)
 
         yield self._enqueue(dbpool, 1, 2, cl=DummyWorkSingletonItem)
 
@@ -627,7 +636,7 @@ class WorkItemTests(TestCase):
         """
         L{ControllerQueue.enqueueWork} will insert a job and a work item.
         """
-        dbpool = buildConnectionPool(self, nodeSchema + jobSchema + schemaText)
+        dbpool = buildConnectionPool(self, jobSchema + schemaText)
 
         qpool = yield self._enqueue(dbpool, 1, 2, cl=DummyWorkSingletonItem, notBefore=datetime.datetime(2014, 5, 17, 12, 0, 0))
 
@@ -655,6 +664,137 @@ class WorkItemTests(TestCase):
         work = yield inTransaction(dbpool.connection, allWork)
         self.assertTrue(len(work) == 1)
         self.assertTrue(work[0][1].notBefore != datetime.datetime(2014, 5, 17, 12, 0, 0))
+
+
+    def test_updateWorkTypes(self):
+        """
+        L{workItem.updateWorkTypes} updates weight and priority correctly.
+        """
+        _ignore_dbpool = buildConnectionPool(self, jobSchema + schemaText)
+
+        def _validate(priority, weight):
+            self.assertEqual(AggregatorWorkItem.default_priority, WORK_PRIORITY_LOW)
+            self.assertEqual(AggregatorWorkItem.default_weight, WORK_WEIGHT_5)
+            self.assertEqual(UpdateWorkItem.default_priority, priority)
+            self.assertEqual(UpdateWorkItem.default_weight, weight)
+
+        # Check current values
+        _validate(WORK_PRIORITY_MEDIUM, WORK_WEIGHT_5)
+
+        # Change priority and weight
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_HIGH,
+                "weight": WORK_WEIGHT_1,
+            },
+        })
+        _validate(WORK_PRIORITY_HIGH, WORK_WEIGHT_1)
+
+        # Change priority only
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_LOW,
+            },
+        })
+        _validate(WORK_PRIORITY_LOW, WORK_WEIGHT_1)
+
+        # Change weight only
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "weight": WORK_WEIGHT_10,
+            },
+        })
+        _validate(WORK_PRIORITY_LOW, WORK_WEIGHT_10)
+
+        # No change
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+            },
+        })
+        _validate(WORK_PRIORITY_LOW, WORK_WEIGHT_10)
+        WorkItem.updateWorkTypes({
+        })
+        _validate(WORK_PRIORITY_LOW, WORK_WEIGHT_10)
+
+        # Change priority and weight, with invalid work
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_HIGH,
+                "weight": WORK_WEIGHT_1,
+            },
+            "FOO_WORK_ITEM": {
+                "priority": WORK_PRIORITY_HIGH,
+                "weight": WORK_WEIGHT_1,
+            },
+        })
+        _validate(WORK_PRIORITY_HIGH, WORK_WEIGHT_1)
+
+        # Invalid priority and weight
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_HIGH + 1,
+                "weight": WORK_WEIGHT_10 + 11,
+            },
+        })
+        _validate(WORK_PRIORITY_HIGH, WORK_WEIGHT_1)
+
+        # Invalid priority and valid weight
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_HIGH + 1,
+                "weight": WORK_WEIGHT_0,
+            },
+        })
+        _validate(WORK_PRIORITY_HIGH, WORK_WEIGHT_0)
+
+        # Valid priority and invalid weight
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_LOW,
+                "weight": WORK_WEIGHT_0 - 1,
+            },
+        })
+        _validate(WORK_PRIORITY_LOW, WORK_WEIGHT_0)
+
+
+    def test_dumpWorkTypes(self):
+        """
+        L{workItem.dumpWorkTypes} dumps weight and priority correctly.
+        """
+        _ignore_dbpool = buildConnectionPool(self, jobSchema + schemaText)
+
+        results = WorkItem.dumpWorkTypes()
+        self.assertTrue("DUMMY_WORK_SINGLETON_ITEM" in results)
+        self.assertEqual(
+            results["DUMMY_WORK_SINGLETON_ITEM"],
+            {"priority": WORK_PRIORITY_LOW, "weight": WORK_WEIGHT_5},
+        )
+
+        # Change priority and weight
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_HIGH,
+                "weight": WORK_WEIGHT_1,
+            },
+        })
+        results = WorkItem.dumpWorkTypes()
+        self.assertEqual(
+            results["UPDATE_WORK_ITEM"],
+            {"priority": WORK_PRIORITY_HIGH, "weight": WORK_WEIGHT_1},
+        )
+
+        # Change priority and weight again
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_MEDIUM,
+                "weight": WORK_WEIGHT_10,
+            },
+        })
+        results = WorkItem.dumpWorkTypes()
+        self.assertEqual(
+            results["UPDATE_WORK_ITEM"],
+            {"priority": WORK_PRIORITY_MEDIUM, "weight": WORK_WEIGHT_10},
+        )
 
 
 
@@ -694,7 +834,7 @@ class ControllerQueueUnitTests(TestCase):
         Setup pool and reactor clock for time stepped tests.
         """
         reactor = MemoryReactorWithClock()
-        cph = SteppablePoolHelper(nodeSchema + jobSchema + schemaText)
+        cph = SteppablePoolHelper(jobSchema + schemaText)
         then = datetime.datetime(2012, 12, 12, 12, 12, 12)
         reactor.advance(astimestamp(then))
         cph.setUp(self)
@@ -903,7 +1043,7 @@ class ControllerQueueUnitTests(TestCase):
         L{ControllerQueue.startService} kicks off the idle work-check loop.
         """
         reactor = MemoryReactorWithClock()
-        cph = SteppablePoolHelper(nodeSchema + jobSchema + schemaText)
+        cph = SteppablePoolHelper(jobSchema + schemaText)
         then = datetime.datetime(2012, 12, 12, 12, 12, 0)
         reactor.advance(astimestamp(then))
         cph.setUp(self)
