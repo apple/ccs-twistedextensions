@@ -756,6 +756,19 @@ class WorkItemTests(TestCase):
         })
         _validate(WORK_PRIORITY_LOW, WORK_WEIGHT_0)
 
+        # Back to default priority and weight again
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_MEDIUM,
+                "weight": WORK_WEIGHT_5,
+            },
+        })
+        results = WorkItem.dumpWorkTypes()
+        self.assertEqual(
+            results["UPDATE_WORK_ITEM"],
+            {"priority": WORK_PRIORITY_MEDIUM, "weight": WORK_WEIGHT_5},
+        )
+
 
     def test_dumpWorkTypes(self):
         """
@@ -794,6 +807,19 @@ class WorkItemTests(TestCase):
         self.assertEqual(
             results["UPDATE_WORK_ITEM"],
             {"priority": WORK_PRIORITY_MEDIUM, "weight": WORK_WEIGHT_10},
+        )
+
+        # Back to default priority and weight again
+        WorkItem.updateWorkTypes({
+            "UPDATE_WORK_ITEM": {
+                "priority": WORK_PRIORITY_MEDIUM,
+                "weight": WORK_WEIGHT_5,
+            },
+        })
+        results = WorkItem.dumpWorkTypes()
+        self.assertEqual(
+            results["UPDATE_WORK_ITEM"],
+            {"priority": WORK_PRIORITY_MEDIUM, "weight": WORK_WEIGHT_5},
         )
 
 
