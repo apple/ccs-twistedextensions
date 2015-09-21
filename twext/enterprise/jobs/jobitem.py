@@ -18,8 +18,7 @@
 from twext.enterprise.dal.model import Sequence
 from twext.enterprise.dal.model import Table, Schema, SQLType
 from twext.enterprise.dal.record import Record, fromTable, NoSuchRecord
-from twext.enterprise.dal.syntax import SchemaSyntax, Count, NullIf, Constant, \
-    Sum
+from twext.enterprise.dal.syntax import SchemaSyntax, Call, Count, Case, Constant, Sum
 from twext.enterprise.ienterprise import ORACLE_DIALECT
 from twext.enterprise.jobs.utils import inTransaction, astimestamp
 from twext.python.log import Logger
@@ -377,71 +376,47 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @rtype: L{JobItem}
         """
 
-        jobs = yield cls.nextjobs(txn, now, minPriority, limit=1)
-
-        # Must only be one or zero
-        if jobs and len(jobs) > 1:
-            raise AssertionError("nextjob() returned more than one row")
-
-        returnValue(jobs[0] if jobs else None)
-
-
-    @classmethod
-    @inlineCallbacks
-    def nextjobs(cls, txn, now, minPriority, limit=1):
-        """
-        Find the next available job based on priority, also return any that are overdue.
-
-        @param txn: the transaction to use
-        @type txn: L{IAsyncTransaction}
-        @param now: current timestamp
-        @type now: L{datetime.datetime}
-        @param minPriority: lowest priority level to query for
-        @type minPriority: L{int}
-        @param limit: limit on number of jobs to return
-        @type limit: L{int}
-
-        @return: the job record
-        @rtype: L{JobItem}
-        """
-
-        # Only add the PRIORITY term if minimum is greater than zero
-        queryExpr = (cls.assigned == None).And(cls.pause == 0).And(cls.notBefore <= now)
-
-        # PRIORITY can only be 0, 1, or 2. So we can convert an inequality into
-        # an equality test as follows:
-        #
-        # PRIORITY >= 0 - no test needed all values match all the time
-        # PRIORITY >= 1 === PRIORITY != 0
-        # PRIORITY >= 2 === PRIORITY == 2
-        #
-        # Doing this allows use of the PRIORITY column in an index since we already
-        # have one inequality in the index (NOT_BEFORE)
-
-        if minPriority == JOB_PRIORITY_MEDIUM:
-            queryExpr = (cls.priority != JOB_PRIORITY_LOW).And(queryExpr)
-        elif minPriority == JOB_PRIORITY_HIGH:
-            queryExpr = (cls.priority == JOB_PRIORITY_HIGH).And(queryExpr)
-
         if txn.dialect == ORACLE_DIALECT:
-            # Oracle does not support a "for update" clause with "order by". So do the
-            # "for update" as a second query right after the first. Will need to check
-            # how this might impact concurrency in a multi-host setup.
-            jobs = yield cls.query(
-                txn,
-                queryExpr,
-                order=cls.priority,
-                ascending=False,
-                limit=limit,
-            )
-            if jobs:
-                yield cls.query(
-                    txn,
-                    (cls.jobID.In([job.jobID for job in jobs])),
-                    forUpdate=True,
-                    noWait=False,
-                )
+
+            # For Oracle we need a multi-app server solution that only locks the
+            # (one) row being returned by the query, and allows other app servers
+            # to run the query in parallel and get the next unlocked row.
+            #
+            # To do that we use a stored procedure that uses a CURSOR with a
+            # SELECT ... FOR UPDATE SKIP LOCKED query that ensures only the row
+            # being fetched is locked and existing locked rows are skipped.
+
+            # Three separate stored procedures for the three priority cases
+            if minPriority == JOB_PRIORITY_LOW:
+                function = "next_job_all"
+            elif minPriority == JOB_PRIORITY_MEDIUM:
+                function = "next_job_medium_high"
+            elif minPriority == JOB_PRIORITY_HIGH:
+                function = "next_job_high"
+
+            job = None
+            jobID = yield Call(function, now, returnType=int).on(txn)
+            if jobID:
+                job = yield cls.load(txn, jobID)
         else:
+            # Only add the PRIORITY term if minimum is greater than zero
+            queryExpr = (cls.assigned == None).And(cls.pause == 0).And(cls.notBefore <= now)
+
+            # PRIORITY can only be 0, 1, or 2. So we can convert an inequality into
+            # an equality test as follows:
+            #
+            # PRIORITY >= 0 - no test needed all values match all the time
+            # PRIORITY >= 1 === PRIORITY != 0
+            # PRIORITY >= 2 === PRIORITY == 2
+            #
+            # Doing this allows use of the PRIORITY column in an index since we already
+            # have one inequality in the index (NOT_BEFORE)
+
+            if minPriority == JOB_PRIORITY_MEDIUM:
+                queryExpr = (cls.priority != JOB_PRIORITY_LOW).And(queryExpr)
+            elif minPriority == JOB_PRIORITY_HIGH:
+                queryExpr = (cls.priority == JOB_PRIORITY_HIGH).And(queryExpr)
+
             jobs = yield cls.query(
                 txn,
                 queryExpr,
@@ -449,40 +424,45 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 ascending=False,
                 forUpdate=True,
                 noWait=False,
-                limit=limit,
+                limit=1,
             )
+            job = jobs[0] if jobs else None
 
-        returnValue(jobs)
+        returnValue(job)
 
 
     @classmethod
     @inlineCallbacks
-    def overduejobs(cls, txn, now, limit=None):
+    def overduejob(cls, txn, now):
         """
-        Find the next overdue job based on priority.
+        Find the next overdue job.
 
         @param txn: the transaction to use
         @type txn: L{IAsyncTransaction}
         @param now: current timestamp
         @type now: L{datetime.datetime}
-        @param limit: limit on number of jobs to return
-        @type limit: L{int}
 
         @return: the job record
         @rtype: L{JobItem}
         """
 
-        queryExpr = (cls.assigned != None).And(cls.overdue < now)
+        if txn.dialect == ORACLE_DIALECT:
+            # See L{nextjob} for why Oracle is different
+            job = None
+            jobID = yield Call("overdue_job", now, returnType=int).on(txn)
+            if jobID:
+                job = yield cls.load(txn, jobID)
+        else:
+            jobs = yield cls.query(
+                txn,
+                (cls.assigned != None).And(cls.overdue < now),
+                forUpdate=True,
+                noWait=False,
+                limit=1,
+            )
+            job = jobs[0] if jobs else None
 
-        jobs = yield cls.query(
-            txn,
-            queryExpr,
-            forUpdate=True,
-            noWait=False,
-            limit=limit,
-        )
-
-        returnValue(jobs)
+        returnValue(job)
 
 
     @inlineCallbacks
@@ -714,7 +694,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 cls.workType,
                 Count(cls.workType),
                 Count(cls.assigned),
-                Count(NullIf(cls.assigned is not None and cls.notBefore < now, Constant(False))),
+                Count(Case((cls.assigned == None).And(cls.notBefore < now), Constant(1), None)),
                 Sum(cls.failed),
             ),
             group=cls.workType

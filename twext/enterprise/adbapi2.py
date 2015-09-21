@@ -229,6 +229,13 @@ class _ConnectedTxn(object):
         @raise raiseOnZeroRowCount: if the argument was specified and no rows
             were returned by the executed statement.
         """
+        # Oracle only: we need to support the CALL statement which is available in
+        # in the cx_Oracle module via special callproc() and callfunc() methods
+        # that are not part of the standard Python DBAPI.
+        stmts = sql.splitlines()
+        if stmts[-1].startswith("call "):
+            return self._reallyCallSQL(stmts[-1], args)
+
         wasFirst = self._first
 
         # If this is the first time this cursor has been used in this
@@ -312,10 +319,101 @@ class _ConnectedTxn(object):
             # Oracle with a return into clause returns an empty set or rows, but
             # we then have to insert the special bind variables for the return into.
             # Thus we need to know whether there was any rowcount from the actual query.
-            # What we do is always insert a set of empty rows as the result if the
-            # rowcount is non-zero. Then we can detect whether the bind variables
-            # need to be added into the result set.
-            return [[]] * self._cursor.rowcount if self._cursor.rowcount else None
+            # What we do is always insert a set of empty rows equal to the rowcount. in
+            # the case of no result, an empty list is returned. This way we can detect
+            # that the additional bind variables are needed (if len(result) != 0).
+            return [[]] * self._cursor.rowcount
+
+
+    def _reallyCallSQL(self, sql, args=None):
+        """
+        Use cx_Oracle's callproc() or callfunc() Cursor methods to execute a
+        stored procedure.
+
+        @param sql: The SQL string to execute.
+        @type sql: C{str}
+
+        @param args: The parameters of the procedure or function, if any.
+        @type args: C{list} or C{None}
+
+        @raise Exception: this function may raise any exception raised by the
+            underlying C{dbapi.connect}, C{cursor.execute},
+            L{IDerivedParameter.preQuery}, C{connection.cursor}, or
+            C{cursor.callxxx}.
+        """
+
+        # The sql will be of the form "call <name>()" with args
+        if not sql.startswith("call ") or not sql.endswith("()"):
+            raise ValueError("Invalid SQL CALL statement: {}".format(sql))
+        name = sql[5:-2]
+        returnType = args[0]
+        args = args[1:]
+
+        wasFirst = self._first
+
+        # If this is the first time this cursor has been used in this
+        # transaction, remember that, but mark it as now used.
+        self._first = False
+
+        try:
+            # Make the return value look like an array of rows/columns, as
+            # one would expect for something like a SELECT
+            if returnType is not None:
+                returnValue = self._cursor.callfunc(name, returnType, args)
+                returnValue = [returnValue, ]
+            else:
+                returnValue = self._cursor.callproc(name, args)
+            returnValue = [returnValue, ]
+        except:
+            # If execute() raised an exception, and this was the first thing to
+            # happen in the transaction, then the connection has probably gone
+            # bad in the meanwhile, and we should try again.
+            if wasFirst:
+                # Report the error before doing anything else, since doing
+                # other things may cause the traceback stack to be eliminated
+                # if they raise exceptions (even internally).
+                log.failure(
+                    "Exception from execute() on first statement in "
+                    "transaction.  Possibly caused by a database server "
+                    "restart.  Automatically reconnecting now.",
+                    failure=Failure(),
+                )
+                try:
+                    self._connection.close()
+                except:
+                    # close() may raise an exception to alert us of an error as
+                    # well.  Right now the only type of error we know about is
+                    # "the connection is already closed", which obviously
+                    # doesn't need to be handled specially. Unfortunately the
+                    # reporting of this type of error is not consistent or
+                    # predictable across different databases, or even different
+                    # bindings to the same database, so we have to do a
+                    # catch-all here.  While I can't imagine another type of
+                    # error at the moment, bare C{except:}s are notorious for
+                    # making debugging surprising error conditions very
+                    # difficult, so let's make sure that the error is logged
+                    # just in case.
+                    log.failure(
+                        "Exception from close() while automatically "
+                        "reconnecting. (Probably not serious.)",
+                        failure=Failure(),
+                    )
+
+                # Now, if either of *these* things fail, there's an error here
+                # that we cannot workaround or address automatically, so no
+                # try:except: for them.
+                self._connection = self._pool.connectionFactory()
+                self._cursor = self._connection.cursor()
+
+                # Note that although this method is being invoked recursively,
+                # the "_first" flag is re-set at the very top, so we will _not_
+                # be re-entering it more than once.
+                result = self._reallyCallSQL(sql, args)
+                return result
+            else:
+                raise
+        else:
+            return returnValue
 
 
     def execSQL(self, *args, **kw):

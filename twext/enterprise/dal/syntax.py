@@ -1079,6 +1079,10 @@ class NullComparison(Comparison):
         super(NullComparison, self).__init__(a, op, None)
 
 
+    def allColumns(self):
+        return self.a.allColumns()
+
+
     def subSQL(self, queryGenerator, allTables):
         sqls = SQLFragment()
         sqls.append(self.a.subSQL(queryGenerator, allTables))
@@ -1224,6 +1228,58 @@ def _checkColumnsMatchTables(columns, tables):
 
 
 
+class Case(ExpressionSyntax):
+    """
+    Implementation of a simple CASE statement:
+
+    CASE ... WHEN ... THEN ... ELSE ... END
+
+    Note that SQL actually allows multiple WHEN ... THEN ... clauses, but
+    this implementation only supports one.
+    """
+
+    def __init__(self, when, true_result, false_result):
+        """
+        @param when: WHEN clause - typically a L{Comparison}
+        @type when: L{Expression}
+        @param true_result: result when WHEN clause is true
+        @type true_result: L{Constant} or L{None}
+        @param false_result: result when WHEN clause is false
+        @type false_result: L{Constant} or L{None}
+        """
+        self.when = when
+        self.true_result = true_result
+        self.false_result = false_result
+
+
+    def subSQL(self, queryGenerator, allTables):
+        result = SQLFragment("case when ")
+        result.append(self.when.subSQL(queryGenerator, allTables))
+        result.append(SQLFragment(" then "))
+        if self.true_result is None:
+            result.append(SQLFragment("null"))
+        else:
+            result.append(self.true_result.subSQL(queryGenerator, allTables))
+        result.append(SQLFragment(" else "))
+        if self.false_result is None:
+            result.append(SQLFragment("null"))
+        else:
+            result.append(self.false_result.subSQL(queryGenerator, allTables))
+        result.append(SQLFragment(" end"))
+
+        return result
+
+
+    def allColumns(self):
+        """
+        Return all columns referenced by any sub-clauses.
+        """
+        return self.when.allColumns() + \
+            (self.true_result.allColumns() if self.true_result is not None else []) + \
+            (self.false_result.allColumns() if self.false_result is not None else [])
+
+
+
 class Tuple(ExpressionSyntax):
 
     def __init__(self, columns):
@@ -1340,7 +1396,7 @@ class Select(_Statement):
         self,
         columns=None, Where=None, From=None,
         OrderBy=None, GroupBy=None,
-        Limit=None, ForUpdate=False, NoWait=False, Ascending=None,
+        Limit=None, ForUpdate=False, NoWait=False, SkipLocked=False, Ascending=None,
         Having=None, Distinct=False, As=None, SetExpression=None
     ):
         self.From = From
@@ -1365,6 +1421,7 @@ class Select(_Statement):
 
         self.ForUpdate = ForUpdate
         self.NoWait = NoWait
+        self.SkipLocked = SkipLocked
         self.Ascending = Ascending
         self.As = As
 
@@ -1453,6 +1510,8 @@ class Select(_Statement):
                     stmt.text += " for update"
                     if self.NoWait:
                         stmt.text += " nowait"
+                    if self.SkipLocked:
+                        stmt.text += " skip locked"
 
         if self.Limit is not None:
             limitConst = Constant(self.Limit).subSQL(queryGenerator, allTables)
@@ -1524,6 +1583,55 @@ class Select(_Statement):
             for table in self.From.tables():
                 tables.add(table.model)
             return [TableSyntax(table) for table in tables]
+
+
+
+class Call(_Statement):
+    """
+    CALL statement. Only supported by Oracle.
+    """
+
+    def __init__(self, name, *args, **kwargs):
+        """
+        @param name: name of procedure or function to call
+        @type name: L{str}
+        @param *args: arguments for the procedure or functions
+        @type *args: L{list}
+        @param returnType: kwarg: the Python type of the return value for
+            a function
+        @type returnType: L{Type}
+        """
+        self.Name = name
+        self.Args = args
+        self.ReturnType = kwargs.get("returnType")
+
+
+    def _toSQL(self, queryGenerator):
+        """
+        Generate an SQL statement of the form "call <name>()" with a list of
+        args, where the first arg is always the return type (which is C{None}
+        for a procedure, rather than a function, call).
+
+        @return: a C{call} statement with arguments
+        @rtype: L{SQLFragment}
+        """
+
+        if queryGenerator.dialect != ORACLE_DIALECT:
+            raise NotImplementedError("CALL statement only available with Oracle DB")
+        args = (self.ReturnType,) + self.Args
+        stmt = SQLFragment("call ", args)
+        stmt.text += self.Name
+        stmt.text += "()"
+
+        return stmt
+
+
+    def _fixOracleNulls(self, rows):
+        """
+        Suppress the super class behavior because we are getting result values
+        directly, not from columns.
+        """
+        return rows[0][0]
 
 
 
@@ -1658,9 +1766,9 @@ class _DMLStatement(_Statement):
         ):
             def processIt(emptyListResult):
                 # See comment in L{adbapi2._ConnectedTxn._reallyExecSQL}. If the
-                # result is L{None} then also return L{None}. If the result is a
+                # result is an empty list, just return that. If the result is a
                 # L{list} of empty L{list} then there are return into rows to return.
-                if emptyListResult:
+                if len(emptyListResult) > 0:
                     emptyListResult = [[v.value for _ignore_k, v in outvars]]
                 return emptyListResult
             return result.addCallback(processIt)

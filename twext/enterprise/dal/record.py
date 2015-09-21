@@ -33,6 +33,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twext.enterprise.dal.syntax import (
     Select, Tuple, Constant, ColumnSyntax, Insert, Update, Delete, SavepointAction,
     Count, ALL_COLUMNS)
+from twext.enterprise.ienterprise import ORACLE_DIALECT
 from twext.enterprise.util import parseSQLTimestamp
 # from twext.enterprise.dal.syntax import ExpressionSyntax
 
@@ -472,7 +473,7 @@ class Record(object):
 
 
     @classmethod
-    def query(cls, transaction, expr, order=None, group=None, limit=None, forUpdate=False, noWait=False, ascending=True, distinct=False):
+    def query(cls, transaction, expr, order=None, group=None, limit=None, forUpdate=False, noWait=False, skipLocked=False, ascending=True, distinct=False):
         """
         Query the table that corresponds to C{cls}, and return instances of
         C{cls} corresponding to the rows that are returned from that table.
@@ -495,6 +496,8 @@ class Record(object):
         @type forUpdate: L{bool}
         @param noWait: include NOWAIT with the FOR UPDATE
         @type noWait: L{bool}
+        @param skipLocked: include SKIP LOCKED with the FOR UPDATE
+        @type skipLocked: L{bool}
         """
         return cls._rowsFromQuery(
             transaction,
@@ -505,6 +508,7 @@ class Record(object):
                 limit=limit,
                 forUpdate=forUpdate,
                 noWait=noWait,
+                skipLocked=skipLocked,
                 ascending=ascending,
                 distinct=distinct,
             ),
@@ -513,7 +517,7 @@ class Record(object):
 
 
     @classmethod
-    def queryExpr(cls, expr, attributes=None, order=None, group=None, limit=None, forUpdate=False, noWait=False, ascending=True, distinct=False):
+    def queryExpr(cls, expr, attributes=None, order=None, group=None, limit=None, forUpdate=False, noWait=False, skipLocked=False, ascending=True, distinct=False):
         """
         Query expression that corresponds to C{cls}. Used in cases where a sub-select
         on this record's table is needed.
@@ -536,6 +540,8 @@ class Record(object):
         @type forUpdate: L{bool}
         @param noWait: include NOWAIT with the FOR UPDATE
         @type noWait: L{bool}
+        @param skipLocked: include SKIP LOCKED with the FOR UPDATE
+        @type skipLocked: L{bool}
         """
         kw = {}
         if order is not None:
@@ -548,6 +554,8 @@ class Record(object):
             kw.update(ForUpdate=True)
             if noWait:
                 kw.update(NoWait=True)
+            if skipLocked:
+                kw.update(SkipLocked=True)
         if distinct:
             kw.update(Distinct=True)
         if attributes is None:
@@ -631,15 +639,32 @@ class Record(object):
 
 
     @classmethod
+    @inlineCallbacks
     def deletesome(cls, transaction, where, returnCols=None):
         """
         Delete all rows matching the where expression from the table that corresponds to C{cls}.
         """
-        return Delete(
-            From=cls.table,
-            Where=where,
-            Return=returnCols,
-        ).on(transaction)
+        if transaction.dialect == ORACLE_DIALECT and returnCols is not None:
+            # Oracle cannot return multiple rows in the RETURNING clause so
+            # we have to split this into a SELECT followed by a DELETE
+            if not isinstance(returnCols, (tuple, list)):
+                returnCols = [returnCols, ]
+            result = yield Select(
+                returnCols,
+                From=cls.table,
+                Where=where,
+            ).on(transaction)
+            yield Delete(
+                From=cls.table,
+                Where=where,
+            ).on(transaction)
+        else:
+            result = yield Delete(
+                From=cls.table,
+                Where=where,
+                Return=returnCols,
+            ).on(transaction)
+        returnValue(result)
 
 
     @classmethod

@@ -33,7 +33,8 @@ from twext.enterprise.dal.syntax import (
     Savepoint, RollbackToSavepoint, ReleaseSavepoint, SavepointAction,
     Union, Intersect, Except, SetExpression, DALError,
     ResultAliasSyntax, Count, QueryGenerator, ALL_COLUMNS,
-    DatabaseLock, DatabaseUnlock, Not, Coalesce, NullIf)
+    DatabaseLock, DatabaseUnlock, Not, Coalesce, NullIf,
+    Call, Case)
 from twext.enterprise.dal.syntax import FixedPlaceholder, NumericPlaceholder
 from twext.enterprise.dal.syntax import Function
 from twext.enterprise.dal.syntax import SchemaSyntax
@@ -365,6 +366,18 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Select(From=self.schema.FOO, ForUpdate=True).toSQL(),
             SQLFragment("select * from FOO for update")
+        )
+        self.assertEquals(
+            Select(From=self.schema.FOO, ForUpdate=True, NoWait=True).toSQL(),
+            SQLFragment("select * from FOO for update nowait")
+        )
+        self.assertEquals(
+            Select(From=self.schema.FOO, ForUpdate=True, SkipLocked=True).toSQL(),
+            SQLFragment("select * from FOO for update skip locked")
+        )
+        self.assertEquals(
+            Select(From=self.schema.FOO, ForUpdate=True, NoWait=True, SkipLocked=True).toSQL(),
+            SQLFragment("select * from FOO for update nowait skip locked")
         )
 
 
@@ -2192,6 +2205,82 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(values, {})
 
 
+    def test_case(self):
+        """
+        A L{Case} object will generate an appropriate SQL statement.
+        """
+        self.assertEquals(
+            Select(
+                [Case((self.schema.FOO.BAR < 1), Constant(2), Constant(3))],
+                From=self.schema.FOO,
+                Limit=123
+            ).toSQL(),
+            SQLFragment("select case when BAR < ? then ? else ? end from FOO limit ?", [1, 2, 3, 123])
+        )
+        self.assertEqual(Case((self.schema.FOO.BAR < 1), Constant(2), Constant(3)).allColumns(), [self.schema.FOO.BAR, ])
+        self.assertEquals(
+            Select(
+                [Case((self.schema.FOO.BAR < 1), Constant(2), None)],
+                From=self.schema.FOO,
+                Limit=123
+            ).toSQL(),
+            SQLFragment("select case when BAR < ? then ? else null end from FOO limit ?", [1, 2, 123])
+        )
+        self.assertEqual(Case((self.schema.FOO.BAR < 1), Constant(2), None).allColumns(), [self.schema.FOO.BAR, ])
+        self.assertEquals(
+            Select(
+                [Case((self.schema.FOO.BAR < 1), None, Constant(3))],
+                From=self.schema.FOO,
+                Limit=123
+            ).toSQL(),
+            SQLFragment("select case when BAR < ? then null else ? end from FOO limit ?", [1, 3, 123])
+        )
+        self.assertEqual(Case((self.schema.FOO.BAR < 1), None, Constant(3)).allColumns(), [self.schema.FOO.BAR, ])
+
+
+    def test_call(self):
+        """
+        A L{Call} object will generate an appropriate SQL statement.
+        """
+        self.assertEquals(
+            Call(
+                "procedure"
+            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            SQLFragment("call procedure()", (None,))
+        )
+
+        self.assertEquals(
+            Call(
+                "procedure",
+                1, "2"
+            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            SQLFragment("call procedure()", (None, 1, "2"))
+        )
+
+        self.assertEquals(
+            Call(
+                "function",
+                returnType=int
+            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            SQLFragment("call function()", (int,))
+        )
+
+        self.assertEquals(
+            Call(
+                "function",
+                1, "2",
+                returnType=int
+            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            SQLFragment("call function()", (int, 1, "2"))
+        )
+
+        self.assertRaises(
+            NotImplementedError,
+            Call("procedure").toSQL,
+            QueryGenerator(POSTGRES_DIALECT)
+        )
+
+
 
 class OracleConnectionMethods(object):
     def test_rewriteOracleNULLs_Insert(self):
@@ -2250,7 +2339,7 @@ class OracleConnectionMethods(object):
             {self.schema.FOO.BAR: 40, self.schema.FOO.BAZ: 50}
         )
         result = self.resultOf(i.on(self.createTransaction()))
-        self.assertEquals(result, [None])
+        self.assertEquals(result, [[]])
 
 
 

@@ -705,10 +705,8 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             txn = overdueJob = None
             try:
                 txn = self.transactionFactory(label="jobqueue.overdueCheck")
-                overdueJobs = yield JobItem.overduejobs(txn, nowTime, limit=1)
-                if overdueJobs:
-                    overdueJob = overdueJobs[0]
-                else:
+                overdueJob = yield JobItem.overduejob(txn, nowTime)
+                if overdueJob is None:
                     break
 
                 # It is overdue - check to see whether the work item is currently locked - if so no
