@@ -446,8 +446,8 @@ class Record(object):
             ).on(self.transaction)
         except:
             log.debug("trylock failed: {item} {where}".format(
-                name=repr(self),
-                where=str(where),
+                item=repr(self),
+                where=str(self._primaryKeyValue()),
             ))
             yield savepoint.rollback(self.transaction)
             returnValue(False)
