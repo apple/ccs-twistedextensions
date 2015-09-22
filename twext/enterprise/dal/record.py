@@ -35,8 +35,9 @@ from twext.enterprise.dal.syntax import (
     Count, ALL_COLUMNS)
 from twext.enterprise.ienterprise import ORACLE_DIALECT
 from twext.enterprise.util import parseSQLTimestamp
-# from twext.enterprise.dal.syntax import ExpressionSyntax
+from twext.python.log import Logger
 
+log = Logger()
 
 
 class ReadOnly(AttributeError):
@@ -444,6 +445,10 @@ class Record(object):
                 NoWait=True,
             ).on(self.transaction)
         except:
+            log.debug("trylock failed: {item} {where}".format(
+                name=repr(self),
+                where=str(where),
+            ))
             yield savepoint.rollback(self.transaction)
             returnValue(False)
         else:

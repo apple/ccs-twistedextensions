@@ -582,13 +582,14 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                     break
 
                 # Always assign as a new job even when it is an orphan
+                log.debug("workCheck: assigned job: {jobID}".format(jobID=nextJob.jobID))
                 yield nextJob.assign(nowTime, self.queueOverdueTimeout)
                 self._timeOfLastWork = time.time()
                 loopCounter += 1
 
             except Exception as e:
                 log.error(
-                    "Failed to pick a new job: {jobID}, {exc}",
+                    "workCheck: Failed to pick a new job: {jobID}, {exc}",
                     jobID=nextJob.jobID if nextJob else "?",
                     exc=e,
                 )
@@ -609,7 +610,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                     except Exception as e:
                         # Could not mark as failed - break out of the next job loop
                         log.error(
-                            "Failed to mark failed new job:{}, {exc}",
+                            "workCheck: Failed to mark failed new job:{}, {exc}",
                             jobID=nextJob.jobID,
                             exc=e,
                         )
@@ -619,13 +620,13 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                         break
                     else:
                         # Marked the problem one as failed, so keep going and get the next job
-                        log.error("Marked failed new job: {jobID}", jobID=nextJob.jobID)
+                        log.error("workCheck: Marked failed new job: {jobID}", jobID=nextJob.jobID)
                         yield txn.commit()
                         txn = None
                         nextJob = None
                 else:
                     # Cannot mark anything as failed - break out of next job loop
-                    log.error("Cannot mark failed new job")
+                    log.error("workCheck: Cannot mark failed new job")
                     break
             finally:
                 if txn is not None:
@@ -640,7 +641,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                     # we can do stuff in parallel
                     worker.performJob(nextJob.descriptor())
                 except Exception as e:
-                    log.error("Failed to perform job for jobid={jobid}, {exc}", jobid=nextJob.jobID, exc=e)
+                    log.error("workCheck: Failed to perform job for jobid={jobid}, {exc}", jobid=nextJob.jobID, exc=e)
 
         if loopCounter:
             log.debug("workCheck: processed {ctr} jobs in one loop", ctr=loopCounter)
@@ -677,7 +678,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                 interval = poll
                 break
         if self._actualPollInterval != interval:
-            log.debug("workCheckLoop: interval set to {interval}s", interval=interval)
+            log.debug("_workCheckLoop: interval set to {interval}s", interval=interval)
         self._actualPollInterval = interval
         self._workCheckCall = self.reactor.callLater(
             self._actualPollInterval, self._workCheckLoop
@@ -731,7 +732,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
 
             except Exception as e:
                 log.error(
-                    "Failed to process overdue job: {jobID}, {exc}",
+                    "overdueCheck: Failed to process overdue job: {jobID}, {exc}",
                     jobID=overdueJob.jobID if overdueJob else "?",
                     exc=e,
                 )
@@ -752,7 +753,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                     except Exception as e:
                         # Could not mark as failed - break out of the overdue job loop
                         log.error(
-                            "Failed to mark failed overdue job:{}, {exc}",
+                            "overdueCheck: Failed to mark failed overdue job:{}, {exc}",
                             jobID=overdueJob.jobID,
                             exc=e,
                         )
@@ -762,13 +763,13 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                         break
                     else:
                         # Marked the problem one as failed, so keep going and get the next overdue job
-                        log.error("Marked failed overdue job: {jobID}", jobID=overdueJob.jobID)
+                        log.error("overdueCheck: Marked failed overdue job: {jobID}", jobID=overdueJob.jobID)
                         yield txn.commit()
                         txn = None
                         overdueJob = None
                 else:
                     # Cannot mark anything as failed - break out of overdue job loop
-                    log.error("Cannot mark failed overdue job")
+                    log.error("overdueCheck: Cannot mark failed overdue job")
                     break
             finally:
                 if txn is not None:
