@@ -885,7 +885,7 @@ class Join(object):
         return Join(self, type, otherTable, on)
 
 
-_KEYWORDS = [
+_KEYWORDS = frozenset([
     # SQL keyword, but we have a column with this name
     "access",
 
@@ -896,7 +896,11 @@ _KEYWORDS = [
     # not actually sure what this is; only experimentally determined that not
     # quoting it causes an issue.
     "size",
-]
+
+    # Oracle docs: UID returns an integer that uniquely identifies the session
+    # user (the user who logged on).
+    "uid",
+])
 
 
 

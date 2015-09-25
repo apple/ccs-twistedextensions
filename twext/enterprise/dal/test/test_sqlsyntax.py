@@ -2281,6 +2281,43 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
 
 
+    def test_quoteUIDOracle(self):
+        """
+        Column names must be quoted in Oracle statements because some may
+        be reserved keywords (e.g., "UID").
+        """
+        UID_SCHAME = 'create table FOO ("BAR" integer, "UID" varchar(255));'
+        schema = SchemaSyntax(self.schemaFromString(UID_SCHAME))
+
+        self.assertEquals(
+            Insert(
+                {schema.FOO.BAR: 1, schema.FOO.UID: "test"},
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            SQLFragment(
+                "insert into FOO (BAR, \"UID\") values (?, ?)", [1, "test"]
+            )
+        )
+        self.assertEquals(
+            Update(
+                {schema.FOO.BAR: 1, schema.FOO.UID: "test"},
+                Where=(schema.FOO.BAR == 2),
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            SQLFragment(
+                "update FOO set BAR = ?, \"UID\" = ? where BAR = ?", [1, "test", 2]
+            )
+        )
+        self.assertEquals(
+            Select(
+                [schema.FOO.BAR, schema.FOO.UID],
+                From=schema.FOO,
+                Where=(schema.FOO.UID == "test"),
+            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            SQLFragment(
+                "select BAR, \"UID\" from FOO where \"UID\" = ?", ["test"]
+            )
+        )
+
+
 
 class OracleConnectionMethods(object):
     def test_rewriteOracleNULLs_Insert(self):
