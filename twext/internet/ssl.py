@@ -22,6 +22,7 @@ __all__ = [
     "ChainingOpenSSLContextFactory",
 ]
 
+import OpenSSL
 from OpenSSL.SSL import Context as SSLContext, SSLv23_METHOD, OP_NO_SSLv2, \
     OP_CIPHER_SERVER_PREFERENCE, OP_NO_SSLv3, VERIFY_NONE, VERIFY_PEER, \
     VERIFY_FAIL_IF_NO_PEER_CERT, VERIFY_CLIENT_ONCE
@@ -31,6 +32,7 @@ from twisted.internet._sslverify import Certificate
 
 import uuid
 
+_OP_NO_COMPRESSION = getattr(OpenSSL.SSL, 'OP_NO_COMPRESSION', 0x00020000)
 
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
     def __init__(
@@ -64,9 +66,10 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
         # Unfortunate code duplication.
         ctx = SSLContext(self.sslmethod)
 
-        # Always disable SSLv2/SSLv3
+        # Always disable SSLv2/SSLv3/Compression
         ctx.set_options(OP_NO_SSLv2)
         ctx.set_options(OP_NO_SSLv3)
+        ctx.set_options(_OP_NO_COMPRESSION)
 
         if self.ciphers is not None:
             ctx.set_cipher_list(self.ciphers)
