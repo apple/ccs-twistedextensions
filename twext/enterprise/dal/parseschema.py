@@ -763,6 +763,12 @@ def splitSQLString(sqlString):
     This function was written to allow execution of pl/sql during Oracle schema
     upgrades.
     """
+
+    # Oracle uses "/" characters at the end of PL/SQL blocks to delineate functions. sqlparse
+    # does not cope with those, so we need to remove them from the stream
+    sqlString = "\n".join([line for line in sqlString.splitlines() if line != "/"])
+
+    # Parse statements and do some additional aggregation
     aggregated = ''
     inPlSQL = None
     parsed = parse(sqlString)
@@ -779,12 +785,23 @@ def splitSQLString(sqlString):
                 rex = compile("\n +")
                 aggregated = rex.sub('\n', aggregated)
                 yield aggregated.strip()
+                aggregated = ''
                 continue
             aggregated += agg
             continue
         if inPlSQL is None:
-            # if 'begin'.lower() in str(stmt).split()[0].lower():
-            if str(stmt).lower().strip().startswith('begin'):
+            test_stmt = str(stmt).lower().strip()
+            # Look for the start of a pl/sql block we need to start aggregation of. Note that
+            # a postgres "create function" statement is properly handled by sqlparse so we
+            # explicitly skip additional aggregation of those (by spotting the $$ delimiter
+            # which Oracle does not use).
+            if (
+                test_stmt.startswith('begin') or
+                (
+                    test_stmt.startswith('create function') or
+                    test_stmt.startswith('create or replace function')
+                ) and ("$$" not in test_stmt)
+            ):
                 inPlSQL = True
                 aggregated += str(stmt)
                 continue
