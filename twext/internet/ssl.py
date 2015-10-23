@@ -37,13 +37,15 @@ _OP_NO_COMPRESSION = getattr(OpenSSL.SSL, 'OP_NO_COMPRESSION', 0x00020000)
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
     def __init__(
         self, privateKeyFileName, certificateFileName,
-        sslmethod=SSLv23_METHOD, certificateChainFile=None,
+        sslmethod=SSLv23_METHOD,
+        certificateChainFile=None, keychainIdentity=None,
         passwdCallback=None, ciphers=None,
         verifyClient=False, requireClientCertificate=False,
         verifyClientOnce=True, verifyClientDepth=9,
         clientCACertFileNames=[], sendCAsToClient=True
     ):
         self.certificateChainFile = certificateChainFile
+        self.keychainIdentity = keychainIdentity
         self.passwdCallback = passwdCallback
         self.ciphers = ciphers
 
@@ -78,11 +80,14 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
         if self.passwdCallback is not None:
             ctx.set_passwd_cb(self.passwdCallback)
 
-        ctx.use_certificate_file(self.certificateFileName)
-        ctx.use_privatekey_file(self.privateKeyFileName)
+        if self.keychainIdentity and hasattr(ctx, "use_keychain_identity"):
+            ctx.use_keychain_identity(self.keychainIdentity)
+        else:
+            ctx.use_certificate_file(self.certificateFileName)
+            ctx.use_privatekey_file(self.privateKeyFileName)
 
-        if self.certificateChainFile != "":
-            ctx.use_certificate_chain_file(self.certificateChainFile)
+            if self.certificateChainFile != "":
+                ctx.use_certificate_chain_file(self.certificateChainFile)
 
         verifyFlags = VERIFY_NONE
         if self.verifyClient:
