@@ -670,7 +670,7 @@ class WorkItemTests(TestCase):
         """
         L{workItem.updateWorkTypes} updates weight and priority correctly.
         """
-        _ignore_dbpool = buildConnectionPool(self, jobSchema + schemaText)
+        buildConnectionPool(self, jobSchema + schemaText)
 
         def _validate(priority, weight):
             self.assertEqual(AggregatorWorkItem.default_priority, WORK_PRIORITY_LOW)
@@ -774,7 +774,7 @@ class WorkItemTests(TestCase):
         """
         L{workItem.dumpWorkTypes} dumps weight and priority correctly.
         """
-        _ignore_dbpool = buildConnectionPool(self, jobSchema + schemaText)
+        buildConnectionPool(self, jobSchema + schemaText)
 
         results = WorkItem.dumpWorkTypes()
         self.assertTrue("DUMMY_WORK_SINGLETON_ITEM" in results)
