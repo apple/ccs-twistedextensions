@@ -444,7 +444,7 @@ c_dependencies () {
   # value of OPENSSL_VERSION_NUBMER for use in inequality comparison.
   ruler;
 
-  local min_ssl_version="9470367";  # OpenSSL 0.9.8y
+  local min_ssl_version="9470463";  # OpenSSL 0.9.8y
 
   local ssl_version="$(c_macro openssl/ssl.h OPENSSL_VERSION_NUMBER)";
   if [ -z "${ssl_version}" ]; then ssl_version="0x0"; fi;
@@ -453,13 +453,13 @@ c_dependencies () {
   if [ "${ssl_version}" -ge "${min_ssl_version}" ]; then
     using_system "OpenSSL";
   else
-    local v="0.9.8y";
+    local v="0.9.8zf";
     local n="openssl";
     local p="${n}-${v}";
 
     # use 'config' instead of 'configure'; 'make' instead of 'jmake'.
     # also pass 'shared' to config to build shared libs.
-    c_dependency -c "config" -m "47c7fb37f78c970f1d30aa2f9e9e26d8" \
+    c_dependency -c "config" -m "c69a4a679233f7df189e1ad6659511ec" \
       -p "make depend" -b "make" \
       "openssl" "${p}" \
       "http://www.openssl.org/source/${p}.tar.gz" "shared";
@@ -580,11 +580,11 @@ py_dependencies () {
   echo "";
   "${pip_install}" --requirement="${requirements}";
 
-  for option in $("${bootstrap_python}" -c 'import setup; print "\n".join(setup.extras_requirements.keys())'); do
-    ruler "Preparing Python requirements for optional feature: ${option}";
+  for extra in $("${bootstrap_python}" -c 'import setup; print "\n".join(setup.extras_requirements.keys())'); do
+    ruler "Preparing Python requirements for optional feature: ${extra}";
     echo "";
-    if ! "${pip_install}" --editable="${wd}[${option}]"; then
-      echo "Feature ${option} is optional; continuing.";
+    if ! "${pip_install}" --editable="${wd}[${extra}]"; then
+      echo "Feature ${extra} is optional; continuing.";
     fi;
   done;
 
@@ -598,9 +598,9 @@ bootstrap_virtualenv () {
   mkdir -p "${py_ve_tools}/junk";
 
   for pkg in             \
-      setuptools-12.0.5  \
-      pip-6.0.8          \
-      virtualenv-12.0.7  \
+      setuptools-17.0  \
+      pip-7.0.3          \
+      virtualenv-13.0.3  \
   ; do
       local    name="${pkg%-*}";
       local version="${pkg#*-}";
@@ -633,8 +633,10 @@ pip_download () {
   mkdir -p "${dev_home}/pip_downloads";
 
   "${python}" -m pip install               \
+    --disable-pip-version-check            \
     --download="${dev_home}/pip_downloads" \
     --pre --allow-all-external             \
+    --no-cache-dir                         \
     --log-file="${dev_home}/pip.log"       \
     "$@";
 }
@@ -642,8 +644,10 @@ pip_download () {
 
 pip_install_from_cache () {
   "${python}" -m pip install                 \
+    --disable-pip-version-check              \
     --pre --allow-all-external               \
     --no-index                               \
+    --no-cache-dir                           \
     --find-links="${dev_home}/pip_downloads" \
     --log-file="${dev_home}/pip.log"         \
     "$@";
@@ -652,7 +656,9 @@ pip_install_from_cache () {
 
 pip_download_and_install () {
   "${python}" -m pip install                 \
+    --disable-pip-version-check              \
     --pre --allow-all-external               \
+    --no-cache-dir                           \
     --log-file="${dev_home}/pip.log"         \
     "$@";
 }
