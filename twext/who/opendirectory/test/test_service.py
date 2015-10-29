@@ -38,6 +38,7 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     def setUp(self):
         self.service = DirectoryService()
 
+
     def tearDown(self):
         self.service._deletePool()
 

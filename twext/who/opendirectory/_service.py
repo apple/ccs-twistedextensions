@@ -230,7 +230,6 @@ class DirectoryService(BaseDirectoryService):
             cls._resetAutoreleasePool()
 
 
-
     @property
     def nodeName(self):
         return self._nodeName

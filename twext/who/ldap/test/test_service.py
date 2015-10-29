@@ -102,6 +102,7 @@ class TestFieldWithChoices(Names):
     three.description = u"three"
 
 
+
 class TestFieldName(Names):
     multiChoice = NamedConstant()
     multiChoice.description = u"Multiple Choice Test Field"
@@ -148,7 +149,6 @@ TEST_FIELDNAME_MAP[TestFieldName.boolean2] = (
 TEST_FIELDNAME_MAP[TestFieldName.boolean3] = (
     u"bar",
 )
-
 
 
 
@@ -494,6 +494,7 @@ class DirectoryServiceTest(
         self.assertEquals(len(service.connections), 0)
 
 
+
 class ExtraFiltersTest(BaseTestCase, unittest.TestCase):
 
     def test_extraFilters(self):
@@ -515,6 +516,8 @@ class ExtraFiltersTest(BaseTestCase, unittest.TestCase):
             "(bar=2)",
             service._addExtraFilter(RecordType.group, "(bar=2)")
         )
+
+
 
 class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
 
@@ -628,6 +631,7 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
         self.assertEquals(records[1].fullNames, ["alt-name", "cn-name"])
         self.assertEquals(records[2].uid, "two")
         self.assertEquals(records[2].fullNames, ["cn-name"])
+
 
 
 def mockDirectoryDataFromXMLService(service):

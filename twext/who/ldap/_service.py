@@ -877,7 +877,7 @@ class DirectoryService(BaseDirectoryService):
                             if not isinstance(values, list):
                                 values = [values]
 
-                            attribute, attributeValue, fieldValue = attributeRule.split(":")
+                            _ignore_attribute, attributeValue, fieldValue = attributeRule.split(":")
 
                             for value in values:
                                 if value == attributeValue:
