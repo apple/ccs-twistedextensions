@@ -86,7 +86,7 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
             ctx.use_certificate_file(self.certificateFileName)
             ctx.use_privatekey_file(self.privateKeyFileName)
 
-            if self.certificateChainFile != "":
+            if self.certificateChainFile:
                 ctx.use_certificate_chain_file(self.certificateChainFile)
 
         verifyFlags = VERIFY_NONE
