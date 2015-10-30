@@ -83,9 +83,10 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
         if self.keychainIdentity and hasattr(ctx, "use_keychain_identity"):
             ctx.use_keychain_identity(self.keychainIdentity)
         else:
-            ctx.use_certificate_file(self.certificateFileName)
-            ctx.use_privatekey_file(self.privateKeyFileName)
-
+            if self.certificateFileName:
+                ctx.use_certificate_file(self.certificateFileName)
+            if self.privateKeyFileName:
+                ctx.use_privatekey_file(self.privateKeyFileName)
             if self.certificateChainFile:
                 ctx.use_certificate_chain_file(self.certificateChainFile)
 
