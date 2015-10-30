@@ -95,7 +95,7 @@ class CheckInTests(TestCase):
         self.job = fp.child("job.plist")
         self.job.setContent(plistlib.writePlistToString(plist))
         err = os.spawnlp(os.P_WAIT, "launchctl", "launchctl", "load", self.job.path)
-        if err == 127:
+        if err != 0 or os.path.exists(self.stderr.path):
             # This happens when running in headless mode (e.g., buildbot) and is due to
             # permission restrictions. Just skip the test.
             raise SkipTest("launchctl cannot run on this system")
