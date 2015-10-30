@@ -253,12 +253,12 @@ extras_requirements = {
     # OpenDirectory
     "OpenDirectory": ["pyobjc-framework-OpenDirectory"],
 
-    # Oracle
-    "Oracle": ["cx_Oracle"],
-
     # Postgres
     "Postgres": [],
 }
+
+if "ORACLE_HOME" in os.environ:
+    extras_requirements["Oracle"] = ["cx_Oracle"]
 
 
 
