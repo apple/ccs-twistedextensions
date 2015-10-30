@@ -1655,7 +1655,8 @@ class ControllerQueueIntegrationTests(TestCase):
         @transactionally(self.store.newTransaction)
         def _enqueue(txn):
             return txn.enqueue(
-                DummyWorkPauseItem, a=30, b=40, workID=1
+                DummyWorkPauseItem, a=30, b=40, workID=1,
+                notBefore=datetime.datetime.utcnow() + datetime.timedelta(seconds=1)
             )
         yield _enqueue
 
@@ -1740,7 +1741,8 @@ class ControllerQueueIntegrationTests(TestCase):
         @transactionally(self.store.newTransaction)
         def _enqueue(txn):
             return txn.enqueue(
-                DummyWorkPauseItem, a=30, b=40, workID=1
+                DummyWorkPauseItem, a=30, b=40, workID=1,
+                notBefore=datetime.datetime.utcnow() + datetime.timedelta(seconds=1)
             )
         yield _enqueue
 
@@ -1810,7 +1812,8 @@ class ControllerQueueIntegrationTests(TestCase):
         @transactionally(self.store.newTransaction)
         def _enqueue(txn):
             return txn.enqueue(
-                DummyWorkPauseItem, a=30, b=40, workID=1
+                DummyWorkPauseItem, a=30, b=40, workID=1,
+                notBefore=datetime.datetime.utcnow() + datetime.timedelta(seconds=1)
             )
         yield _enqueue
 

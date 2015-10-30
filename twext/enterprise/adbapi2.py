@@ -751,6 +751,7 @@ class _SingleTxn(_CommitAndAbortHooks,
         """
         spooledBase = self._baseTxn
         self._baseTxn = baseTxn
+        self._baseTxn._label = self._label
         spooledBase._unspool(baseTxn)
 
 
@@ -1046,6 +1047,7 @@ class _ConnectingPseudoTxn(object):
         def _reallyClose():
             if self._connection:
                 self._connection.close()
+                self._connection = None
 
         self._holder.submit(_reallyClose)
 

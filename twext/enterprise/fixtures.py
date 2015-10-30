@@ -27,9 +27,9 @@ from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
 from twisted.internet.interfaces import IReactorThreads
-from twisted.python.threadpool import ThreadPool
-
+from twisted.internet.defer import Deferred
 from twisted.internet.task import Clock
+from twisted.python.threadpool import ThreadPool
 
 from twext.enterprise.adbapi2 import ConnectionPool
 from twext.enterprise.ienterprise import SQLITE_DIALECT
@@ -118,6 +118,10 @@ class FakeThreadHolder(ThreadHolder):
         return super(FakeThreadHolder, self).start()
 
 
+    def retry(self):
+        pass
+
+
     def stop(self):
         result = super(FakeThreadHolder, self).stop()
         self.stopped = True
@@ -145,6 +149,10 @@ class FakeThreadHolder(ThreadHolder):
             newq.put = putit
 
         self._q_ = newq
+
+
+    def callLater(self, f, *a, **k):
+        return Deferred()
 
 
     def callFromThread(self, f, *a, **k):
