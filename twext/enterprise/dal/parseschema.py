@@ -512,7 +512,7 @@ class _ColumnParser(object):
                     if isinstance(theDefault, Function):
                         thingo = theDefault.tokens[0].get_name()
                         parens = expectSingle(
-                            theDefault.tokens[-1], cls=Parenthesis
+                            theDefault.tokens[1], cls=Parenthesis
                         )
                         pareniter = iterSignificant(parens)
                         if thingo.upper() == "NEXTVAL":
