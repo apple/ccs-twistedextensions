@@ -18,6 +18,7 @@
 Tests for L{twext.python.launchd}.
 """
 
+from subprocess import Popen, PIPE
 import json
 import os
 import plistlib
@@ -91,13 +92,22 @@ class CheckInTests(TestCase):
                 "Awesome": [{"SecureSocketWithKey": "GeneratedSocket"}]
             },
             "RunAtLoad": True,
+            "Debug": True,
         }
         self.job = fp.child("job.plist")
         self.job.setContent(plistlib.writePlistToString(plist))
-        err = os.spawnlp(os.P_WAIT, "launchctl", "launchctl", "load", self.job.path)
-        if err != 0 or os.path.exists(self.stderr.path):
-            # This happens when running in headless mode (e.g., buildbot) and is due to
-            # permission restrictions. Just skip the test.
+
+        child = Popen(
+            args=[
+                "launchctl",
+                "load",
+                self.job.path,
+            ],
+            stdout=PIPE, stderr=PIPE,
+        )
+        _ignore_output, error = child.communicate()
+
+        if child.returncode != 0 or error:
             raise SkipTest("launchctl cannot run on this system")
 
         return d
