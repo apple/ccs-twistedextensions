@@ -239,13 +239,13 @@ entry_points = {
 setup_requirements = []
 
 install_requirements = [
-    "cffi>=0.6",
-    "twisted>=15.2.0",
+    "cffi",
+    "twisted>=15.4.0",
 ]
 
 extras_requirements = {
     # Database Abstraction Layer
-    "DAL": ["sqlparse>=0.1.11"],
+    "DAL": ["sqlparse"],
 
     # LDAP
     "LDAP": ["python-ldap"],

@@ -115,7 +115,7 @@ class ThreadHolder(object):
     def retry(self):
         if self._state == _STATE_STARTING:
             if self._retryCallback is not None:
-                self._reactor.threadpool._startSomeWorkers()
+                self._reactor.threadpool.adjustPoolsize()
             self._retryCallback = self._reactor.callLater(0.1, self.retry)
         else:
             self._retryCallback = None
