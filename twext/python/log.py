@@ -350,6 +350,13 @@ class Logger(object):
             # FIXME: continue to emit?
             return
 
+        # Assume that any L{bytes} in the format or kwargs are utf-8 encoded strings
+        if format is not None and isinstance(format, bytes):
+            format = format.decode("utf-8")
+        for k, v in kwargs.items():
+            if isinstance(v, bytes):
+                kwargs[k] = v.decode("utf-8")
+
         kwargs.update(
             log_logger=self, log_level=level, log_namespace=self.namespace,
             log_source=self.source, log_format=format, log_time=time.time(),
