@@ -246,7 +246,7 @@ class WorkItem(SerializableRecord):
                 weight = "unchanged"
             log.info(
                 "updateWorkTypes: '{workType}' priority: '{priority}' weight: '{weight}' ",
-                workType=workType, priority=priority,
+                workType=workType, priority=priority, weight=weight,
             )
 
 

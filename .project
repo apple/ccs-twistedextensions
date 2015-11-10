@@ -7,7 +7,7 @@
 		<project>python-ldap</project>
 		<project>sqlparse</project>
 		<project>Twisted</project>
-		<project>zope.interface-4.0.3</project>
+		<project>zope.interface</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

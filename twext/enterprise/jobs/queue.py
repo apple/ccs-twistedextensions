@@ -610,7 +610,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
                     except Exception as e:
                         # Could not mark as failed - break out of the next job loop
                         log.error(
-                            "workCheck: Failed to mark failed new job:{}, {exc}",
+                            "workCheck: Failed to mark failed new job:{jobID}, {exc}",
                             jobID=nextJob.jobID,
                             exc=e,
                         )
