@@ -425,10 +425,10 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEqual(
             set([pseudo.name for pseudo in s.pseudoIndexes()]),
             set((
-                "a-unique:(c)",
-                "a:(c,b)",
-                "a-unique:(b)",
-                "z-unique:(c)",
+                "a:unique:(c)",
+                "a::(c,b)",
+                "a:unique:(b)",
+                "z:unique:(c)",
             ))
         )
 

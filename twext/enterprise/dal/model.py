@@ -569,18 +569,15 @@ class PseudoIndex(object):
     a name based on the table name, uniqueness and column names.
     """
 
-    def __init__(self, table, columns, unique=False):
-        if unique:
-            suffix = "-unique"
-        else:
-            suffix = ""
+    def __init__(self, name, table, columns, index_type=""):
 
         self.name = (
-            "%s%s:(%s)"
-            % (table.name, suffix, ",".join([col.name for col in columns]))
+            "%s:%s:(%s)"
+            % (table.name, index_type, ",".join([col.name for col in columns]))
         )
+        self.original_name = name if name else self.name
         self.table = table
-        self.unique = unique
+        self.index_type = index_type
         self.columns = columns
 
 
@@ -592,8 +589,23 @@ class PseudoIndex(object):
         @type other: L{Index}
         """
 
-        # Nothing to do as name comparison will catch differences
-        return []
+        results = []
+
+        # Compare the columns
+        myColumns = dict([(item.name.lower(), item) for item in self.columns])
+        otherColumns = dict([
+            (item.name.lower(), item) for item in other.columns
+        ])
+        for item in set(myColumns.keys()) - set(otherColumns.keys()):
+            results.append(
+                "Index: %s, extra column: %s" % (self.original_name, myColumns[item].name,)
+            )
+        for item in set(otherColumns.keys()) - set(myColumns.keys()):
+            results.append(
+                "Index: %s, missing column: %s" % (self.original_name, otherColumns[item].name,)
+            )
+
+        return results
 
 
 
@@ -735,17 +747,17 @@ class Schema(object):
         # First add the list of explicit indexes we have
         for index in self.indexes:
             results.append(
-                PseudoIndex(index.table, index.columns, index.unique)
+                PseudoIndex(index.name, index.table, index.columns, "unique" if index.unique else "")
             )
 
         # Now do implicit index for each table
         for table in self.tables:
             if table.primaryKey is not None:
-                results.append(PseudoIndex(table, table.primaryKey, True))
+                results.append(PseudoIndex(None, table, table.primaryKey, "unique"))
             for constraint in table.constraints:
                 if constraint.type == Constraint.UNIQUE:
                     results.append(
-                        PseudoIndex(table, constraint.affectsColumns, True)
+                        PseudoIndex(None, table, constraint.affectsColumns, "unique")
                     )
 
         return results
