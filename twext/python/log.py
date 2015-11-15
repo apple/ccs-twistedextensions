@@ -29,6 +29,8 @@ class Logger(_Logger):
     filterObserver = None
     filterPredicate = LogLevelFilterPredicate(defaultLogLevel=LogLevel.info)
 
+    logBeginner = None
+
     @classmethod
     def makeFilteredFileLogObserver(cls, stream, withTime=True):
         """
@@ -53,6 +55,12 @@ class Logger(_Logger):
             observer,
             [cls.filterPredicate]
         ))
+
+
+    @classmethod
+    def beginLoggingTo(cls, observers):
+        if cls.logBeginner:
+            cls.logBeginner.beginLoggingTo(observers)
 
 
     def emit(self, level, format=None, **kwargs):
@@ -99,4 +107,5 @@ class FilteringLogBeginnerWrapper(object):
         self.beginner.beginLoggingTo(new_observers, discardBuffer, redirectStandardIO)
 
 
-log.theLogPublisher._logBeginner = FilteringLogBeginnerWrapper(log.theLogPublisher._logBeginner)
+Logger.logBeginner = FilteringLogBeginnerWrapper(log.theLogPublisher._logBeginner)
+log.theLogPublisher._logBeginner = Logger.logBeginner
