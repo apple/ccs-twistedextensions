@@ -58,9 +58,9 @@ class Logger(_Logger):
 
 
     @classmethod
-    def beginLoggingTo(cls, observers):
+    def beginLoggingTo(cls, observers, redirectStandardIO=True):
         if cls.logBeginner:
-            cls.logBeginner.beginLoggingTo(observers)
+            cls.logBeginner.beginLoggingTo(observers, redirectStandardIO=redirectStandardIO)
 
 
     def emit(self, level, format=None, **kwargs):

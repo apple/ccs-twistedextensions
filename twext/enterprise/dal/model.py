@@ -709,10 +709,15 @@ class Schema(object):
 
         results = []
 
-        def _compareLists(list1, list2, descriptor):
-            myItems = dict([(item.name.lower()[:63], item) for item in list1])
+        def lowerTruncateName(name):
+            return name.lower()[:63]
+        def lowerName(name):
+            return name.lower()
+
+        def _compareLists(list1, list2, descriptor, nameNormalize):
+            myItems = dict([(nameNormalize(item.name), item) for item in list1])
             otherItems = dict([
-                (item.name.lower()[:63], item) for item in list2
+                (nameNormalize(item.name), item) for item in list2
             ])
             for item in set(myItems.keys()) - set(otherItems.keys()):
                 results.append(
@@ -728,10 +733,10 @@ class Schema(object):
             for name in set(myItems.keys()) & set(otherItems.keys()):
                 results.extend(myItems[name].compare(otherItems[name]))
 
-        _compareLists(self.tables, other.tables, "table")
-        _compareLists(self.pseudoIndexes(), other.pseudoIndexes(), "index")
-        _compareLists(self.sequences, other.sequences, "sequence")
-        _compareLists(self.functions, other.functions, "functions")
+        _compareLists(self.tables, other.tables, "table", lowerTruncateName)
+        _compareLists(self.pseudoIndexes(), other.pseudoIndexes(), "index", lowerName)
+        _compareLists(self.sequences, other.sequences, "sequence", lowerTruncateName)
+        _compareLists(self.functions, other.functions, "functions", lowerTruncateName)
 
         return results
 
