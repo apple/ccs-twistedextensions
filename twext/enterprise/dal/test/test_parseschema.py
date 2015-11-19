@@ -467,6 +467,34 @@ $$ LANGUAGE plpgsql;
         self.assertRaises(KeyError, s.functionNamed, "merge")
 
 
+    def test_oracle_functions(self):
+        """
+        A 'create (or replace) function' statement will add an L{Function} object to a L{Schema}'s
+        C{functions} list.
+        """
+        s = self.schemaFromString(
+            """
+CREATE OR REPLACE FUNCTION function1(now timestamp)
+  RETURN INTEGER is
+  result INTEGER;
+BEGIN
+  RETURN result;
+END;
+/
+
+CREATE OR REPLACE FUNCTION function2(now timestamp)
+  RETURN INTEGER is
+  result INTEGER;
+BEGIN
+  RETURN result;
+END;
+/
+            """
+        )
+        self.assertTrue(s.functionNamed("function1") is not None)
+        self.assertTrue(s.functionNamed("function2") is not None)
+
+
     def test_insert(self):
         """
         An 'insert' statement will add an L{schemaRows} to an L{Table}.

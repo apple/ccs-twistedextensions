@@ -134,6 +134,9 @@ def addSQLToSchema(schema, schemaData):
 
     @return: the C{schema} argument
     """
+
+    # Filter out lines with just a / in them
+    schemaData = "\n".join(filter(lambda x: not x == "/", schemaData.splitlines()))
     parsed = parse(schemaData)
 
     for stmt in parsed:
@@ -253,7 +256,7 @@ def addSQLToSchema(schema, schemaData):
             if createType == u"FUNCTION":
                 parseFunction(schema, stmt)
 
-        else:
+        elif stmt.get_type() != "UNKNOWN":
             print("unknown type:", stmt.get_type())
 
     return schema
