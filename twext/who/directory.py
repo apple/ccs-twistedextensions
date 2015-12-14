@@ -580,6 +580,8 @@ class DirectoryRecord(object):
     #
 
     def verifyPlaintextPassword(self, password):
+        if isinstance(password, str):
+            password = password.decode("utf-8")
         if self.password == password:
             return succeed(True)
         else:

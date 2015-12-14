@@ -1008,6 +1008,7 @@ class BaseDirectoryRecordTest(ServiceMixIn):
 
         self.assertTrue((yield wsanchez.verifyPlaintextPassword(password)))
         self.assertFalse((yield wsanchez.verifyPlaintextPassword(u"bleargh")))
+        self.assertFalse((yield wsanchez.verifyPlaintextPassword("bleargh\xc3\xa5")))
 
 
     @inlineCallbacks
