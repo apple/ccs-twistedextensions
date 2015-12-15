@@ -81,11 +81,8 @@ class SQLType(object):
         A useful string representation which includes the name and length if
         present.
         """
-        if self.length:
-            lendesc = "(%s)" % (self.length)
-        else:
-            lendesc = ""
-        return "<SQL Type: %r%s>" % (self.name, lendesc)
+        lendesc = "({})".format(self.length) if self.length else ""
+        return "<SQL Type: {}{}>".format(self.name, lendesc)
 
 
     def normalizedName(self):
@@ -193,7 +190,7 @@ def _checkstr(x):
     prevent pollution with unicode values.
     """
     if not isinstance(x, str):
-        raise ValueError("%r is not a str." % (x,))
+        raise ValueError("{!r} is not a str.".format(x,))
 
 
 
@@ -251,7 +248,7 @@ class Column(FancyEqMixin, object):
 
 
     def __repr__(self):
-        return "<Column (%s %r)>" % (self.name, self.type)
+        return "<Column ({} {!r})>".format(self.name, self.type)
 
 
     def compare(self, other):
@@ -265,9 +262,9 @@ class Column(FancyEqMixin, object):
         results = []
 
         if self.name != other.name:
-            results.append("Table: %s, column names %s and %s do not match" % (self.table.name, self.name, other.name,))
+            results.append("Table: {}, column names {} and {} do not match".format(self.table.name, self.name, other.name,))
         if self.type != other.type:
-            results.append("Table: %s, column name %s type mismatch" % (self.table.name, self.name,))
+            results.append("Table: {}, column name {} type mismatch".format(self.table.name, self.name,))
         if self.default != other.default:
             # Some DBs don't allow sequence as a default
             if (
@@ -278,11 +275,11 @@ class Column(FancyEqMixin, object):
             ):
                 pass
             else:
-                results.append("Table: %s, column name %s default mismatch" % (self.table.name, self.name,))
+                results.append("Table: {}, column name {} default mismatch".format(self.table.name, self.name,))
         if stringIfNone(self.references, "name") != stringIfNone(other.references, "name"):
-            results.append("Table: %s, column name %s references mismatch" % (self.table.name, self.name,))
+            results.append("Table: {}, column name {} references mismatch".format(self.table.name, self.name,))
         if stringIfNone(self.deleteAction, "") != stringIfNone(other.deleteAction, ""):
-            results.append("Table: %s, column name %s delete action mismatch" % (self.table.name, self.name,))
+            results.append("Table: {}, column name {} delete action mismatch".format(self.table.name, self.name,))
         return results
 
 
@@ -364,7 +361,7 @@ class Table(FancyEqMixin, object):
 
 
     def __repr__(self):
-        return "<Table %r:%r>" % (self.name, self.columns)
+        return "<Table {}:{!r}>".format(self.name, self.columns)
 
 
     def compare(self, other):
@@ -383,11 +380,11 @@ class Table(FancyEqMixin, object):
         ])
         for item in set(myColumns.keys()) - set(otherColumns.keys()):
             results.append(
-                "Table: %s, extra column: %s" % (self.name, myColumns[item].name,)
+                "Table: {}, extra column: {}".format(self.name, myColumns[item].name,)
             )
         for item in set(otherColumns.keys()) - set(myColumns.keys()):
             results.append(
-                "Table: %s, missing column: %s" % (self.name, otherColumns[item].name,)
+                "Table: {}, missing column: {}".format(self.name, otherColumns[item].name,)
             )
 
         for name in set(myColumns.keys()) & set(otherColumns.keys()):
@@ -397,19 +394,19 @@ class Table(FancyEqMixin, object):
             listIfNone(self.primaryKey),
             listIfNone(other.primaryKey),
         )]):
-            results.append("Table: %s, mismatched primary key" % (self.name,))
+            results.append("Table: {}, mismatched primary key".format(self.name,))
 
         for myRow, otherRow in zip(self.schemaRows, other.schemaRows):
             myRows = dict([(column.name, value) for column, value in myRow.items()])
             otherRows = dict([(column.name, value) for column, value in otherRow.items()])
             if myRows != otherRows:
-                results.append("Table: %s, mismatched schema rows: %s" % (self.name, myRows))
+                results.append("Table: {}, mismatched schema rows: {}".format(self.name, myRows))
 
         # Compare psuedo-constraints - ones which include implicit primary key and unique
         # index items.
         diff_constraints = set(self.pseudoConstraints()) ^ set(other.pseudoConstraints())
         if diff_constraints:
-            results.append("Table: %s, mismatched constraints: %s" % (self.name, diff_constraints))
+            results.append("Table: {}, mismatched constraints: {}".format(self.name, diff_constraints))
 
         return results
 
@@ -427,7 +424,7 @@ class Table(FancyEqMixin, object):
         for column in self.columns:
             if column.name == name:
                 return column
-        raise KeyError("no such column: %r" % (name,))
+        raise KeyError("no such column: {}".format(name,))
 
 
     def addColumn(self, name, type, default=NO_DEFAULT, notNull=False, primaryKey=False):
@@ -572,8 +569,9 @@ class PseudoIndex(object):
     def __init__(self, name, table, columns, index_type=""):
 
         self.name = (
-            "%s:%s:(%s)"
-            % (table.name, index_type, ",".join([col.name for col in columns]))
+            "{}:{}:({})".format(
+                table.name, index_type, ",".join([col.name for col in columns])
+            )
         )
         self.original_name = name if name else self.name
         self.table = table
@@ -598,11 +596,11 @@ class PseudoIndex(object):
         ])
         for item in set(myColumns.keys()) - set(otherColumns.keys()):
             results.append(
-                "Index: %s, extra column: %s" % (self.original_name, myColumns[item].name,)
+                "Index: {}, extra column: {}".format(self.original_name, myColumns[item].name,)
             )
         for item in set(otherColumns.keys()) - set(myColumns.keys()):
             results.append(
-                "Index: %s, missing column: %s" % (self.original_name, otherColumns[item].name,)
+                "Index: {}, missing column: {}".format(self.original_name, otherColumns[item].name,)
             )
 
         return results
@@ -624,7 +622,7 @@ class Sequence(FancyEqMixin, object):
 
 
     def __repr__(self):
-        return "<Sequence %r>" % (self.name,)
+        return "<Sequence {}>".format(self.name,)
 
 
     def compare(self, other):
@@ -654,7 +652,7 @@ class Function(FancyEqMixin, object):
 
 
     def __repr__(self):
-        return "<Function %r>" % (self.name,)
+        return "<Function {}>".format(self.name,)
 
 
     def compare(self, other):
@@ -696,7 +694,7 @@ class Schema(object):
 
 
     def __repr__(self):
-        return "<Schema %r>" % (self.filename,)
+        return "<Schema {}>".format(self.filename,)
 
 
     def compare(self, other):
@@ -721,13 +719,11 @@ class Schema(object):
             ])
             for item in set(myItems.keys()) - set(otherItems.keys()):
                 results.append(
-                    "Schema: %s, extra %s: %s"
-                    % (other.filename, descriptor, myItems[item].name)
+                    "Schema: extra {}: {}".format(descriptor, myItems[item].name,)
                 )
             for item in set(otherItems.keys()) - set(myItems.keys()):
                 results.append(
-                    "Schema: %s, missing %s: %s"
-                    % (self.filename, descriptor, otherItems[item].name)
+                    "Schema: missing {}: {}".format(descriptor, otherItems[item].name,)
                 )
 
             for name in set(myItems.keys()) & set(otherItems.keys()):
@@ -738,6 +734,8 @@ class Schema(object):
         _compareLists(self.sequences, other.sequences, "sequence", lowerTruncateName)
         _compareLists(self.functions, other.functions, "functions", lowerTruncateName)
 
+        if results:
+            results.insert(0, "Comparing schema: {} to {}".format(self.filename, other.filename,))
         return results
 
 
