@@ -560,7 +560,9 @@ class DirectoryService(BaseDirectoryService):
             self.log.debug("Authenticated {dn}", dn=dn)
             return True
         except (
-            ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
+            ldap.INAPPROPRIATE_AUTH,
+            ldap.INVALID_CREDENTIALS,
+            ldap.INVALID_DN_SYNTAX,
         ):
             self.log.debug("Unable to authenticate {dn}", dn=dn)
             return False
