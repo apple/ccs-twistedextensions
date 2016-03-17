@@ -694,10 +694,16 @@ class DirectoryService(BaseDirectoryService):
                             s.processResults()
 
                         except ldap.SIZELIMIT_EXCEEDED as e:
-                            self.log.debug("LDAP result limit exceeded: {}".format(limitResults,))
+                            self.log.debug(
+                                "LDAP result limit exceeded: {limit}",
+                                limit=limitResults,
+                            )
 
                         except ldap.TIMELIMIT_EXCEEDED as e:
-                            self.log.warn("LDAP timeout exceeded: {} seconds".format(timeoutSeconds,))
+                            self.log.warn(
+                                "LDAP timeout exceeded: {timeout} seconds",
+                                timeout=timeoutSeconds,
+                            )
 
                         except ldap.FILTER_ERROR as e:
                             self.log.error(
