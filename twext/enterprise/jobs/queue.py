@@ -277,12 +277,12 @@ class ConnectionFromWorker(AMP):
         """
         d = self.callRemote(PerformJob, job=job)
         self._assigned += 1
-        self._load += job.weight
+        self._load += max(job.weight, 1)
 
         @d.addBoth
         def f(result):
             self._assigned -= 1
-            self._load -= job.weight
+            self._load -= max(job.weight, 1)
             self._completed += 1
             return result
 

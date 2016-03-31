@@ -1064,6 +1064,39 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEquals(worker2.currentLoad, 1)
 
 
+    def test_workerPerformJobNoZeroWeight(self):
+        """
+        L{WorkerConnectionPool.performJob} always uses a weight greater than zero.
+        """
+        clock = Clock()
+        peerPool = ControllerQueue(clock, None)
+        factory = peerPool.workerListenerFactory()
+
+        def peer():
+            p = factory.buildProtocol(None)
+            t = StringTransport()
+            p.makeConnection(t)
+            return p, t
+
+        worker1, _ignore_trans1 = peer()
+        worker2, _ignore_trans2 = peer()
+
+        # Ask the worker to do something.
+        worker1.performJob(JobDescriptor(1, 0, "ABC"))
+        self.assertEquals(worker1.currentLoad, 1)
+        self.assertEquals(worker2.currentLoad, 0)
+
+        # Now ask the pool to do something
+        peerPool.workerPool.performJob(JobDescriptor(2, 0, "ABC"))
+        self.assertEquals(worker1.currentLoad, 1)
+        self.assertEquals(worker2.currentLoad, 1)
+
+        # Ask the worker to do something more.
+        worker1.performJob(JobDescriptor(3, 5, "ABC"))
+        self.assertEquals(worker1.currentLoad, 6)
+        self.assertEquals(worker2.currentLoad, 1)
+
+
     def test_poolStartServiceChecksForWork(self):
         """
         L{ControllerQueue.startService} kicks off the idle work-check loop.
