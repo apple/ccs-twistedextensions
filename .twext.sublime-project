@@ -1,0 +1,69 @@
+{
+	"build_systems":
+	[
+		{
+			"file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
+			"name": "Anaconda Python Builder",
+			"selector": "source.python",
+			"shell_cmd": "\"./bin/python\" -u \"$file\""
+		},
+		{
+			"cmd":
+			[
+				"${project_path}/bin/trial",
+				"--temp-directory=${project_path}/.develop/trial",
+				"--random=0",
+				"--testmodule=${file}"
+			],
+			"name": "Trial",
+			"selector": "source.python"
+		}
+	],
+	"folders":
+	[
+		{
+			"file_exclude_patterns":
+			[
+				"*.pyc",
+				"*.pyo"
+			],
+			"folder_exclude_patterns":
+			[
+				".git",
+				".develop",
+				"*.egg-info"
+			],
+			"name": "twext",
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"pep257": true,
+		"pep257_ignore":
+		[
+			"D102",
+			"D105",
+			"D200",
+			"D203",
+			"D205",
+			"D400"
+		],
+		"pep8_ignore":
+		[
+			"E202",
+			"E203",
+			"E221",
+			"E302",
+			"E303",
+			"E402"
+		],
+		"pep8_max_line_length": 80,
+		"pyflakes_ignore_import_*": false,
+		"python_interpreter": "./bin/python",
+		"tab_size": 4,
+		"test_command": "./bin/trial",
+		"test_delimeter": ".",
+		"test_project_path": "twext"
+	}
+}
