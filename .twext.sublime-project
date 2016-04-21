@@ -24,6 +24,8 @@
 		{
 			"file_exclude_patterns":
 			[
+				".project",
+				".pydevproject",
 				"*.pyc",
 				"*.pyo"
 			],
