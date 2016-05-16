@@ -54,6 +54,20 @@ from ._constants import (
     ODSearchPath, ODRecordType, ODAttribute, ODMatchType, ODAuthMethod,
 )
 
+
+NUM_TRIES = 3
+
+RETRY_CODES = (
+    5200, # Server unreachable
+    5201, # Server not found
+    5202, # Server error
+    5203, # Server timeout
+    5204, # Contact master
+    5205, # Server communication error
+)
+INCORRECT_CREDENTIALS = 5000
+
+
 # Note: the combination of threads, PyObjC, and OD.Framework is causing trouble
 # where OD requests are not completing and we're filling our thread pool.  Not
 # using deferToThread() works around the problem, but we should try to measure
@@ -1198,26 +1212,58 @@ class DirectoryRecord(BaseDirectoryRecord):
             response=response
         )
 
-        if DEFER_TO_THREAD:
-            result, _ignore_m1, _ignore_m2, error = (
-                yield deferToThreadWithAutoReleasePool(
-                    self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_,
+        tries = 3
+        while tries:
+            self.log.debug("Checking digest auth for user '{user}' (tries remaining: {tries})", user=username, tries=tries)
+
+            if DEFER_TO_THREAD:
+                result, _ignore_m1, _ignore_m2, error = (
+                    yield deferToThreadWithAutoReleasePool(
+                        self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_,
+                        ODAuthMethod.digestMD5.value,
+                        [username, challenge, responseArg, method],
+                        None, None, None
+                    )
+                )
+            else:
+                result, _ignore_m1, _ignore_m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
                     ODAuthMethod.digestMD5.value,
                     [username, challenge, responseArg, method],
                     None, None, None
                 )
-            )
-        else:
-            result, _ignore_m1, _ignore_m2, error = self._odRecord.verifyExtendedWithAuthenticationType_authenticationItems_continueItems_context_error_(
-                ODAuthMethod.digestMD5.value,
-                [username, challenge, responseArg, method],
-                None, None, None
+
+            if not error:
+                self.log.debug(
+                    "Digest auth for user '{username}' result: {result}",
+                    username=username, result=result
+                )
+                returnValue(result)
+
+            code = error.code()
+
+            if code == INCORRECT_CREDENTIALS:
+                self.log.debug(
+                    "Digest auth for user '{username}' failed due to incorrect credentials",
+                    username=username
+                )
+                returnValue(False)
+
+            self.log.debug(
+                "Digest auth for user '{username}' failed with code {code} ({err})",
+                username=username, code=code, err=error
             )
 
-        if error:
-            returnValue(False)
+            if code in RETRY_CODES:
+                tries -= 1
+            else:
+                break
 
-        returnValue(result)
+        self.log.error(
+            "Giving up on digest auth for user '{username}'; error {error}",
+            username=username, error=error
+        )
+        returnValue(False)
+
 
 
     @inlineCallbacks
