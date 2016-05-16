@@ -1214,7 +1214,11 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         tries = NUM_TRIES
         while tries:
-            self.log.debug("Checking digest auth for user '{user}' (tries remaining: {tries})", user=username, tries=tries)
+            self.log.debug(
+                "Checking digest auth for user '{username}' (tries remaining: {tries}); challenge '{challenge}', responseArg '{responseArg}', method '{method}'",
+                username=username, tries=tries, challenge=challenge, responseArg=responseArg,
+                method=method
+            )
 
             if DEFER_TO_THREAD:
                 result, _ignore_m1, _ignore_m2, error = (
@@ -1234,8 +1238,9 @@ class DirectoryRecord(BaseDirectoryRecord):
 
             if not error:
                 self.log.debug(
-                    "Digest auth for user '{username}' result: {result}",
-                    username=username, result=result
+                    "Digest auth for user '{username}' result: {result}; challenge '{challenge}', responseArg '{responseArg}', method '{method}'",
+                    username=username, result=result, challenge=challenge,
+                    responseArg=responseArg, method=method
                 )
                 returnValue(result)
 
@@ -1243,14 +1248,16 @@ class DirectoryRecord(BaseDirectoryRecord):
 
             if code == INCORRECT_CREDENTIALS:
                 self.log.debug(
-                    "Digest auth for user '{username}' failed due to incorrect credentials",
-                    username=username
+                    "Digest auth for user '{username}' failed due to incorrect credentials; challenge '{challenge}', responseArg '{responseArg}', method '{method}'",
+                    username=username, challenge=challenge,
+                    responseArg=responseArg, method=method
                 )
                 returnValue(False)
 
-            self.log.debug(
-                "Digest auth for user '{username}' failed with code {code} ({err})",
-                username=username, code=code, err=error
+            self.log.error(
+                "Digest auth for user '{username}' failed with code {code} ({error}); challenge '{challenge}', responseArg '{responseArg}', method '{method}'",
+                username=username, code=code, error=error, challenge=challenge,
+                responseArg=responseArg, method=method
             )
 
             if code in RETRY_CODES:
