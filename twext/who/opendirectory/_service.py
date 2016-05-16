@@ -1259,8 +1259,9 @@ class DirectoryRecord(BaseDirectoryRecord):
                 break
 
         self.log.error(
-            "Giving up on digest auth for user '{username}'; error {error}",
-            username=username, error=error
+            "Giving up on digest auth for user '{username}' error '{error}'; challenge '{challenge}', responseArg '{responseArg}', method '{method}'",
+            username=username, error=error, challenge=challenge, responseArg=responseArg,
+            method=method
         )
         returnValue(False)
 
