@@ -1212,7 +1212,7 @@ class DirectoryRecord(BaseDirectoryRecord):
             response=response
         )
 
-        tries = 3
+        tries = NUM_TRIES
         while tries:
             self.log.debug("Checking digest auth for user '{user}' (tries remaining: {tries})", user=username, tries=tries)
 
