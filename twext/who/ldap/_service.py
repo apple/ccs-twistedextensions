@@ -444,9 +444,16 @@ class DirectoryService(BaseDirectoryService):
 
         self.poolStats[connectionID] += 1
         self.activeCount += 1
+        self.poolStats["connection-active"] = self.activeCount
         self.poolStats["connection-max"] = max(
             self.poolStats["connection-max"], self.activeCount
         )
+
+        if self.activeCount > self.connectionMax:
+            self.log.error(
+                "Active LDAP connections ({active}) exceeds maximum ({max})",
+                active=self.activeCount, max=self.connectionMax
+            )
         return connection
 
 
@@ -478,8 +485,6 @@ class DirectoryService(BaseDirectoryService):
 
         @raises: L{LDAPConnectionError} if unable to connect.
         """
-        # FIXME: ldap connection objects are not thread safe, so let's set up
-        # a connection pool
 
         self.log.debug("Connecting to LDAP at {log_source.url}")
         connection = self._newConnection()
@@ -556,10 +561,14 @@ class DirectoryService(BaseDirectoryService):
 
         @raises: L{LDAPConnectionError} if unable to connect.
         """
-        return deferToThreadPool(
+        d = deferToThreadPool(
             reactor, self.threadpool,
             self._authenticateUsernamePassword_inThread, dn, password
         )
+        qsize = self.threadpool._queue.qsize()
+        if qsize > 0:
+            self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
+        return d
 
 
     def _authenticateUsernamePassword_inThread(self, dn, password):
@@ -589,23 +598,14 @@ class DirectoryService(BaseDirectoryService):
             self.log.debug("Unable to authenticate {dn}", dn=dn)
             return False
         finally:
-            # TODO: should we explicitly "close" the connection in a finally
-            # clause rather than just let it go out of scope and be garbage
-            # collected at some indeterminate point in the future?
-            # Up side is that we won't hang on to the connection or other
-            # resources for longer than needed.
-            # Down side is we will take a little bit of extra time in this call
-            # to close it down.
-            # If we do decide to "close" then we probably have to use one of
-            # the "unbind" methods on the L{LDAPObject}.
-            connection = None
+            connection.unbind()
 
 
     def _recordsFromQueryString(
         self, queryString, recordTypes=None,
         limitResults=None, timeoutSeconds=None
     ):
-        return deferToThreadPool(
+        d = deferToThreadPool(
             reactor, self.threadpool,
             self._recordsFromQueryString_inThread,
             queryString,
@@ -613,6 +613,10 @@ class DirectoryService(BaseDirectoryService):
             limitResults=limitResults,
             timeoutSeconds=timeoutSeconds
         )
+        qsize = self.threadpool._queue.qsize()
+        if qsize > 0:
+            self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
+        return d
 
 
     def _addExtraFilter(self, recordType, queryString):
@@ -783,10 +787,15 @@ class DirectoryService(BaseDirectoryService):
 
 
     def _recordWithDN(self, dn):
-        return deferToThreadPool(
+        d = deferToThreadPool(
             reactor, self.threadpool,
             self._recordWithDN_inThread, dn
         )
+        qsize = self.threadpool._queue.qsize()
+        if qsize > 0:
+            self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
+        return d
+
 
 
     def _recordWithDN_inThread(self, dn):
