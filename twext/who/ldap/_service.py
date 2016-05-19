@@ -568,7 +568,7 @@ class DirectoryService(BaseDirectoryService):
         qsize = self.threadpool._queue.qsize()
         if qsize > 0:
             self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
-            self.poolStats["thread-blocked"] += 1
+            self.poolStats["connection-thread-blocked"] += 1
         return d
 
 
@@ -617,7 +617,7 @@ class DirectoryService(BaseDirectoryService):
         qsize = self.threadpool._queue.qsize()
         if qsize > 0:
             self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
-            self.poolStats["thread-blocked"] += 1
+            self.poolStats["connection-thread-blocked"] += 1
         return d
 
 
@@ -796,7 +796,7 @@ class DirectoryService(BaseDirectoryService):
         qsize = self.threadpool._queue.qsize()
         if qsize > 0:
             self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
-            self.poolStats["thread-blocked"] += 1
+            self.poolStats["connection-thread-blocked"] += 1
         return d
 
 
