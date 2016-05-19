@@ -443,7 +443,7 @@ class DirectoryService(BaseDirectoryService):
         )
 
         self.poolStats[connectionID] += 1
-        self.activeCount += 1
+        self.activeCount = len(self.connections) - self.connectionQueue.qsize()
         self.poolStats["connection-active"] = self.activeCount
         self.poolStats["connection-max"] = max(
             self.poolStats["connection-max"], self.activeCount
@@ -461,8 +461,8 @@ class DirectoryService(BaseDirectoryService):
         """
         A connection is no longer needed - return it to the pool.
         """
-        self.activeCount -= 1
         self.connectionQueue.put(connection)
+        self.activeCount = len(self.connections) - self.connectionQueue.qsize()
 
 
     def _failedConnection(self, connection):
@@ -470,9 +470,9 @@ class DirectoryService(BaseDirectoryService):
         A connection has failed; remove it from the list of active connections.
         A new one will be created if needed.
         """
-        self.activeCount -= 1
         self.poolStats["connection-errors"] += 1
         self.connections.remove(connection)
+        self.activeCount = len(self.connections) - self.connectionQueue.qsize()
 
 
     def _connect(self):
