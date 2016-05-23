@@ -27,6 +27,7 @@ from uuid import UUID
 
 import collections
 import ldap.async
+import time
 
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.defer import succeed, inlineCallbacks, returnValue
@@ -237,6 +238,7 @@ class DirectoryService(BaseDirectoryService):
         threadPoolMax=10,
         connectionMax=10,
         tries=3,
+        warningThresholdSeconds=5,
         _debug=False,
     ):
         """
@@ -281,6 +283,7 @@ class DirectoryService(BaseDirectoryService):
         self._timeout = timeout
         self._extraFilters = extraFilters
         self._tries = tries
+        self._warningThresholdSeconds = warningThresholdSeconds
 
         if tlsCACertificateFile is None:
             self._tlsCACertificateFile = None
@@ -682,6 +685,8 @@ class DirectoryService(BaseDirectoryService):
                             ),
                         )
                         try:
+                            startTime = time.time()
+
                             s = ldap.async.List(connection)
                             s.startSearch(
                                 ldap.dn.dn2str(rdn),
@@ -698,6 +703,7 @@ class DirectoryService(BaseDirectoryService):
                                 ),
                             )
                             s.processResults()
+
 
                         except ldap.SIZELIMIT_EXCEEDED as e:
                             self.log.debug(
@@ -747,6 +753,16 @@ class DirectoryService(BaseDirectoryService):
                             for _ignore_resultType, resultItem
                             in s.allResults
                         ]
+
+                        totalTime = time.time() - startTime
+                        if totalTime > self._warningThresholdSeconds:
+                            if filteredQuery and len(filteredQuery) > 500:
+                                filteredQuery = "%s..." % (filteredQuery[:500],)
+                            self.log.error(
+                                "LDAP query exceeded threshold: {totalTime:.2f} seconds for {rdn} {query} (#results={resultCount})",
+                                totalTime=totalTime, rdn=rdn,
+                                query=filteredQuery, resultCount=len(reply)
+                            )
 
                         newRecords = self._recordsFromReply(
                             reply, recordType=recordType
@@ -1067,6 +1083,19 @@ class DirectoryService(BaseDirectoryService):
     #     return succeed(None)
 
 
+def splitIntoBatches(data, size):
+    """
+    Return a generator of lists consisting of the contents of the data set
+    split into parts no larger than size.
+    """
+    if not data:
+        yield []
+    data = list(data)
+    while data:
+        yield data[:size]
+        del data[:size]
+
+
 
 @implementer(IPlaintextPasswordVerifier)
 class DirectoryRecord(BaseDirectoryRecord):
@@ -1127,14 +1156,17 @@ class DirectoryRecord(BaseDirectoryRecord):
                             matchType=MatchType.equals
                         )
                     )
-            expression = CompoundExpression(
-                matchExpressions,
-                Operand.OR
-            )
-            for record in (yield self.service.recordsFromCompoundExpression(
-                expression, recordTypes=[recordType]
-            )):
-                members.add(record)
+
+                # split into batches of 500
+                for batch in splitIntoBatches(matchExpressions, 500):
+                    expression = CompoundExpression(
+                        batch,
+                        Operand.OR
+                    )
+                    for record in (yield self.service.recordsFromCompoundExpression(
+                        expression, recordTypes=[recordType]
+                    )):
+                        members.add(record)
 
         for dnStr in faultByDN:
             record = yield self.service._recordWithDN(dnStr.replace("+", "\+"))
