@@ -226,7 +226,7 @@ class Options(TwistedOptions):
             )
 
 
-    # Format the docstring for opt_logLevel.
+    # Format the docstring for opt_log_level.
     opt_log_level.__doc__ = opt_log_level.__doc__.format(
         levelNames=", ".join([l.name for l in LogLevel.iterconstants()])
     )
