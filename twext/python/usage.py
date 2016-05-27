@@ -64,10 +64,33 @@ class Executable(object):
             options = None
 
         instance = cls(options)
+        try:
+            instance.run()
+        except Exception as e:
+            exit(ExitStatus.EX_SOFTWARE, "Error: {}\n".format(e))
 
-        pidFile = options.get("pidFile")
 
-        if options.get("kill"):
+    def __init__(self, options):
+        self.options = options
+
+
+    def run(self):
+        self.postOptions()
+        self.optionallyKill()
+        self.writePIDFile()
+        self.startLogging()
+        self.runReactor()
+        self.shutDown()
+
+
+    def postOptions(self):
+        pass
+
+
+    def optionallyKill(self):
+        pidFile = self.options.get("pidFile")
+
+        if self.options.get("kill"):
             if pidFile is None:
                 exit(ExitStatus.EX_USAGE, "--pid-file required to use --kill")
             else:
@@ -82,26 +105,19 @@ class Executable(object):
                 except ValueError:
                     exit(ExitStatus.EX_DATAERR, "Invalid pid file.")
 
-            instance.startLogging()
-            cls.log.info("Terminating process: {pid}", pid=pid)
+            self.startLogging()
+            self.log.info("Terminating process: {pid}", pid=pid)
 
             kill(pid, signal.SIGTERM)
 
             exit(ExitStatus.EX_OK)
 
+
+    def writePIDFile(self):
+        pidFile = self.options.get("pidFile")
         if pidFile is not None:
             pid = getpid()
             pidFile.setContent(u"{}\n".format(pid).encode("utf-8"))
-
-        instance.startLogging()
-        from twisted.internet import reactor
-        reactor.callWhenRunning(instance.whenRunning)
-        instance.run()
-        instance.tearDown()
-
-
-    def __init__(self, options):
-        self.options = options
 
 
     def startLogging(self):
@@ -124,17 +140,18 @@ class Executable(object):
         globalLogBeginner.beginLoggingTo([filteringObserver])
 
 
-    def whenRunning(self):
-        pass
-
-
-    def run(self):
+    def runReactor(self):
         from twisted.internet import reactor
+        reactor.callWhenRunning(self.whenRunning)
         self.log.info("Starting reactor...")
         reactor.run()
 
 
-    def tearDown(self):
+    def whenRunning(self):
+        pass
+
+
+    def shutDown(self):
         pidFile = self.options.get("pidFile")
         if pidFile is not None:
             pidFile.remove()
