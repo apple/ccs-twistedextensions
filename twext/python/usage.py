@@ -226,6 +226,7 @@ class Options(TwistedOptions):
                 ExitStatus.EX_USAGE,
                 "Invalid log format: {}".format(format)
             )
+        self["logFormat"] = format
 
 
     def opt_log_level(self, levelName):
