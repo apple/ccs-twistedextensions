@@ -261,7 +261,7 @@ class Column(FancyEqMixin, object):
 
         results = []
 
-        if self.name != other.name:
+        if self.name.lower() != other.name.lower():
             results.append("Table: {}, column names {} and {} do not match".format(self.table.name, self.name, other.name,))
         if self.type != other.type:
             results.append("Table: {}, column name {} type mismatch".format(self.table.name, self.name,))
@@ -276,9 +276,9 @@ class Column(FancyEqMixin, object):
                 pass
             else:
                 results.append("Table: {}, column name {} default mismatch".format(self.table.name, self.name,))
-        if stringIfNone(self.references, "name") != stringIfNone(other.references, "name"):
+        if stringIfNone(self.references, "name").lower() != stringIfNone(other.references, "name").lower():
             results.append("Table: {}, column name {} references mismatch".format(self.table.name, self.name,))
-        if stringIfNone(self.deleteAction, "") != stringIfNone(other.deleteAction, ""):
+        if stringIfNone(self.deleteAction, "").lower() != stringIfNone(other.deleteAction, "").lower():
             results.append("Table: {}, column name {} delete action mismatch".format(self.table.name, self.name,))
         return results
 
