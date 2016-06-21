@@ -386,16 +386,8 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             # SELECT ... FOR UPDATE SKIP LOCKED query that ensures only the row
             # being fetched is locked and existing locked rows are skipped.
 
-            # Three separate stored procedures for the three priority cases
-            if minPriority == JOB_PRIORITY_LOW:
-                function = "next_job_all"
-            elif minPriority == JOB_PRIORITY_MEDIUM:
-                function = "next_job_medium_high"
-            elif minPriority == JOB_PRIORITY_HIGH:
-                function = "next_job_high"
-
             job = None
-            jobID = yield Call(function, now, returnType=int).on(txn)
+            jobID = yield Call("next_job", now, minPriority, returnType=int).on(txn)
             if jobID:
                 job = yield cls.load(txn, jobID)
         else:
