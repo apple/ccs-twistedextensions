@@ -200,7 +200,7 @@ class Options(TwistedOptions):
             return
 
         try:
-            self["logFile"] = open(fileName, "w")
+            self["logFile"] = open(fileName, "a")
             self.setdefault("fileLogObserverFactory", jsonFileLogObserver)
         except EnvironmentError as e:
             exit(
