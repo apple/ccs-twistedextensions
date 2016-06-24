@@ -606,6 +606,7 @@ class DirectoryService(BaseDirectoryService):
             return False
         except Exception as e:
             self.log.error("Unexpected error {error} trying to authenticate {dn}", error=str(e), dn=dn)
+            return False
         finally:
             connection.unbind()
 
