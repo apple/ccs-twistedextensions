@@ -601,6 +601,11 @@ class DirectoryService(BaseDirectoryService):
         ):
             self.log.debug("Unable to authenticate {dn}", dn=dn)
             return False
+        except ldap.CONSTRAINT_VIOLATION:
+            self.log.info("Account locked {dn}", dn=dn)
+            return False
+        except Exception as e:
+            self.log.error("Unexpected error {error} trying to authenticate {dn}", error=str(e), dn=dn)
         finally:
             connection.unbind()
 
