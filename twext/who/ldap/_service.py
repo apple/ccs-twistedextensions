@@ -822,7 +822,6 @@ class DirectoryService(BaseDirectoryService):
         return d
 
 
-
     def _recordWithDN_inThread(self, dn):
         """
         @param dn: The DN of the record to search for
@@ -1087,6 +1086,7 @@ class DirectoryService(BaseDirectoryService):
     #     for uid in uids:
     #         return fail(NotAllowedError("Record removal not allowed."))
     #     return succeed(None)
+
 
 
 def splitIntoBatches(data, size):
