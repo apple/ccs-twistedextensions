@@ -676,7 +676,7 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         """
         Change the paramstyle of the transaction under test.
         """
-        self.pool.paramstyle = paramstyle
+        self.pool.dbtype = self.pool.dbtype.copyreplace(paramstyle=paramstyle)
 
 
     def test_propagateParamstyle(self):
@@ -687,24 +687,24 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         TEST_PARAMSTYLE = "justtesting"
         self.setParamstyle(TEST_PARAMSTYLE)
         normaltxn = self.createTransaction()
-        self.assertEquals(normaltxn.paramstyle, TEST_PARAMSTYLE)
-        self.assertEquals(normaltxn.commandBlock().paramstyle, TEST_PARAMSTYLE)
+        self.assertEquals(normaltxn.dbtype.paramstyle, TEST_PARAMSTYLE)
+        self.assertEquals(normaltxn.commandBlock().dbtype.paramstyle, TEST_PARAMSTYLE)
         self.pauseHolders()
         extra = []
         extra.append(self.createTransaction())
         waitingtxn = self.createTransaction()
-        self.assertEquals(waitingtxn.paramstyle, TEST_PARAMSTYLE)
+        self.assertEquals(waitingtxn.dbtype.paramstyle, TEST_PARAMSTYLE)
         self.flushHolders()
         self.pool.stopService()
         notxn = self.createTransaction()
-        self.assertEquals(notxn.paramstyle, TEST_PARAMSTYLE)
+        self.assertEquals(notxn.dbtype.paramstyle, TEST_PARAMSTYLE)
 
 
     def setDialect(self, dialect):
         """
         Change the dialect of the transaction under test.
         """
-        self.pool.dialect = dialect
+        self.pool.dbtype = self.pool.dbtype.copyreplace(dialect=dialect)
 
 
     def test_propagateDialect(self):
@@ -715,17 +715,17 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         TEST_DIALECT = "otherdialect"
         self.setDialect(TEST_DIALECT)
         normaltxn = self.createTransaction()
-        self.assertEquals(normaltxn.dialect, TEST_DIALECT)
-        self.assertEquals(normaltxn.commandBlock().dialect, TEST_DIALECT)
+        self.assertEquals(normaltxn.dbtype.dialect, TEST_DIALECT)
+        self.assertEquals(normaltxn.commandBlock().dbtype.dialect, TEST_DIALECT)
         self.pauseHolders()
         extra = []
         extra.append(self.createTransaction())
         waitingtxn = self.createTransaction()
-        self.assertEquals(waitingtxn.dialect, TEST_DIALECT)
+        self.assertEquals(waitingtxn.dbtype.dialect, TEST_DIALECT)
         self.flushHolders()
         self.pool.stopService()
         notxn = self.createTransaction()
-        self.assertEquals(notxn.dialect, TEST_DIALECT)
+        self.assertEquals(notxn.dbtype.dialect, TEST_DIALECT)
 
 
     def test_reConnectWhenFirstExecFails(self):
@@ -1330,8 +1330,7 @@ class NetworkedPoolHelper(ConnectionPoolHelper):
         super(NetworkedPoolHelper, self).setUp()
         self.pump = IOPump(
             ConnectionPoolClient(
-                dialect=self.dialect,
-                paramstyle=self.paramstyle
+                dbtype=self.dbtype,
             ),
             ConnectionPoolConnection(self.pool)
         )
@@ -1384,7 +1383,7 @@ class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
         Change the paramstyle on both the pool and the client.
         """
         super(NetworkedConnectionPoolTests, self).setParamstyle(paramstyle)
-        self.pump.client.paramstyle = paramstyle
+        self.pump.client.dbtype = self.pump.client.dbtype.copyreplace(paramstyle=paramstyle)
 
 
     def setDialect(self, dialect):
@@ -1392,7 +1391,7 @@ class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
         Change the dialect on both the pool and the client.
         """
         super(NetworkedConnectionPoolTests, self).setDialect(dialect)
-        self.pump.client.dialect = dialect
+        self.pump.client.dbtype = self.pump.client.dbtype.copyreplace(dialect=dialect)
 
 
     def test_newTransaction(self):

@@ -649,7 +649,7 @@ class Record(object):
         """
         Delete all rows matching the where expression from the table that corresponds to C{cls}.
         """
-        if transaction.dialect == ORACLE_DIALECT and returnCols is not None:
+        if transaction.dbtype.dialect == ORACLE_DIALECT and returnCols is not None:
             # Oracle cannot return multiple rows in the RETURNING clause so
             # we have to split this into a SELECT followed by a DELETE
             if not isinstance(returnCols, (tuple, list)):

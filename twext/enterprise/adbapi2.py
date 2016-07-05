@@ -60,7 +60,8 @@ from twext.enterprise.ienterprise import IDerivedParameter
 from twisted.internet.defer import fail
 
 from twext.enterprise.ienterprise import (
-    AlreadyFinishedError, IAsyncTransaction, POSTGRES_DIALECT, ICommandBlock
+    AlreadyFinishedError, IAsyncTransaction, ICommandBlock,
+    DatabaseType, POSTGRES_DIALECT,
 )
 
 from twext.python.log import Logger
@@ -74,7 +75,7 @@ log = Logger()
 
 DEFAULT_PARAM_STYLE = "pyformat"
 DEFAULT_DIALECT = POSTGRES_DIALECT
-
+DEFAULT_DBTYPE = DatabaseType(DEFAULT_DIALECT, DEFAULT_PARAM_STYLE)
 
 def _forward(thunk):
     """
@@ -172,15 +173,9 @@ class _ConnectedTxn(object):
 
 
     @_forward
-    def paramstyle(self):
+    def dbtype(self):
         """
-        The paramstyle attribute is mirrored from the connection pool.
-        """
-
-    @_forward
-    def dialect(self):
-        """
-        The dialect attribute is mirrored from the connection pool.
+        The dbtype attribute is mirrored from the connection pool.
         """
 
     def _reallyExecSQL(self, sql, args=None, raiseOnZeroRowCount=None):
@@ -528,8 +523,7 @@ class _NoTxn(object):
     implements(IAsyncTransaction)
 
     def __init__(self, pool, reason, label=None):
-        self.paramstyle = pool.paramstyle
-        self.dialect = pool.dialect
+        self.dbtype = pool.dbtype
         self.reason = reason
         self._label = label
 
@@ -563,12 +557,11 @@ class _WaitingTxn(object):
     def __init__(self, pool, label=None):
         """
         Initialize a L{_WaitingTxn} based on a L{ConnectionPool}.  (The C{pool}
-        is used only to reflect C{dialect} and C{paramstyle} attributes; not
+        is used only to reflect C{dbtype} attribute; not
         remembered or modified in any way.)
         """
         self._spool = []
-        self.paramstyle = pool.paramstyle
-        self.dialect = pool.dialect
+        self.dbtype = pool.dbtype
         self._label = label
 
 
@@ -931,8 +924,7 @@ class CommandBlock(object):
 
     def __init__(self, singleTxn):
         self._singleTxn = singleTxn
-        self.paramstyle = singleTxn.paramstyle
-        self.dialect = singleTxn.dialect
+        self.dbtype = singleTxn.dbtype
         self._spool = _WaitingTxn(singleTxn._pool, label=singleTxn._label)
         self._started = False
         self._ended = False
@@ -1129,15 +1121,14 @@ class ConnectionPool(Service, object):
     def __init__(
         self,
         connectionFactory, maxConnections=10,
-        paramstyle=DEFAULT_PARAM_STYLE, dialect=DEFAULT_DIALECT,
+        dbtype=None,
         name=None,
     ):
 
         super(ConnectionPool, self).__init__()
         self.connectionFactory = connectionFactory
         self.maxConnections = maxConnections
-        self.paramstyle = paramstyle
-        self.dialect = dialect
+        self.dbtype = dbtype if dbtype is not None else DEFAULT_DBTYPE.copyreplace()
         if name is not None:
             self.name = name
 
@@ -1674,15 +1665,14 @@ class ConnectionPoolClient(AMP):
     """
 
     def __init__(
-        self, dialect=POSTGRES_DIALECT, paramstyle=DEFAULT_PARAM_STYLE
+        self, dbtype=DEFAULT_DBTYPE,
     ):
         # See DEFAULT_PARAM_STYLE FIXME above.
         super(ConnectionPoolClient, self).__init__()
         self._nextID = count().next
         self._txns = weakref.WeakValueDictionary()
         self._queries = {}
-        self.dialect = dialect
-        self.paramstyle = paramstyle
+        self.dbtype = dbtype if dbtype is not None else DEFAULT_DBTYPE.copyreplace()
 
 
     def unhandledError(self, failure):
@@ -1813,19 +1803,11 @@ class _NetTransaction(_CommitAndAbortHooks):
 
 
     @property
-    def paramstyle(self):
+    def dbtype(self):
         """
-        Forward C{paramstyle} attribute to the client.
+        Forward C{dbtype} attribute to the client.
         """
-        return self._client.paramstyle
-
-
-    @property
-    def dialect(self):
-        """
-        Forward C{dialect} attribute to the client.
-        """
-        return self._client.dialect
+        return self._client.dbtype
 
 
     def execSQL(self, sql, args=None, raiseOnZeroRowCount=None, blockID=""):
@@ -1912,19 +1894,11 @@ class _NetCommandBlock(object):
 
 
     @property
-    def paramstyle(self):
+    def dbtype(self):
         """
-        Forward C{paramstyle} attribute to the transaction.
+        Forward C{dbtype} attribute to the transaction.
         """
-        return self._transaction.paramstyle
-
-
-    @property
-    def dialect(self):
-        """
-        Forward C{dialect} attribute to the transaction.
-        """
-        return self._transaction.dialect
+        return self._transaction.dbtype
 
 
     def execSQL(self, sql, args=None, raiseOnZeroRowCount=None):
