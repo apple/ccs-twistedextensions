@@ -32,6 +32,7 @@ from twisted.internet.task import Clock
 from twisted.python.threadpool import ThreadPool
 
 from twext.enterprise.adbapi2 import ConnectionPool
+from twext.enterprise.ienterprise import DatabaseType
 from twext.enterprise.ienterprise import SQLITE_DIALECT
 from twext.enterprise.ienterprise import POSTGRES_DIALECT
 from twext.enterprise.adbapi2 import DEFAULT_PARAM_STYLE
@@ -39,7 +40,7 @@ from twext.internet.threadutils import ThreadHolder
 
 
 
-def buildConnectionPool(testCase, schemaText="", dialect=SQLITE_DIALECT):
+def buildConnectionPool(testCase, schemaText="", dbtype=DatabaseType(SQLITE_DIALECT, "numeric")):
     """
     Build a L{ConnectionPool} for testing purposes, with the given C{testCase}.
 
@@ -71,8 +72,7 @@ def buildConnectionPool(testCase, schemaText="", dialect=SQLITE_DIALECT):
     con = connectionFactory()
     con.executescript(schemaText)
     con.commit()
-    pool = ConnectionPool(connectionFactory, paramstyle="numeric",
-                          dialect=SQLITE_DIALECT)
+    pool = ConnectionPool(connectionFactory, dbtype=dbtype)
     pool.startService()
     testCase.addCleanup(pool.stopService)
     return pool
@@ -227,8 +227,7 @@ class ConnectionPoolHelper(object):
     L{ConnectionPool}.
     """
 
-    dialect = POSTGRES_DIALECT
-    paramstyle = DEFAULT_PARAM_STYLE
+    dbtype = DatabaseType(POSTGRES_DIALECT, DEFAULT_PARAM_STYLE)
 
     def setUp(self, test=None, connect=None):
         """
@@ -245,8 +244,7 @@ class ConnectionPoolHelper(object):
         self.pool = ConnectionPool(
             connect,
             maxConnections=2,
-            dialect=self.dialect,
-            paramstyle=self.paramstyle
+            dbtype=self.dbtype,
         )
         self.pool._createHolder = self.makeAHolder
         self.clock = self.pool.reactor = ClockWithThreads()
@@ -301,8 +299,7 @@ class SteppablePoolHelper(ConnectionPoolHelper):
     capable of firing all its L{Deferred}s on demand, synchronously, by using
     SQLite.
     """
-    dialect = SQLITE_DIALECT
-    paramstyle = sqlite3.paramstyle
+    dbtype = DatabaseType(SQLITE_DIALECT, sqlite3.paramstyle)
 
     def __init__(self, schema):
         self.schema = schema

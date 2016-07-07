@@ -21,6 +21,7 @@ Tests for L{twext.enterprise.dal.syntax}
 from twisted.internet.defer import succeed
 from twisted.trial.unittest import TestCase, SkipTest
 
+from twext.enterprise.adbapi2 import DEFAULT_PARAM_STYLE
 from twext.enterprise.dal import syntax
 try:
     from twext.enterprise.dal.parseschema import addSQLToSchema
@@ -40,7 +41,7 @@ from twext.enterprise.dal.syntax import Function
 from twext.enterprise.dal.syntax import SchemaSyntax
 from twext.enterprise.dal.test.test_parseschema import SchemaTestHelper
 from twext.enterprise.ienterprise import (
-    POSTGRES_DIALECT, ORACLE_DIALECT, SQLITE_DIALECT
+    POSTGRES_DIALECT, ORACLE_DIALECT, SQLITE_DIALECT, DatabaseType
 )
 from twext.enterprise.test.test_adbapi2 import ConnectionPoolHelper
 from twext.enterprise.test.test_adbapi2 import NetworkedPoolHelper
@@ -56,8 +57,8 @@ class _FakeTransaction(object):
     generation.
     """
 
-    def __init__(self, paramstyle):
-        self.paramstyle = "qmark"
+    def __init__(self):
+        self.dbtype = DatabaseType(POSTGRES_DIALECT, "qmark")
 
 
 
@@ -75,11 +76,10 @@ class CatchSQL(object):
     """
     counter = 0
 
-    def __init__(self, dialect=SQLITE_DIALECT, paramstyle="numeric"):
+    def __init__(self, dbtype=DatabaseType(SQLITE_DIALECT, "numeric")):
         self.execed = []
         self.pendingResults = []
-        self.dialect = SQLITE_DIALECT
-        self.paramstyle = "numeric"
+        self.dbtype = dbtype
 
 
     def nextResult(self, result):
@@ -110,8 +110,7 @@ class NullTestingOracleTxn(object):
     Fake transaction for testing oracle NULL behavior.
     """
 
-    dialect = ORACLE_DIALECT
-    paramstyle = "numeric"
+    dbtype = DatabaseType(ORACLE_DIALECT, "numeric")
 
     def execSQL(self, text, params, exc):
         return succeed([[None, None]])
@@ -192,7 +191,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(
                 From=self.schema.FOO,
                 Where=self.schema.FOO.BAR == 1
-            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("$$"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(POSTGRES_DIALECT, "pyformat"), FixedPlaceholder("$$")
+            )),
             SQLFragment("select * from FOO where BAR = $$", [1])
         )
 
@@ -270,14 +271,18 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(
                 From=self.schema.FOO,
                 Where=self.schema.FOO.BAR == ""
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "numeric"), NumericPlaceholder()
+            )),
             SQLFragment("select * from FOO where BAR is null", [])
         )
         self.assertEquals(
             Select(
                 From=self.schema.FOO,
                 Where=self.schema.FOO.BAR != ""
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "numeric"), NumericPlaceholder()
+            )),
             SQLFragment("select * from FOO where BAR is not null", [])
         )
 
@@ -698,7 +703,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                         Where=(self.schema.FOO.BAR == 2),
                     ),
                 ),
-            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(POSTGRES_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "(select * from FOO where BAR = ?) "
                 "UNION (select * from FOO where BAR = ?)", [1, 2]
@@ -717,7 +724,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                     ),
                     optype=SetExpression.OPTYPE_ALL
                 ),
-            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(POSTGRES_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "(select * from FOO where BAR = ?) "
                 "INTERSECT ALL (select * from FOO where BAR = ?)", [1, 2]
@@ -741,7 +750,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                     ),
                     optype=SetExpression.OPTYPE_DISTINCT,
                 ),
-            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(POSTGRES_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "(select * from FOO) "
                 "EXCEPT DISTINCT (select * from FOO where BAR = ?) "
@@ -765,7 +776,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                         ),
                     ),
                 ),
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "(select * from FOO) MINUS ((select * from FOO where BAR = ?) "
                 "MINUS (select * from FOO where BAR = ?))", [2, 3]
@@ -784,7 +797,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                     ),
                 ),
                 OrderBy=self.schema.FOO.BAR,
-            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(POSTGRES_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "(select * from FOO where BAR = ?) "
                 "UNION (select * from FOO where BAR = ?) order by BAR", [1, 2]
@@ -1417,7 +1432,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Insert(
                 {self.schema.FOO.BAR: 40, self.schema.FOO.BAZ: 50},
                 Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, NumericPlaceholder())),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "numeric"), NumericPlaceholder()
+            )),
             SQLFragment(
                 "insert into FOO (BAR, BAZ) values (:1, :2) "
                 "returning BAR, BAZ into :3, :4",
@@ -1439,7 +1456,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             {self.schema.FOO.BAR: 39, self.schema.FOO.BAZ: 82},
             Return=(self.schema.FOO.BAR, self.schema.FOO.BAZ)
         )
-        qg = lambda: QueryGenerator(SQLITE_DIALECT, NumericPlaceholder())
+        qg = lambda: QueryGenerator(
+            DatabaseType(SQLITE_DIALECT, "numeric"), NumericPlaceholder()
+        )
         self.assertEquals(
             insertStatement.toSQL(qg()),
             SQLFragment("insert into FOO (BAR, BAZ) values (:1, :2)", [39, 82])
@@ -1609,7 +1628,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                     self.schema.LEVELS.ACCESS: 1,
                     self.schema.LEVELS.USERNAME: "hi"
                 }
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 """insert into LEVELS ("ACCESS", USERNAME) values (?, ?)""",
                 [1, "hi"]
@@ -1621,7 +1642,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                     self.schema.LEVELS.ACCESS: 1,
                     self.schema.LEVELS.USERNAME: "hi"
                 }
-            ).toSQL(QueryGenerator(POSTGRES_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(POSTGRES_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "insert into LEVELS (ACCESS, USERNAME) values (?, ?)",
                 [1, "hi"]
@@ -1832,7 +1855,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 [self.schema.FOO.BAR],
                 From=self.schema.FOO,
                 Limit=123
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "select * from (select BAR from FOO) "
                 "where ROWNUM <= ?", [123]
@@ -1891,7 +1916,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Insert(
                 {self.schema.BOZ.QUX: self.schema.A_SEQ}
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment("insert into BOZ (QUX) values (A_SEQ.nextval)", [])
         )
 
@@ -1911,7 +1938,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
         self.assertEquals(
             Insert({self.schema.DFLTR.a: "hello"}).toSQL(
-                QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))
+                QueryGenerator(
+                    DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+                )
             ),
             SQLFragment("insert into DFLTR (a, b) values "
                         "(?, A_SEQ.nextval)", ["hello"]),
@@ -1924,7 +1953,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                     self.schema.DFLTR.b: self.schema.A_SEQ
                 }
             ).toSQL(
-                QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))
+                QueryGenerator(
+                    DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+                )
             ),
             SQLFragment(
                 "insert into DFLTR (a, b) values (?, A_SEQ.nextval)", ["hello"]
@@ -1943,8 +1974,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         class FakeOracleTxn(object):
             def execSQL(self, text, params, exc):
                 stmts.append((text, params))
-            dialect = ORACLE_DIALECT
-            paramstyle = "numeric"
+            dbtype = DatabaseType(ORACLE_DIALECT, "numeric")
 
         Select(
             [self.schema.FOO.BAR],
@@ -2171,7 +2201,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         vvl = self.schema.veryveryveryveryveryveryveryverylong
         self.assertEquals(
             Insert({vvl.foo: 1}).toSQL(
-                QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))
+                QueryGenerator(
+                    DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+                )
             ),
             SQLFragment(
                 "insert into veryveryveryveryveryveryveryve (foo) values (?)",
@@ -2245,7 +2277,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Call(
                 "procedure"
-            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            ).toSQL(QueryGenerator(DatabaseType(ORACLE_DIALECT, "qmark"))),
             SQLFragment("call procedure()", (None,))
         )
 
@@ -2253,7 +2285,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Call(
                 "procedure",
                 1, "2"
-            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            ).toSQL(QueryGenerator(DatabaseType(ORACLE_DIALECT, "qmark"))),
             SQLFragment("call procedure()", (None, 1, "2"))
         )
 
@@ -2261,7 +2293,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Call(
                 "function",
                 returnType=int
-            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            ).toSQL(QueryGenerator(DatabaseType(ORACLE_DIALECT, "qmark"))),
             SQLFragment("call function()", (int,))
         )
 
@@ -2270,14 +2302,14 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 "function",
                 1, "2",
                 returnType=int
-            ).toSQL(QueryGenerator(ORACLE_DIALECT)),
+            ).toSQL(QueryGenerator(DatabaseType(ORACLE_DIALECT, "qmark"))),
             SQLFragment("call function()", (int, 1, "2"))
         )
 
         self.assertRaises(
             NotImplementedError,
             Call("procedure").toSQL,
-            QueryGenerator(POSTGRES_DIALECT)
+            QueryGenerator(DatabaseType(POSTGRES_DIALECT, "qmark"))
         )
 
 
@@ -2292,7 +2324,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(
             Insert(
                 {schema.FOO.BAR: 1, schema.FOO.UID: "test"},
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "insert into FOO (BAR, \"UID\") values (?, ?)", [1, "test"]
             )
@@ -2301,7 +2335,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Update(
                 {schema.FOO.BAR: 1, schema.FOO.UID: "test"},
                 Where=(schema.FOO.BAR == 2),
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "update FOO set BAR = ?, \"UID\" = ? where BAR = ?", [1, "test", 2]
             )
@@ -2311,7 +2347,9 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 [schema.FOO.BAR, schema.FOO.UID],
                 From=schema.FOO,
                 Where=(schema.FOO.UID == "test"),
-            ).toSQL(QueryGenerator(ORACLE_DIALECT, FixedPlaceholder("?"))),
+            ).toSQL(QueryGenerator(
+                DatabaseType(ORACLE_DIALECT, "pyformat"), FixedPlaceholder("?")
+            )),
             SQLFragment(
                 "select BAR, \"UID\" from FOO where \"UID\" = ?", ["test"]
             )
@@ -2388,7 +2426,7 @@ class OracleConnectionTests(
     Tests which use an oracle connection.
     """
 
-    dialect = ORACLE_DIALECT
+    dbtype = DatabaseType(ORACLE_DIALECT, DEFAULT_PARAM_STYLE)
 
     def setUp(self):
         """
@@ -2406,10 +2444,10 @@ class OracleNetConnectionTests(
     TestCase
 ):
 
-    dialect = ORACLE_DIALECT
+    dbtype = DatabaseType(ORACLE_DIALECT, DEFAULT_PARAM_STYLE)
 
     def setUp(self):
         self.patch(syntax, "cx_Oracle", FakeCXOracleModule)
         super(OracleNetConnectionTests, self).setUp()
         ExampleSchemaHelper.setUp(self)
-        self.pump.client.dialect = ORACLE_DIALECT
+        self.pump.client.dbtypedialect = ORACLE_DIALECT

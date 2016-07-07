@@ -19,6 +19,7 @@ from twisted.logger import Logger as _Logger, LogLevel, LogPublisher, \
     FileLogObserver, FilteringLogObserver, LogLevelFilterPredicate, \
     formatEventAsClassicLogText, formatTime
 from twisted.python import log
+from twisted import logger
 
 class Logger(_Logger):
     """
@@ -108,4 +109,4 @@ class FilteringLogBeginnerWrapper(object):
 
 
 Logger.logBeginner = FilteringLogBeginnerWrapper(log.theLogPublisher._logBeginner)
-log.theLogPublisher._logBeginner = Logger.logBeginner
+logger.globalLogBeginner = Logger.logBeginner

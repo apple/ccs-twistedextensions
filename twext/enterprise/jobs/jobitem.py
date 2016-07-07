@@ -384,7 +384,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @rtype: L{JobItem}
         """
 
-        if txn.dialect == ORACLE_DIALECT:
+        if txn.dbtype.dialect == ORACLE_DIALECT:
 
             # For Oracle we need a multi-app server solution that only locks the
             # (one) row being returned by the query, and allows other app servers
@@ -417,6 +417,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             elif minPriority == JOB_PRIORITY_HIGH:
                 queryExpr = (cls.priority == JOB_PRIORITY_HIGH).And(queryExpr)
 
+            extra_kwargs = {}
+            if "skip-locked" in txn.dbtype.options:
+                extra_kwargs["skipLocked"] = True
             jobs = yield cls.query(
                 txn,
                 queryExpr,
@@ -425,6 +428,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 forUpdate=True,
                 noWait=False,
                 limit=rowLimit,
+                **extra_kwargs
             )
             job = jobs[0] if jobs else None
 
@@ -452,19 +456,23 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @rtype: L{JobItem}
         """
 
-        if txn.dialect == ORACLE_DIALECT:
+        if txn.dbtype.dialect == ORACLE_DIALECT:
             # See L{nextjob} for why Oracle is different
             job = None
             jobID = yield Call("overdue_job", now, rowLimit, returnType=int).on(txn)
             if jobID:
                 job = yield cls.load(txn, jobID)
         else:
+            extra_kwargs = {}
+            if "skip-locked" in txn.dbtype.options:
+                extra_kwargs["skipLocked"] = True
             jobs = yield cls.query(
                 txn,
                 (cls.assigned != None).And(cls.overdue < now),
                 forUpdate=True,
                 noWait=False,
                 limit=rowLimit,
+                **extra_kwargs
             )
             job = jobs[0] if jobs else None
 

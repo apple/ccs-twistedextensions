@@ -56,22 +56,57 @@ SQLITE_DIALECT = "sqlite-dialect"
 ORACLE_TABLE_NAME_MAX = 30
 
 
+"""
+Holds details about the database in use. The C{dialect} attribute is
+one of the C{*_DIALECT} constants in this module. The C{paramstyle}
+attribute is a copy of the DB-API 2.0 module attribute. The C{options}
+attribute is a set of optional features for the DB in use.
+"""
+class DatabaseType(object):
+    def __init__(self, dialect, paramstyle, options=()):
+        """
+        @param dialect: database dialect to use
+        @type dialect: L{str}
+        @param paramstyle: parameter style for SQL statements
+        @type paramstyle: L[str}
+        @param options: set of optional features
+        @type options: L{iterable}
+        """
+        self.dialect = dialect
+        self.paramstyle = paramstyle
+        self.options = frozenset(options)
+
+
+    def copyreplace(self, dialect=None, paramstyle=None, options=None):
+        """
+        Create a copy of this L{DatabaseType} and modify the supplied properties in
+        the new copy.
+
+        @param dialect: new value for C{dialect} or None for no change
+        @type dialect: L{str}
+        @param paramstyle: new value for C{paramstyle} or None for no change
+        @type paramstyle: L{str}
+        @param options: new value for C{options} or None for no change
+        @type options: L{iterable}
+        """
+
+        return DatabaseType(
+            self.dialect if dialect is None else dialect,
+            self.paramstyle if paramstyle is None else paramstyle,
+            self.options if options is None else options,
+        )
+
+
 
 class ISQLExecutor(Interface):
     """
     Base SQL-execution interface, for a group of commands or a transaction.
     """
 
-    paramstyle = Attribute(
+    dbtype = Attribute(
         """
-        A copy of the C{paramstyle} attribute from a DB-API 2.0 module.
-        """
-    )
-
-    dialect = Attribute(
-        """
-        A copy of the C{dialect} attribute from the connection pool.  One of
-        the C{*_DIALECT} constants in this module, such as L{POSTGRES_DIALECT}.
+        A copy of the C{dbtype} attribute from the connection pool. It is
+        a L{DatabaseType}.
         """
     )
 

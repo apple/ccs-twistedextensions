@@ -80,7 +80,7 @@ from twisted.internet.defer import succeed
 
 from twext.enterprise.dal.model import Schema, Table, Column, Sequence, SQLType
 from twext.enterprise.ienterprise import (
-    POSTGRES_DIALECT, ORACLE_DIALECT, SQLITE_DIALECT, IDerivedParameter
+    POSTGRES_DIALECT, ORACLE_DIALECT, SQLITE_DIALECT, DatabaseType, IDerivedParameter
 )
 from twext.enterprise.util import mapOracleOutputType
 
@@ -158,8 +158,8 @@ class QueryGenerator(object):
     and automated id generator.
     """
 
-    def __init__(self, dialect=None, placeholder=None):
-        self.dialect = dialect if dialect else POSTGRES_DIALECT
+    def __init__(self, dbtype=None, placeholder=None):
+        self.dbtype = dbtype if dbtype else DatabaseType(POSTGRES_DIALECT, "qmark")
         if placeholder is None:
             placeholder = defaultPlaceholder()
         self.placeholder = placeholder
@@ -172,7 +172,7 @@ class QueryGenerator(object):
 
 
     def shouldQuote(self, name):
-        return (self.dialect == ORACLE_DIALECT and name.lower() in _KEYWORDS)
+        return (self.dbtype.dialect == ORACLE_DIALECT and name.lower() in _KEYWORDS)
 
 
 
@@ -261,7 +261,7 @@ class _Statement(object):
             C{list}s)
         """
         queryGenerator = QueryGenerator(
-            txn.dialect, self._paramstyles[txn.paramstyle]()
+            txn.dbtype, self._paramstyles[txn.dbtype.paramstyle]()
         )
         outvars = self._extraVars(txn, queryGenerator)
         kw.update(outvars)
@@ -270,7 +270,7 @@ class _Statement(object):
             fragment.text, fragment.parameters, raiseOnZeroRowCount
         )
         result = self._extraResult(result, outvars, queryGenerator)
-        if queryGenerator.dialect == ORACLE_DIALECT and result:
+        if queryGenerator.dbtype.dialect == ORACLE_DIALECT and result:
             result.addCallback(self._fixOracleNulls)
         return result
 
@@ -590,7 +590,7 @@ class Function(object):
 
     def nameFor(self, queryGenerator):
         if (
-            queryGenerator.dialect == ORACLE_DIALECT and
+            queryGenerator.dbtype.dialect == ORACLE_DIALECT and
             self.oracleName is not None
         ):
             return self.oracleName
@@ -668,7 +668,7 @@ class SequenceSyntax(ExpressionSyntax):
         """
         Convert to an SQL fragment.
         """
-        if queryGenerator.dialect == ORACLE_DIALECT:
+        if queryGenerator.dbtype.dialect == ORACLE_DIALECT:
             fmt = "%s.nextval"
         else:
             fmt = "nextval('%s')"
@@ -723,7 +723,7 @@ class TableSyntax(Syntax):
         # XXX maybe there should be a specific method which is only invoked
         # from the FROM clause, that only tables and joins would implement?
         return SQLFragment(
-            _nameForDialect(self.model.name, queryGenerator.dialect)
+            _nameForDialect(self.model.name, queryGenerator.dbtype.dialect)
         )
 
 
@@ -1110,7 +1110,7 @@ class CompoundComparison(Comparison):
 
     def subSQL(self, queryGenerator, allTables):
         if (
-            queryGenerator.dialect == ORACLE_DIALECT and
+            queryGenerator.dbtype.dialect == ORACLE_DIALECT and
             isinstance(self.b, Constant) and
             self.b.value == "" and self.op in ("=", "!=")
         ):
@@ -1382,9 +1382,9 @@ class Except(SetExpression):
     An EXCEPT construct used inside a SELECT.
     """
     def setOpSQL(self, queryGenerator):
-        if queryGenerator.dialect == POSTGRES_DIALECT:
+        if queryGenerator.dbtype.dialect == POSTGRES_DIALECT:
             return SQLFragment(" EXCEPT ")
-        elif queryGenerator.dialect == ORACLE_DIALECT:
+        elif queryGenerator.dbtype.dialect == ORACLE_DIALECT:
             return SQLFragment(" MINUS ")
         else:
             raise NotImplementedError("Unsupported dialect")
@@ -1506,11 +1506,11 @@ class Select(_Statement):
         if self.ForUpdate:
             # FOR UPDATE not supported with sqlite - but that is probably not relevant
             # given that sqlite does file level locking of the DB
-            if queryGenerator.dialect != SQLITE_DIALECT:
+            if queryGenerator.dbtype.dialect != SQLITE_DIALECT:
                 # Oracle turns this statement into a sub-select if Limit is non-zero, but we can't have
                 # the "for update" in the sub-select. So suppress it here and add it in the outer limit
                 # select later.
-                if self.Limit is None or queryGenerator.dialect != ORACLE_DIALECT:
+                if self.Limit is None or queryGenerator.dbtype.dialect != ORACLE_DIALECT:
                     stmt.text += " for update"
                     if self.NoWait:
                         stmt.text += " nowait"
@@ -1519,7 +1519,7 @@ class Select(_Statement):
 
         if self.Limit is not None:
             limitConst = Constant(self.Limit).subSQL(queryGenerator, allTables)
-            if queryGenerator.dialect == ORACLE_DIALECT:
+            if queryGenerator.dbtype.dialect == ORACLE_DIALECT:
                 wrapper = SQLFragment("select * from (")
                 wrapper.append(stmt)
                 wrapper.append(SQLFragment(") where ROWNUM <= "))
@@ -1529,7 +1529,7 @@ class Select(_Statement):
             stmt.append(limitConst)
 
             # Add in any Oracle "for update"
-            if self.ForUpdate and queryGenerator.dialect == ORACLE_DIALECT:
+            if self.ForUpdate and queryGenerator.dbtype.dialect == ORACLE_DIALECT:
                 stmt.text += " for update"
                 if self.NoWait:
                     stmt.text += " nowait"
@@ -1620,7 +1620,7 @@ class Call(_Statement):
         @rtype: L{SQLFragment}
         """
 
-        if queryGenerator.dialect != ORACLE_DIALECT:
+        if queryGenerator.dbtype.dialect != ORACLE_DIALECT:
             raise NotImplementedError("CALL statement only available with Oracle DB")
         args = (self.ReturnType,) + self.Args
         stmt = SQLFragment("call ", args)
@@ -1724,14 +1724,14 @@ class _DMLStatement(_Statement):
         if isinstance(retclause, (tuple, list)):
             retclause = _CommaList(retclause)
 
-        if queryGenerator.dialect == SQLITE_DIALECT:
+        if queryGenerator.dbtype.dialect == SQLITE_DIALECT:
             # sqlite does this another way.
             return stmt
 
         if retclause is not None:
             stmt.text += " returning "
             stmt.append(retclause.subSQL(queryGenerator, allTables))
-            if queryGenerator.dialect == ORACLE_DIALECT:
+            if queryGenerator.dbtype.dialect == ORACLE_DIALECT:
                 stmt.text += " into "
                 params = []
                 retvals = self._returnAsList()
@@ -1757,7 +1757,7 @@ class _DMLStatement(_Statement):
             return []
         result = []
         rvars = self._returnAsList()
-        if queryGenerator.dialect == ORACLE_DIALECT:
+        if queryGenerator.dbtype.dialect == ORACLE_DIALECT:
             for n, v in enumerate(rvars):
                 result.append(("oracle_out_" + str(n), _OracleOutParam(v)))
         return result
@@ -1765,7 +1765,7 @@ class _DMLStatement(_Statement):
 
     def _extraResult(self, result, outvars, queryGenerator):
         if (
-            queryGenerator.dialect == ORACLE_DIALECT and
+            queryGenerator.dbtype.dialect == ORACLE_DIALECT and
             self.Return is not None
         ):
             def processIt(emptyListResult):
@@ -1841,7 +1841,7 @@ class Insert(_DMLStatement):
         tableModel = columnsAndValues[0][0].model.table
         specifiedColumnModels = [x.model for x in self.columnMap.keys()]
 
-        if queryGenerator.dialect == ORACLE_DIALECT:
+        if queryGenerator.dbtype.dialect == ORACLE_DIALECT:
             # See test_nextSequenceDefaultImplicitExplicitOracle.
             for column in tableModel.columns:
                 if isinstance(column.default, Sequence):
@@ -1881,7 +1881,7 @@ class Insert(_DMLStatement):
         behavior.
         """
         result = yield super(_DMLStatement, self).on(txn, *a, **kw)
-        if self.Return is not None and txn.dialect == SQLITE_DIALECT:
+        if self.Return is not None and txn.dbtype.dialect == SQLITE_DIALECT:
             table = self._returnAsList()[0].model.table
             result = yield Select(
                 self._returnAsList(),
@@ -1936,7 +1936,7 @@ class Update(_DMLStatement):
         databases that don't provide return values as part of their C{UPDATE}
         behavior.
         """
-        doExtra = self.Return is not None and txn.dialect == SQLITE_DIALECT
+        doExtra = self.Return is not None and txn.dbtype.dialect == SQLITE_DIALECT
         upcall = lambda: super(_DMLStatement, self).on(txn, *a, **kw)
 
         if doExtra:
@@ -2024,7 +2024,7 @@ class Delete(_DMLStatement):
     @inlineCallbacks
     def on(self, txn, *a, **kw):
         upcall = lambda: super(Delete, self).on(txn, *a, **kw)
-        if txn.dialect == SQLITE_DIALECT and self.Return is not None:
+        if txn.dbtype.dialect == SQLITE_DIALECT and self.Return is not None:
             result = yield Select(
                 self._returnAsList(),
                 From=self.From, Where=self.Where
@@ -2064,7 +2064,7 @@ class Lock(_LockingStatement):
 
 
     def _toSQL(self, queryGenerator):
-        if queryGenerator.dialect == SQLITE_DIALECT:
+        if queryGenerator.dbtype.dialect == SQLITE_DIALECT:
             # FIXME - this is only stubbed out for testing right now, actual
             # concurrency would require some kind of locking statement here.
             # BEGIN IMMEDIATE maybe, if that's okay in the middle of a
@@ -2085,7 +2085,7 @@ class DatabaseLock(_LockingStatement):
     """
 
     def _toSQL(self, queryGenerator):
-        assert(queryGenerator.dialect == POSTGRES_DIALECT)
+        assert(queryGenerator.dbtype.dialect == POSTGRES_DIALECT)
         return SQLFragment("select pg_advisory_lock(1)")
 
 
@@ -2093,7 +2093,7 @@ class DatabaseLock(_LockingStatement):
         """
         Override on() to only execute on Postgres
         """
-        if txn.dialect == POSTGRES_DIALECT:
+        if txn.dbtype.dialect == POSTGRES_DIALECT:
             return super(DatabaseLock, self).on(txn, *a, **kw)
 
         return succeed(None)
@@ -2106,7 +2106,7 @@ class DatabaseUnlock(_LockingStatement):
     """
 
     def _toSQL(self, queryGenerator):
-        assert(queryGenerator.dialect == POSTGRES_DIALECT)
+        assert(queryGenerator.dbtype.dialect == POSTGRES_DIALECT)
         return SQLFragment("select pg_advisory_unlock(1)")
 
 
@@ -2114,7 +2114,7 @@ class DatabaseUnlock(_LockingStatement):
         """
         Override on() to only execute on Postgres
         """
-        if txn.dialect == POSTGRES_DIALECT:
+        if txn.dbtype.dialect == POSTGRES_DIALECT:
             return super(DatabaseUnlock, self).on(txn, *a, **kw)
 
         return succeed(None)
@@ -2170,7 +2170,7 @@ class SavepointAction(object):
 
 
     def _safeName(self, txn):
-        if txn.dialect == ORACLE_DIALECT:
+        if txn.dbtype.dialect == ORACLE_DIALECT:
             # Oracle limits the length of identifiers
             return self._name[:30]
         else:
@@ -2186,7 +2186,7 @@ class SavepointAction(object):
 
 
     def release(self, txn):
-        if txn.dialect == ORACLE_DIALECT:
+        if txn.dbtype.dialect == ORACLE_DIALECT:
             # There is no "release savepoint" statement in oracle, but then, we
             # don't need it because there's no resource to manage.  Just don't
             # do anything.
