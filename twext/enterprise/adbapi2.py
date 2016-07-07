@@ -1696,7 +1696,7 @@ class ConnectionPoolClient(AMP):
 
         @rtype: L{IAsyncTransaction}
         """
-        txnid = str(self._nextID())
+        txnid = self._nextID()
         txn = _NetTransaction(client=self, transactionID=txnid)
         self._txns[txnid] = txn
         self.callRemote(StartTxn, transactionID=txnid)

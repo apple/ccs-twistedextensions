@@ -594,37 +594,15 @@ py_dependencies () {
 
 bootstrap_virtualenv () {
   mkdir -p "${py_ve_tools}";
-  mkdir -p "${py_ve_tools}/lib";
-  mkdir -p "${py_ve_tools}/junk";
+  export PYTHONUSERBASE="${py_ve_tools}"
 
   for pkg in             \
-      setuptools-17.0  \
-      pip-7.0.3          \
-      virtualenv-13.0.3  \
+      setuptools==18.5    \
+      pip==8.1.2          \
+      virtualenv==15.0.2  \
   ; do
-      local    name="${pkg%-*}";
-      local version="${pkg#*-}";
-      local  first="$(echo "${name}" | sed 's|^\(.\).*$|\1|')";
-      local    url="https://pypi.python.org/packages/source/${first}/${name}/${pkg}.tar.gz";
-
-      ruler "Downloading ${pkg}";
-
-      local tmp="$(mktemp -d -t ccsXXXXX)";
-
-      curl -L "${url}" | tar -C "${tmp}" -xvzf -;
-
-      cd "${tmp}/$(basename "${pkg}")";
-      PYTHONPATH="${py_ve_tools}/lib"                \
-        "${bootstrap_python}" setup.py install       \
-            --install-base="${py_ve_tools}"          \
-            --install-lib="${py_ve_tools}/lib"       \
-            --install-headers="${py_ve_tools}/junk"  \
-            --install-scripts="${py_ve_tools}/junk"  \
-            --install-data="${py_ve_tools}/junk"     \
-            ;                                        \
-      cd "${wd}";
-
-      rm -rf "${tmp}";
+      ruler "Installing ${pkg}";
+      "${bootstrap_python}" -m pip install -I --user "${pkg}";
   done;
 }
 

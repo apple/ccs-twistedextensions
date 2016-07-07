@@ -240,7 +240,7 @@ setup_requirements = []
 
 install_requirements = [
     "cffi",
-    "twisted>=15.4",
+    "twisted>=16.3",
 ]
 
 extras_requirements = {
