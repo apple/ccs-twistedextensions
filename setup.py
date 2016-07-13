@@ -245,20 +245,20 @@ install_requirements = [
 
 extras_requirements = {
     # Database Abstraction Layer
-    "DAL": ["sqlparse"],
+    "dal": ["sqlparse"],
 
     # LDAP
-    "LDAP": ["python-ldap"],
+    "ldap": ["python-ldap"],
 
     # OpenDirectory
-    "OpenDirectory": ["pyobjc-framework-OpenDirectory"],
+    "opendirectory": ["pyobjc-framework-OpenDirectory"],
 
     # Postgres
-    "Postgres": [],
+    "postgres": [],
 }
 
 if "ORACLE_HOME" in os.environ:
-    extras_requirements["Oracle"] = ["cx_Oracle"]
+    extras_requirements["oracle"] = ["cx_Oracle"]
 
 
 
