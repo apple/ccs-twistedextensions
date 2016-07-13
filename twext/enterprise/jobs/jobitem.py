@@ -400,7 +400,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 job = yield cls.load(txn, jobID)
         else:
             # Only add the PRIORITY term if minimum is greater than zero
-            queryExpr = (cls.assigned == None).And(cls.pause == 0).And(cls.notBefore <= now)
+            queryExpr = (cls.isAssigned == 0).And(cls.pause == 0).And(cls.notBefore <= now)
 
             # PRIORITY can only be 0, 1, or 2. So we can convert an inequality into
             # an equality test as follows:
@@ -468,7 +468,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 extra_kwargs["skipLocked"] = True
             jobs = yield cls.query(
                 txn,
-                (cls.assigned != None).And(cls.overdue < now),
+                (cls.isAssigned == 1).And(cls.overdue < now),
                 forUpdate=True,
                 noWait=False,
                 limit=rowLimit,
