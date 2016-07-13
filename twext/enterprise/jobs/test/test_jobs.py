@@ -193,13 +193,14 @@ jobSchema = SQL(
     create table JOB (
       JOB_ID      integer primary key default 1,
       WORK_TYPE   varchar(255) not null,
-      PRIORITY    integer default 0,
-      WEIGHT      integer default 0,
+      PRIORITY    integer default 0 not null,
+      WEIGHT      integer default 0 not null,
       NOT_BEFORE  timestamp not null,
+      IS_ASSIGNED integer default 0 not null,
       ASSIGNED    timestamp default null,
       OVERDUE     timestamp default null,
-      FAILED      integer default 0,
-      PAUSE       integer default 0
+      FAILED      integer default 0 not null,
+      PAUSE       integer default 0 not null
     );
     """
 )
@@ -463,6 +464,7 @@ class WorkItemTests(TestCase):
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(jobs[0].workType == "DUMMY_WORK_ITEM")
         self.assertTrue(jobs[0].assigned is None)
+        self.assertEqual(jobs[0].isAssigned, 0)
 
         @transactionally(dbpool.connection)
         def checkWork(txn):
@@ -488,6 +490,7 @@ class WorkItemTests(TestCase):
         jobs = yield inTransaction(dbpool.connection, checkJob)
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(jobs[0].assigned is None)
+        self.assertEqual(jobs[0].isAssigned, 0)
 
         @inlineCallbacks
         def assignJob(txn):
@@ -498,6 +501,7 @@ class WorkItemTests(TestCase):
         jobs = yield inTransaction(dbpool.connection, checkJob)
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(jobs[0].assigned is not None)
+        self.assertEqual(jobs[0].isAssigned, 1)
 
 
     @inlineCallbacks
@@ -512,7 +516,7 @@ class WorkItemTests(TestCase):
         # Empty job queue
         @inlineCallbacks
         def _next(txn, priority=WORK_PRIORITY_LOW):
-            job = yield JobItem.nextjob(txn, now, priority)
+            job = yield JobItem.nextjob(txn, now, priority, 1)
             if job is not None:
                 work = yield job.workItem()
             else:
@@ -1196,6 +1200,7 @@ class ControllerQueueUnitTests(TestCase):
         jobs = yield check
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(jobs[0].assigned is None)
+        self.assertEqual(jobs[0].isAssigned, 0)
         self.assertTrue(jobs[0].failed == 1)
         self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow())
 
@@ -1230,6 +1235,7 @@ class ControllerQueueUnitTests(TestCase):
         jobs = yield check
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(jobs[0].assigned is None)
+        self.assertEqual(jobs[0].isAssigned, 0)
         self.assertTrue(jobs[0].failed == 1)
         self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow() + datetime.timedelta(seconds=90))
 
@@ -1244,8 +1250,8 @@ class ControllerQueueUnitTests(TestCase):
 
         oldNextJob = JobItem.nextjob
         @inlineCallbacks
-        def _nextJob(cls, txn, now, minPriority):
-            job = yield oldNextJob(txn, now, minPriority)
+        def _nextJob(cls, txn, now, minPriority, rowLimit):
+            job = yield oldNextJob(txn, now, minPriority, rowLimit)
             work = yield job.workItem()
             if work.a == -2:
                 raise ValueError("oops")
@@ -1277,9 +1283,11 @@ class ControllerQueueUnitTests(TestCase):
         jobs = yield check
         self.assertEqual(len(jobs), 2)
         self.assertEqual(jobs[0].assigned, None)
+        self.assertEqual(jobs[0].isAssigned, 0)
         self.assertEqual(jobs[0].failed, 0)
         self.assertEqual(jobs[0].notBefore, fakeNow - datetime.timedelta(20 * 60))
         self.assertEqual(jobs[1].assigned, None)
+        self.assertEqual(jobs[1].isAssigned, 0)
         self.assertEqual(jobs[1].failed, 0)
         self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
 
@@ -1327,6 +1335,7 @@ class ControllerQueueUnitTests(TestCase):
         jobs = yield check
         self.assertEqual(len(jobs), 1)
         self.assertEqual(jobs[0].assigned, None)
+        self.assertEqual(jobs[0].isAssigned, 0)
         self.assertEqual(jobs[0].failed, 1)
         self.assertGreater(jobs[0].notBefore, datetime.datetime.utcnow() + datetime.timedelta(seconds=30))
 
@@ -1380,9 +1389,11 @@ class ControllerQueueUnitTests(TestCase):
         jobs = yield check
         self.assertEqual(len(jobs), 2)
         self.assertEqual(jobs[0].assigned, None)
+        self.assertEqual(jobs[0].isAssigned, 0)
         self.assertEqual(jobs[0].failed, 0)
         self.assertEqual(jobs[0].notBefore, fakeNow - datetime.timedelta(20 * 60))
         self.assertEqual(jobs[1].assigned, None)
+        self.assertEqual(jobs[1].isAssigned, 0)
         self.assertEqual(jobs[1].failed, 0)
         self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
 
@@ -1872,7 +1883,7 @@ class ControllerQueueIntegrationTests(TestCase):
         @inlineCallbacks
         def _testNone(txn):
             nowTime = datetime.datetime.utcfromtimestamp(reactor.seconds() + 10)
-            job = yield JobItem.nextjob(txn, nowTime, WORK_PRIORITY_HIGH)
+            job = yield JobItem.nextjob(txn, nowTime, WORK_PRIORITY_HIGH, 1)
             self.assertTrue(job is None)
 
         yield _testNone

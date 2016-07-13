@@ -60,13 +60,14 @@ def makeJobSchema(inSchema):
 
     JobTable.addColumn("JOB_ID", SQLType("integer", None), default=Sequence(inSchema, "JOB_SEQ"), notNull=True, primaryKey=True)
     JobTable.addColumn("WORK_TYPE", SQLType("varchar", 255), notNull=True)
-    JobTable.addColumn("PRIORITY", SQLType("integer", 0), default=0)
-    JobTable.addColumn("WEIGHT", SQLType("integer", 0), default=0)
+    JobTable.addColumn("PRIORITY", SQLType("integer", 0), default=0, notNull=True)
+    JobTable.addColumn("WEIGHT", SQLType("integer", 0), default=0, notNull=True)
     JobTable.addColumn("NOT_BEFORE", SQLType("timestamp", None), notNull=True)
+    JobTable.addColumn("IS_ASSIGNED", SQLType("integer", 0), default=0, notNull=True)
     JobTable.addColumn("ASSIGNED", SQLType("timestamp", None), default=None)
     JobTable.addColumn("OVERDUE", SQLType("timestamp", None), default=None)
-    JobTable.addColumn("FAILED", SQLType("integer", 0), default=0)
-    JobTable.addColumn("PAUSE", SQLType("integer", 0), default=0)
+    JobTable.addColumn("FAILED", SQLType("integer", 0), default=0, notNull=True)
+    JobTable.addColumn("PAUSE", SQLType("integer", 0), default=0, notNull=True)
 
     return inSchema
 
@@ -168,14 +169,14 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @param overdue: number of seconds after assignment that the job will be considered overdue
         @type overdue: L{int}
         """
-        return self.update(assigned=when, overdue=when + timedelta(seconds=overdue))
+        return self.update(isAssigned=1, assigned=when, overdue=when + timedelta(seconds=overdue))
 
 
     def unassign(self):
         """
         Mark this job as unassigned by setting the assigned and overdue columns to L{None}.
         """
-        return self.update(assigned=None, overdue=None)
+        return self.update(isAssigned=0, assigned=None, overdue=None)
 
 
     def bumpOverdue(self, bump):
@@ -208,6 +209,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             delay = self.lockRescheduleInterval if locked else self.failureRescheduleInterval
             delay *= (self.failed + 1)
         return self.update(
+            isAssigned=0,
             assigned=None,
             overdue=None,
             failed=self.failed + (0 if locked else 1),
@@ -358,11 +360,15 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
-    def nextjob(cls, txn, now, minPriority):
+    def nextjob(cls, txn, now, minPriority, rowLimit):
         """
         Find the next available job based on priority, also return any that are overdue. This
         method uses an SQL query to find the matching jobs, and sorts based on the NOT_BEFORE
         value and priority.
+
+        The C{rowLimit} value is used to help with concurrency problems when the underlying DB does
+        not support a proper "LIMIT" term with the query (Oracle). It should be set to no more than
+        1 plus the number of app-servers in use).
 
         @param txn: the transaction to use
         @type txn: L{IAsyncTransaction}
@@ -371,6 +377,8 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @type now: L{datetime.datetime}
         @param minPriority: lowest priority level to query for
         @type minPriority: L{int}
+        @param rowLimit: query at most this number of rows at a time
+        @type rowLimit: L{int}
 
         @return: the job record
         @rtype: L{JobItem}
@@ -387,12 +395,12 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             # being fetched is locked and existing locked rows are skipped.
 
             job = None
-            jobID = yield Call("next_job", now, minPriority, returnType=int).on(txn)
+            jobID = yield Call("next_job", now, minPriority, rowLimit, returnType=int).on(txn)
             if jobID:
                 job = yield cls.load(txn, jobID)
         else:
             # Only add the PRIORITY term if minimum is greater than zero
-            queryExpr = (cls.assigned == None).And(cls.pause == 0).And(cls.notBefore <= now)
+            queryExpr = (cls.isAssigned == 0).And(cls.pause == 0).And(cls.notBefore <= now)
 
             # PRIORITY can only be 0, 1, or 2. So we can convert an inequality into
             # an equality test as follows:
@@ -419,7 +427,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 ascending=False,
                 forUpdate=True,
                 noWait=False,
-                limit=1,
+                limit=rowLimit,
                 **extra_kwargs
             )
             job = jobs[0] if jobs else None
@@ -429,14 +437,20 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
     @classmethod
     @inlineCallbacks
-    def overduejob(cls, txn, now):
+    def overduejob(cls, txn, now, rowLimit):
         """
         Find the next overdue job.
+
+        The C{rowLimit} value is used to help with concurrency problems when the underlying DB does
+        not support a proper "LIMIT" term with the query (Oracle). It should be set to no more than
+        1 plus the number of app-servers in use).
 
         @param txn: the transaction to use
         @type txn: L{IAsyncTransaction}
         @param now: current timestamp
         @type now: L{datetime.datetime}
+        @param rowLimit: query at most this number of rows at a time
+        @type rowLimit: L{int}
 
         @return: the job record
         @rtype: L{JobItem}
@@ -445,7 +459,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         if txn.dbtype.dialect == ORACLE_DIALECT:
             # See L{nextjob} for why Oracle is different
             job = None
-            jobID = yield Call("overdue_job", now, returnType=int).on(txn)
+            jobID = yield Call("overdue_job", now, rowLimit, returnType=int).on(txn)
             if jobID:
                 job = yield cls.load(txn, jobID)
         else:
@@ -454,10 +468,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
                 extra_kwargs["skipLocked"] = True
             jobs = yield cls.query(
                 txn,
-                (cls.assigned != None).And(cls.overdue < now),
+                (cls.isAssigned == 1).And(cls.overdue < now),
                 forUpdate=True,
                 noWait=False,
-                limit=1,
+                limit=rowLimit,
                 **extra_kwargs
             )
             job = jobs[0] if jobs else None

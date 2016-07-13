@@ -463,6 +463,12 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
     highPriorityLevel = 80      # Percentage load level above which only high priority jobs are processed
     mediumPriorityLevel = 50    # Percentage load level above which high and medium priority jobs are processed
 
+    # Used to help with concurrency problems when the underlying DB does not
+    # support a proper "LIMIT" term with the query (Oracle). It should be set to
+    # no more than 1 plus the number of app-servers in use). For a single app
+    # server always use 1.
+    rowLimit = 1
+
     def __init__(self, reactor, transactionFactory, useWorkerPool=True, disableWorkProcessing=False):
         """
         Initialize a L{ControllerQueue}.
@@ -577,7 +583,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             txn = nextJob = None
             try:
                 txn = self.transactionFactory(label="jobqueue.workCheck")
-                nextJob = yield JobItem.nextjob(txn, nowTime, minPriority)
+                nextJob = yield JobItem.nextjob(txn, nowTime, minPriority, self.rowLimit)
                 if nextJob is None:
                     break
 
@@ -706,7 +712,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             txn = overdueJob = None
             try:
                 txn = self.transactionFactory(label="jobqueue.overdueCheck")
-                overdueJob = yield JobItem.overduejob(txn, nowTime)
+                overdueJob = yield JobItem.overduejob(txn, nowTime, self.rowLimit)
                 if overdueJob is None:
                     break
 
