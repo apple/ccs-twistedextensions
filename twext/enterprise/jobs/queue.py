@@ -469,7 +469,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
     # server always use 1.
     rowLimit = 1
 
-    def __init__(self, reactor, transactionFactory, useWorkerPool=True, disableWorkProcessing=False):
+    def __init__(self, reactor, transactionFactory, useWorkerPool=True, migrationOnly=False, disableWorkProcessing=False):
         """
         Initialize a L{ControllerQueue}.
 
@@ -483,6 +483,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         self.reactor = reactor
         self.transactionFactory = transactionFactory
         self.workerPool = WorkerConnectionPool() if useWorkerPool else None
+        self.migrationOnly = migrationOnly
         self.disableWorkProcessing = disableWorkProcessing
         self._lastMinPriority = WORK_PRIORITY_LOW
         self._timeOfLastWork = time.time()
@@ -495,14 +496,14 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         """
         Turn on work queue processing.
         """
-        self.disableWorkProcessing = False
+        self.migrationOnly = False
 
 
     def disable(self):
         """
         Turn off work queue processing.
         """
-        self.disableWorkProcessing = True
+        self.migrationOnly = True
 
 
     def totalLoad(self):
@@ -545,7 +546,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
 
         loopCounter = 0
         while True:
-            if not self.running or self.disableWorkProcessing:
+            if not self.running or self.migrationOnly:
                 returnValue(None)
 
             # Check the overall service load - if overloaded skip this poll cycle.
@@ -663,7 +664,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         """
         self._workCheckCall = None
 
-        if not self.running:
+        if not self.running or self.disableWorkProcessing:
             returnValue(None)
 
         try:
@@ -671,7 +672,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         except Exception as e:
             log.error("_workCheckLoop: {exc}", exc=e)
 
-        if not self.running:
+        if not self.running or self.disableWorkProcessing:
             returnValue(None)
 
         # Check for adjustment to poll interval - if the workCheck is idle for certain
@@ -700,7 +701,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
 
         loopCounter = 0
         while True:
-            if not self.running or self.disableWorkProcessing:
+            if not self.running or self.migrationOnly:
                 returnValue(None)
 
             # Determine what the timestamp cutoff
@@ -797,7 +798,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         """
         self._overdueCheckCall = None
 
-        if not self.running:
+        if not self.running or self.disableWorkProcessing:
             returnValue(None)
 
         try:
@@ -805,7 +806,7 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         except Exception as e:
             log.error("_overdueCheckLoop: {exc}", exc=e)
 
-        if not self.running:
+        if not self.running or self.disableWorkProcessing:
             returnValue(None)
 
         self._overdueCheckCall = self.reactor.callLater(
