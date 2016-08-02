@@ -317,28 +317,27 @@ class DirectoryServiceMutableTestMixIn(BaseDirectoryServiceMutableTestMixIn):
 
 
 class DirectoryServiceConnectionTestMixIn(object):
-    @inlineCallbacks
+
     def test_connect_defaults(self):
         """
         Connect with default arguments.
         """
         service = self.service()
-        connection = yield service._connect()
+        with TestService.Connection(service, "query") as connection:
 
-        self.assertEquals(connection.methods_called(), ["initialize"])
+            self.assertEquals(connection.methods_called(), ["initialize"])
 
-        for option in (
-            ldap.OPT_TIMEOUT,
-            ldap.OPT_X_TLS_CACERTFILE,
-            ldap.OPT_X_TLS_CACERTDIR,
-            ldap.OPT_DEBUG_LEVEL,
-        ):
-            self.assertRaises(KeyError, connection.get_option, option)
+            for option in (
+                ldap.OPT_TIMEOUT,
+                ldap.OPT_X_TLS_CACERTFILE,
+                ldap.OPT_X_TLS_CACERTDIR,
+                ldap.OPT_DEBUG_LEVEL,
+            ):
+                self.assertRaises(KeyError, connection.get_option, option)
 
-        self.assertFalse(connection.tls_enabled)
+            self.assertFalse(connection.tls_enabled)
 
 
-    @inlineCallbacks
     def test_connect_withUsernamePassword_invalid(self):
         """
         Connect with UsernamePassword credentials.
@@ -349,14 +348,14 @@ class DirectoryServiceConnectionTestMixIn(object):
         )
         service = self.service(credentials=credentials)
         try:
-            yield service._connect()
+            with TestService.Connection(service, "query"):
+                pass
         except LDAPBindAuthError:
             pass
         else:
             self.fail("Should have raised LDAPBindAuthError")
 
 
-    @inlineCallbacks
     def test_connect_withUsernamePassword_valid(self):
         """
         Connect with UsernamePassword credentials.
@@ -366,15 +365,14 @@ class DirectoryServiceConnectionTestMixIn(object):
             u"zehcnasw"
         )
         service = self.service(credentials=credentials)
-        connection = yield service._connect()
 
-        self.assertEquals(
-            connection.methods_called(),
-            ["initialize", "simple_bind_s"]
-        )
+        with TestService.Connection(service, "query") as connection:
+            self.assertEquals(
+                connection.methods_called(),
+                ["initialize", "simple_bind_s"]
+            )
 
 
-    @inlineCallbacks
     def test_connect_withOptions(self):
         """
         Connect with default arguments.
@@ -385,43 +383,42 @@ class DirectoryServiceConnectionTestMixIn(object):
             tlsCACertificateDirectory=FilePath("/path/to/certdir"),
             _debug=True,
         )
-        connection = yield service._connect()
+        with TestService.Connection(service, "query") as connection:
 
-        self.assertEquals(
-            connection.methods_called(),
-            [
-                "initialize",
-                "set_option", "set_option", "set_option", "set_option",
-            ]
-        )
+            self.assertEquals(
+                connection.methods_called(),
+                [
+                    "initialize",
+                    "set_option", "set_option", "set_option", "set_option",
+                ]
+            )
 
-        opt = lambda k: connection.get_option(k)
+            opt = lambda k: connection.get_option(k)
 
-        self.assertEquals(opt(ldap.OPT_TIMEOUT), 18)
-        self.assertEquals(opt(ldap.OPT_X_TLS_CACERTFILE), "/path/to/cert")
-        self.assertEquals(opt(ldap.OPT_X_TLS_CACERTDIR), "/path/to/certdir")
-        self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
+            self.assertEquals(opt(ldap.OPT_TIMEOUT), 18)
+            self.assertEquals(opt(ldap.OPT_X_TLS_CACERTFILE), "/path/to/cert")
+            self.assertEquals(opt(ldap.OPT_X_TLS_CACERTDIR), "/path/to/certdir")
+            self.assertEquals(opt(ldap.OPT_DEBUG_LEVEL), 255)
 
-        # Tested in test_connect_defaults, but test again here since we're
-        # setting SSL options and we want to be sure they don't somehow enable
-        # SSL implicitly.
-        self.assertFalse(connection.tls_enabled)
+            # Tested in test_connect_defaults, but test again here since we're
+            # setting SSL options and we want to be sure they don't somehow enable
+            # SSL implicitly.
+            self.assertFalse(connection.tls_enabled)
 
 
-    @inlineCallbacks
     def test_connect_withTLS(self):
         """
         Connect with TLS enabled.
         """
         service = self.service(useTLS=True)
-        connection = yield service._connect()
 
-        self.assertEquals(
-            connection.methods_called(),
-            ["initialize", "start_tls_s"]
-        )
+        with TestService.Connection(service, "query") as connection:
+            self.assertEquals(
+                connection.methods_called(),
+                ["initialize", "start_tls_s"]
+            )
 
-        self.assertTrue(connection.tls_enabled)
+            self.assertTrue(connection.tls_enabled)
 
 
 
@@ -457,11 +454,11 @@ class DirectoryServiceTest(
         # still have a connection in the pool
         service._recordsFromQueryString_inThread("(this=that)")
         self.assertEquals(service._retryNumber, 0)
-        self.assertEquals(len(service.connections), 1)
+        self.assertEquals(len(service.connectionPools["query"].connections), 1)
 
         service._recordWithDN_inThread("cn=test")
         self.assertEquals(service._retryNumber, 0)
-        self.assertEquals(len(service.connections), 1)
+        self.assertEquals(len(service.connectionPools["query"].connections), 1)
 
         # Force a search to raise SERVER_DOWN
         def raiseServerDown(*args, **kwds):
@@ -479,7 +476,7 @@ class DirectoryServiceTest(
             self.fail("Should have raised LDAPQueryError")
 
         # Verify the connections are all closed
-        self.assertEquals(len(service.connections), 0)
+        self.assertEquals(len(service.connectionPools["query"].connections), 0)
 
         # Now try recordWithDN
         try:
@@ -491,7 +488,64 @@ class DirectoryServiceTest(
             self.fail("Should have raised LDAPQueryError")
 
         # Verify the connections are all closed
-        self.assertEquals(len(service.connections), 0)
+        self.assertEquals(len(service.connectionPools["query"].connections), 0)
+
+
+    @inlineCallbacks
+    def test_auth_pool(self):
+        """
+        Verify acquiring connections from the LDAP connection pool will block
+        when connectionMax is reached,
+        and that
+        """
+
+        service = self.service(connectionMax=4)
+        pool = service.connectionPools["auth"]
+
+        self.assertEquals(0, len(pool.connections))
+        self.assertEquals(0, pool.connectionsCreated)
+
+        # Ask for a connection and check the counts
+        with TestService.Connection(service, "auth"):
+            self.assertEquals(1, len(pool.connections))
+
+        self.assertEquals(1, len(pool.connections))
+        self.assertEquals(1, pool.connectionsCreated)
+
+        # Ask for two connections and check the counts
+        with TestService.Connection(service, "auth"):
+            self.assertEquals(1, len(pool.connections))
+            self.assertEquals(1, pool.connectionsCreated)
+            with TestService.Connection(service, "auth"):
+                self.assertEquals(2, len(pool.connections))
+                self.assertEquals(2, pool.connectionsCreated)
+
+        # Ask for three connections (one more than connectionMax/2) and
+        # the third will actually block until the returnConnection( ) call
+        with TestService.Connection(service, "auth"):
+            self.assertEquals(2, len(pool.connections))
+            self.assertEquals(2, pool.connectionsCreated)
+            with TestService.Connection(service, "auth") as connection:
+                self.assertEquals(2, len(pool.connections))
+                self.assertEquals(2, pool.connectionsCreated)
+
+                # schedule a connection to be returned in 1 second
+                from twisted.internet import reactor
+                reactor.callLater(1, pool.returnConnection, connection)
+
+                # For the third connection, I'm using this method so it gets
+                # requested in a thread, otherwise we'd hang.
+                yield service._authenticateUsernamePassword(
+                    u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
+                    u"zehcnasw"
+                )
+
+        # Proof we bumped up against connection-max:
+        self.assertEquals(1, service.poolStats["connection-blocked"])
+
+        self.assertEquals(2, len(pool.connections))
+        self.assertEquals(2, pool.connectionsCreated)
+        self.assertEquals(2, service.poolStats["connection-max"])
 
 
 
