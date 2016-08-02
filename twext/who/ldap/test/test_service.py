@@ -495,8 +495,8 @@ class DirectoryServiceTest(
     def test_auth_pool(self):
         """
         Verify acquiring connections from the LDAP connection pool will block
-        when connectionMax is reached,
-        and that
+        when connectionMax is reached, and that the number of connections
+        actually created is what we expect.
         """
 
         service = self.service(connectionMax=4)
