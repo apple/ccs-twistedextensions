@@ -217,6 +217,10 @@ class ConnectionPool(object):
         self.activeCount = 0
         self.connectionsCreated = 0
         self.connectionMax = connectionMax
+        self.log.debug(
+            "Created {pool} LDAP connection pool with connectionMax={max}",
+            pool=self.poolName, max=self.connectionMax
+        )
 
     def getConnection(self):
         """
@@ -243,25 +247,25 @@ class ConnectionPool(object):
                 self.connectionCreateLock.release()
             else:
                 self.connectionCreateLock.release()
-                self.ds.poolStats["connection-blocked"] += 1
+                self.ds.poolStats["connection-{}-blocked".format(self.poolName)] += 1
                 connection = self.connectionQueue.get()
 
 
-        connectionID = "connection-{}".format(
-            self.connections.index(connection)
+        connectionID = "connection-{}-{}".format(
+            self.poolName, self.connections.index(connection)
         )
 
         self.ds.poolStats[connectionID] += 1
         self.activeCount = len(self.connections) - self.connectionQueue.qsize()
-        self.ds.poolStats["connection-active"] = self.activeCount
-        self.ds.poolStats["connection-max"] = max(
-            self.ds.poolStats["connection-max"], self.activeCount
+        self.ds.poolStats["connection-{}-active".format(self.poolName)] = self.activeCount
+        self.ds.poolStats["connection-{}-max".format(self.poolName)] = max(
+            self.ds.poolStats["connection-{}-max".format(self.poolName)], self.activeCount
         )
 
         if self.activeCount > self.connectionMax:
             self.log.error(
-                "Active LDAP connections ({active}) exceeds maximum ({max})",
-                active=self.activeCount, max=self.connectionMax
+                "[Pool: {pool}] Active LDAP connections ({active}) exceeds maximum ({max})",
+                pool=self.poolName, active=self.activeCount, max=self.connectionMax
             )
         return connection
 
@@ -272,6 +276,7 @@ class ConnectionPool(object):
         """
         self.connectionQueue.put(connection)
         self.activeCount = len(self.connections) - self.connectionQueue.qsize()
+        self.ds.poolStats["connection-{}-active".format(self.poolName)] = self.activeCount
 
 
     def failedConnection(self, connection):
@@ -279,9 +284,10 @@ class ConnectionPool(object):
         A connection has failed; remove it from the list of active connections.
         A new one will be created if needed.
         """
-        self.ds.poolStats["connection-errors"] += 1
+        self.ds.poolStats["connection-{}-errors".format(self.poolName)] += 1
         self.connections.remove(connection)
         self.activeCount = len(self.connections) - self.connectionQueue.qsize()
+        self.ds.poolStats["connection-{}-active".format(self.poolName)] = self.activeCount
 
 
     def _connect(self):
@@ -295,7 +301,10 @@ class ConnectionPool(object):
         @raises: L{LDAPConnectionError} if unable to connect.
         """
 
-        self.log.debug("Connecting to LDAP at {log_source.url}")
+        self.log.debug(
+            "[Pool: {pool}] Connecting to LDAP at {url}",
+            pool=self.poolName, url=self.ds.url
+        )
         connection = self._newConnection()
 
         if self.credentials is not None:
@@ -306,15 +315,15 @@ class ConnectionPool(object):
                         self.credentials.password,
                     )
                     self.log.debug(
-                        "Bound to LDAP as {credentials.username}",
-                        credentials=self.credentials
+                        "[Pool: {pool}] Bound to LDAP as {credentials.username}",
+                        pool=self.poolName, credentials=self.credentials
                     )
                 except (
                     ldap.INVALID_CREDENTIALS, ldap.INVALID_DN_SYNTAX
                 ) as e:
                     self.log.error(
-                        "Unable to bind to LDAP as {credentials.username}",
-                        credentials=self.credentials
+                        "[Pool: {pool}] Unable to bind to LDAP as {credentials.username}",
+                        pool=self.poolName, credentials=self.credentials
                     )
                     raise LDAPBindAuthError(
                         self.credentials.username, e
@@ -354,7 +363,10 @@ class ConnectionPool(object):
                 connection.set_option(option, value)
 
         if self.ds._useTLS:
-            self.log.debug("Starting TLS for {log_source.url}")
+            self.log.debug(
+                "[Pool: {pool}] Starting TLS for {url}",
+                pool=self.poolName, url=self.ds.url
+            )
             connection.start_tls_s()
 
         self.connectionsCreated += 1
@@ -394,7 +406,8 @@ class DirectoryService(BaseDirectoryService):
         extraFilters=None,
         ownThreadpool=True,
         threadPoolMax=10,
-        connectionMax=10,
+        authConnectionMax=5,
+        queryConnectionMax=5,
         tries=3,
         warningThresholdSeconds=5,
         _debug=False,
@@ -509,11 +522,10 @@ class DirectoryService(BaseDirectoryService):
                 max(threadPoolMax, self.threadpool.max)
             )
 
-        # Separate pools for LDAP queries and LDAP binds.  Note, they each get
-        # half of connectionMax.
+        # Separate pools for LDAP queries and LDAP binds.
         self.connectionPools = {
-            "query": ConnectionPool("query", self, credentials, connectionMax / 2),
-            "auth": ConnectionPool("auth", self, None, connectionMax / 2),
+            "query": ConnectionPool("query", self, credentials, queryConnectionMax),
+            "auth": ConnectionPool("auth", self, None, authConnectionMax),
         }
         self.poolStats = collections.defaultdict(int)
 
@@ -625,6 +637,10 @@ class DirectoryService(BaseDirectoryService):
             except Exception as e:
                 self.log.error("Unexpected error {error} trying to authenticate {dn}", error=str(e), dn=dn)
                 return False
+            finally:
+                # Do an unauthenticated bind on this connection at the end in
+                # case the server limits the number of concurrent auths by a given user.
+                connection.simple_bind_s("", "")
 
 
     def _recordsFromQueryString(

@@ -499,7 +499,7 @@ class DirectoryServiceTest(
         actually created is what we expect.
         """
 
-        service = self.service(connectionMax=4)
+        service = self.service(authConnectionMax=2)
         pool = service.connectionPools["auth"]
 
         self.assertEquals(0, len(pool.connections))
@@ -508,6 +508,10 @@ class DirectoryServiceTest(
         # Ask for a connection and check the counts
         with TestService.Connection(service, "auth"):
             self.assertEquals(1, len(pool.connections))
+            self.assertEquals(1, service.poolStats["connection-auth-active"])
+
+        # When the above context exits, the connection is returned
+        self.assertEquals(0, service.poolStats["connection-auth-active"])
 
         self.assertEquals(1, len(pool.connections))
         self.assertEquals(1, pool.connectionsCreated)
@@ -519,33 +523,40 @@ class DirectoryServiceTest(
             with TestService.Connection(service, "auth"):
                 self.assertEquals(2, len(pool.connections))
                 self.assertEquals(2, pool.connectionsCreated)
+                self.assertEquals(2, service.poolStats["connection-auth-active"])
+            self.assertEquals(1, service.poolStats["connection-auth-active"])
+        self.assertEquals(0, service.poolStats["connection-auth-active"])
 
-        # Ask for three connections (one more than connectionMax/2) and
+        # Ask for three connections (one more than connectionMax) and
         # the third will actually block until the returnConnection( ) call
         with TestService.Connection(service, "auth"):
             self.assertEquals(2, len(pool.connections))
             self.assertEquals(2, pool.connectionsCreated)
-            with TestService.Connection(service, "auth") as connection:
-                self.assertEquals(2, len(pool.connections))
-                self.assertEquals(2, pool.connectionsCreated)
 
-                # schedule a connection to be returned in 1 second
-                from twisted.internet import reactor
-                reactor.callLater(1, pool.returnConnection, connection)
+            # For the 2nd connection, don't use the context manager so we can
+            # control when returnConnection happens
+            connection = pool.getConnection()
+            self.assertEquals(2, len(pool.connections))
+            self.assertEquals(2, pool.connectionsCreated)
 
-                # For the third connection, I'm using this method so it gets
-                # requested in a thread, otherwise we'd hang.
-                yield service._authenticateUsernamePassword(
-                    u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
-                    u"zehcnasw"
-                )
+            # schedule connection 2 to be returned in 1 second
+            from twisted.internet import reactor
+            reactor.callLater(1, pool.returnConnection, connection)
 
-        # Proof we bumped up against connection-max:
-        self.assertEquals(1, service.poolStats["connection-blocked"])
+            # For the third connection, I'm using this method so it gets
+            # requested in a thread, otherwise we'd hang.
+            yield service._authenticateUsernamePassword(
+                u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
+                u"zehcnasw"
+            )
+
+        # Proof we bumped up against connectionMax:
+        self.assertEquals(1, service.poolStats["connection-auth-blocked"])
 
         self.assertEquals(2, len(pool.connections))
         self.assertEquals(2, pool.connectionsCreated)
-        self.assertEquals(2, service.poolStats["connection-max"])
+        self.assertEquals(2, service.poolStats["connection-auth-max"])
+        self.assertEquals(0, service.poolStats["connection-auth-active"])
 
 
 
