@@ -3,11 +3,8 @@
 	<name>twextpy</name>
 	<comment></comment>
 	<projects>
-		<project>cffi</project>
-		<project>python-ldap</project>
-		<project>sqlparse</project>
+		<project>CalendarServer-Develop-1</project>
 		<project>Twisted</project>
-		<project>zope.interface</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
