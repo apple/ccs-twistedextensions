@@ -450,14 +450,15 @@ class DirectoryServiceTest(
 
         service = self.service()
 
+        testStats = {}
         # Verify that without a SERVER_DOWN we don't need to retry, and we
         # still have a connection in the pool
-        service._recordsFromQueryString_inThread("(this=that)")
-        self.assertEquals(service._retryNumber, 0)
+        service._recordsFromQueryString_inThread("(this=that)", testStats=testStats)
+        self.assertEquals(testStats["retryNumber"], 0)
         self.assertEquals(len(service.connectionPools["query"].connections), 1)
 
-        service._recordWithDN_inThread("cn=test")
-        self.assertEquals(service._retryNumber, 0)
+        service._recordWithDN_inThread("cn=test", testStats=testStats)
+        self.assertEquals(testStats["retryNumber"], 0)
         self.assertEquals(len(service.connectionPools["query"].connections), 1)
 
         # Force a search to raise SERVER_DOWN
@@ -468,10 +469,10 @@ class DirectoryServiceTest(
 
         # Now try recordsFromQueryString
         try:
-            service._recordsFromQueryString_inThread("(this=that)")
+            service._recordsFromQueryString_inThread("(this=that)", testStats=testStats)
         except LDAPQueryError:
             # Verify the number of times we retried
-            self.assertEquals(service._retryNumber, 2)
+            self.assertEquals(testStats["retryNumber"], 2)
         except:
             self.fail("Should have raised LDAPQueryError")
 
@@ -480,15 +481,49 @@ class DirectoryServiceTest(
 
         # Now try recordWithDN
         try:
-            service._recordWithDN_inThread("cn=test")
+            service._recordWithDN_inThread("cn=test", testStats=testStats)
         except LDAPQueryError:
             # Verify the number of times we retried
-            self.assertEquals(service._retryNumber, 2)
+            self.assertEquals(testStats["retryNumber"], 2)
         except:
             self.fail("Should have raised LDAPQueryError")
 
         # Verify the connections are all closed
         self.assertEquals(len(service.connectionPools["query"].connections), 0)
+
+
+    def test_server_down_auth(self):
+        """
+        Verify an ldap.SERVER_DOWN error will retry 2 more times and that
+        the connection is closed if all attempts fail.
+        """
+        service = self.service()
+
+        testStats = {}
+        # Verify that without a SERVER_DOWN we don't need to retry, and we
+        # still have a connection in the pool
+        service._authenticateUsernamePassword_inThread(
+            u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
+            u"zehcnasw",
+            testStats=testStats
+        )
+        self.assertEquals(testStats["retryNumber"], 0)
+        self.assertEquals(len(service.connectionPools["auth"].connections), 1)
+
+        testStats["raise"] = ldap.SERVER_DOWN
+
+        # Now try auth again
+        try:
+            service._authenticateUsernamePassword_inThread(
+                u"uid=wsanchez,cn=user,{0}".format(self.baseDN),
+                u"zehcnasw",
+                testStats=testStats
+            )
+        except LDAPQueryError:
+            # Verify the number of times we retried
+            self.assertEquals(testStats["retryNumber"], 2)
+        except:
+            self.fail("Should have raised LDAPQueryError")
 
 
     @inlineCallbacks
