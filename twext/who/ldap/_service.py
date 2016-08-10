@@ -606,7 +606,7 @@ class DirectoryService(BaseDirectoryService):
         return d
 
 
-    def _authenticateUsernamePassword_inThread(self, dn, password):
+    def _authenticateUsernamePassword_inThread(self, dn, password, testStats=None):
         """
         Open a secondary connection to the LDAP server and try binding to it
         with the given credentials.
@@ -618,29 +618,59 @@ class DirectoryService(BaseDirectoryService):
         @raises: L{LDAPConnectionError} if unable to connect.
         """
         self.log.debug("Authenticating {dn}", dn=dn)
-        with DirectoryService.Connection(self, "auth") as connection:
+
+        # Retry if we get ldap.SERVER_DOWN
+        for retryNumber in xrange(self._tries):
+
+            # For unit tests, a bit of instrumentation so we can examine
+            # retryNumber:
+            if testStats is not None:
+                testStats["retryNumber"] = retryNumber
 
             try:
-                connection.simple_bind_s(dn, password)
-                self.log.debug("Authenticated {dn}", dn=dn)
-                return True
-            except (
-                ldap.INAPPROPRIATE_AUTH,
-                ldap.INVALID_CREDENTIALS,
-                ldap.INVALID_DN_SYNTAX,
-            ):
-                self.log.debug("Unable to authenticate {dn}", dn=dn)
-                return False
-            except ldap.CONSTRAINT_VIOLATION:
-                self.log.info("Account locked {dn}", dn=dn)
-                return False
-            except Exception as e:
-                self.log.error("Unexpected error {error} trying to authenticate {dn}", error=str(e), dn=dn)
-                return False
-            finally:
-                # Do an unauthenticated bind on this connection at the end in
-                # case the server limits the number of concurrent auths by a given user.
-                connection.simple_bind_s("", "")
+
+                with DirectoryService.Connection(self, "auth") as connection:
+                    try:
+                        # During testing, allow an exception to be raised.
+                        # Note: I tried to use patch( ) to accomplish this
+                        # but that seemed to create a race condition in the
+                        # restoration of the patched value and that would cause
+                        # unit tests to occasionally fail.
+                        if testStats is not None:
+                            if "raise" in testStats:
+                                raise testStats["raise"]
+
+                        connection.simple_bind_s(dn, password)
+                        self.log.debug("Authenticated {dn}", dn=dn)
+                        return True
+                    except (
+                        ldap.INAPPROPRIATE_AUTH,
+                        ldap.INVALID_CREDENTIALS,
+                        ldap.INVALID_DN_SYNTAX,
+                    ):
+                        self.log.debug("Unable to authenticate {dn}", dn=dn)
+                        return False
+                    except ldap.CONSTRAINT_VIOLATION:
+                        self.log.info("Account locked {dn}", dn=dn)
+                        return False
+                    except ldap.SERVER_DOWN as e:
+                        # Catch this below for retry
+                        raise e
+                    except Exception as e:
+                        self.log.error("Unexpected error {error} trying to authenticate {dn}", error=str(e), dn=dn)
+                        return False
+                    else:
+                        # Do an unauthenticated bind on this connection at the end in
+                        # case the server limits the number of concurrent auths by a given user.
+                        connection.simple_bind_s("", "")
+
+            except ldap.SERVER_DOWN as e:
+                self.log.error("LDAP server unavailable")
+                if retryNumber + 1 == self._tries:
+                    # We've hit SERVER_DOWN self._tries times, giving up.
+                    raise LDAPQueryError("LDAP server down", e)
+                else:
+                    self.log.error("LDAP connection failure; retrying...")
 
 
     def _recordsFromQueryString(
@@ -672,7 +702,8 @@ class DirectoryService(BaseDirectoryService):
 
     def _recordsFromQueryString_inThread(
         self, queryString, recordTypes=None,
-        limitResults=None, timeoutSeconds=None
+        limitResults=None, timeoutSeconds=None,
+        testStats=None
     ):
         # This method is always called in a thread.
 
@@ -680,7 +711,12 @@ class DirectoryService(BaseDirectoryService):
             recordTypes = list(self.recordTypes())
 
         # Retry if we get ldap.SERVER_DOWN
-        for self._retryNumber in xrange(self._tries):
+        for retryNumber in xrange(self._tries):
+
+            # For unit tests, a bit of instrumentation so we can examine
+            # retryNumber:
+            if testStats is not None:
+                testStats["retryNumber"] = retryNumber
 
             records = []
 
@@ -822,7 +858,7 @@ class DirectoryService(BaseDirectoryService):
 
             except ldap.SERVER_DOWN as e:
                 self.log.error("LDAP server unavailable")
-                if self._retryNumber + 1 == self._tries:
+                if retryNumber + 1 == self._tries:
                     # We've hit SERVER_DOWN self._tries times, giving up.
                     raise LDAPQueryError("LDAP server down", e)
                 else:
@@ -854,7 +890,7 @@ class DirectoryService(BaseDirectoryService):
         return d
 
 
-    def _recordWithDN_inThread(self, dn):
+    def _recordWithDN_inThread(self, dn, testStats=None):
         """
         @param dn: The DN of the record to search for
         @type dn: C{str}
@@ -864,7 +900,11 @@ class DirectoryService(BaseDirectoryService):
         records = []
 
         # Retry if we get ldap.SERVER_DOWN
-        for self._retryNumber in xrange(self._tries):
+        for retryNumber in xrange(self._tries):
+
+            # For unit tests, a bit of instrumentation:
+            if testStats is not None:
+                testStats["retryNumber"] = retryNumber
 
             try:
 
@@ -890,7 +930,7 @@ class DirectoryService(BaseDirectoryService):
                 self.log.error(
                     "LDAP server unavailable"
                 )
-                if self._retryNumber + 1 == self._tries:
+                if retryNumber + 1 == self._tries:
                     # We've hit SERVER_DOWN self._tries times, giving up
                     raise LDAPQueryError("LDAP server down", e)
                 else:
