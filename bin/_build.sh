@@ -444,7 +444,7 @@ c_dependencies () {
   # value of OPENSSL_VERSION_NUBMER for use in inequality comparison.
   ruler;
 
-  local min_ssl_version="9470463";  # OpenSSL 0.9.8y
+    local min_ssl_version="268443791";  # OpenSSL 1.0.2h
 
   local ssl_version="$(c_macro openssl/ssl.h OPENSSL_VERSION_NUMBER)";
   if [ -z "${ssl_version}" ]; then ssl_version="0x0"; fi;
@@ -453,13 +453,13 @@ c_dependencies () {
   if [ "${ssl_version}" -ge "${min_ssl_version}" ]; then
     using_system "OpenSSL";
   else
-    local v="0.9.8zf";
+    local v="1.0.2h";
     local n="openssl";
     local p="${n}-${v}";
 
     # use 'config' instead of 'configure'; 'make' instead of 'jmake'.
     # also pass 'shared' to config to build shared libs.
-    c_dependency -c "config" -m "c69a4a679233f7df189e1ad6659511ec" \
+    c_dependency -c "config" -s "577585f5f5d299c44dd3c993d3c0ac7a219e4949" \
       -p "make depend" -b "make" \
       "openssl" "${p}" \
       "http://www.openssl.org/source/${p}.tar.gz" "shared";
@@ -476,11 +476,11 @@ c_dependencies () {
       using_system "libffi";
     fi;
   else
-    local v="3.0.13";
+    local v="3.2.1";
     local n="libffi";
     local p="${n}-${v}";
 
-    c_dependency -m "45f3b6dbc9ee7c7dfbbbc5feba571529" \
+    c_dependency -m "83b89587607e3eb65c70d361f13bab43" \
       "libffi" "${p}" \
       "ftp://sourceware.org/pub/libffi/${p}.tar.gz"
   fi;
