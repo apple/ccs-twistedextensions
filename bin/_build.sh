@@ -610,10 +610,10 @@ bootstrap_virtualenv () {
 pip_download () {
   mkdir -p "${dev_home}/pip_downloads";
 
-  "${python}" -m pip install               \
+  "${python}" -m pip download              \
     --disable-pip-version-check            \
-    --download="${dev_home}/pip_downloads" \
-    --pre --allow-all-external             \
+    -d "${dev_home}/pip_downloads"         \
+    --pre                                  \
     --no-cache-dir                         \
     --log-file="${dev_home}/pip.log"       \
     "$@";
@@ -623,7 +623,7 @@ pip_download () {
 pip_install_from_cache () {
   "${python}" -m pip install                 \
     --disable-pip-version-check              \
-    --pre --allow-all-external               \
+    --pre                                    \
     --no-index                               \
     --no-cache-dir                           \
     --find-links="${dev_home}/pip_downloads" \
@@ -635,7 +635,7 @@ pip_install_from_cache () {
 pip_download_and_install () {
   "${python}" -m pip install                 \
     --disable-pip-version-check              \
-    --pre --allow-all-external               \
+    --pre                                    \
     --no-cache-dir                           \
     --log-file="${dev_home}/pip.log"         \
     "$@";
