@@ -98,12 +98,7 @@ def git_info(wc_path):
         tag = None
     else:
         tags = tags.strip().split()
-        for tag in tags:
-            tag = tag.strip()
-            if not tag.startswith("ccs-"):
-                break
-        else:
-            tag = None
+        tag = tags[0]
 
     return dict(
         project=base_project,
