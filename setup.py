@@ -223,7 +223,7 @@ install_requirements = [
 
 extras_requirements = {
     # Database Abstraction Layer
-    "dal": ["sqlparse"],
+    "dal": ["sqlparse==0.1.19"],
 
     # LDAP
     "ldap": ["python-ldap"],
