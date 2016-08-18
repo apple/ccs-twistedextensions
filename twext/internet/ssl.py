@@ -20,6 +20,7 @@ Extensions to twisted.internet.ssl.
 
 __all__ = [
     "ChainingOpenSSLContextFactory",
+    "simpleClientContextFactory",
 ]
 
 import OpenSSL
@@ -28,11 +29,14 @@ from OpenSSL.SSL import Context as SSLContext, SSLv23_METHOD, OP_NO_SSLv2, \
     VERIFY_FAIL_IF_NO_PEER_CERT, VERIFY_CLIENT_ONCE
 
 from twisted.internet.ssl import DefaultOpenSSLContextFactory
-from twisted.internet._sslverify import Certificate
+from twisted.internet._sslverify import Certificate, _tolerateErrors, VerificationError, verifyHostname
+from twisted.python.failure import Failure
 
 import uuid
 
+
 _OP_NO_COMPRESSION = getattr(OpenSSL.SSL, 'OP_NO_COMPRESSION', 0x00020000)
+SSL_CB_HANDSHAKE_DONE = 0x20
 
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
     def __init__(
@@ -42,12 +46,15 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
         passwdCallback=None, ciphers=None,
         verifyClient=False, requireClientCertificate=False,
         verifyClientOnce=True, verifyClientDepth=9,
-        clientCACertFileNames=[], sendCAsToClient=True
+        clientCACertFileNames=[], sendCAsToClient=True,
+        peerName=None
     ):
         self.certificateChainFile = certificateChainFile
         self.keychainIdentity = keychainIdentity
         self.passwdCallback = passwdCallback
         self.ciphers = ciphers
+
+        self.peerName = peerName
 
         self.verifyClient = verifyClient
         self.requireClientCertificate = requireClientCertificate
@@ -122,4 +129,53 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
         if self.verifyClientDepth is not None:
             ctx.set_verify_depth(self.verifyClientDepth)
 
+        if self.peerName:
+            if hasattr(ctx, "set_peer_name"):
+                ctx.set_peer_name(self.peerName)
+            elif hasattr(ctx, "set_info_callback"):
+                ctx.set_info_callback(
+                    _tolerateErrors(self._identityVerifyingInfoCallback)
+                )
+            else:
+                raise ValueError("No suitable SSL API for verifying the peer host name")
+
         self._context = ctx
+
+
+    def _identityVerifyingInfoCallback(self, connection, where, ret):
+        """
+        U{info_callback
+        <http://pythonhosted.org/pyOpenSSL/api/ssl.html#OpenSSL.SSL.Context.set_info_callback>
+        } for pyOpenSSL that verifies the hostname in the presented certificate
+        matches the one passed to this L{ClientTLSOptions}.
+
+        @param connection: the connection which is handshaking.
+        @type connection: L{OpenSSL.SSL.Connection}
+
+        @param where: flags indicating progress through a TLS handshake.
+        @type where: L{int}
+
+        @param ret: ignored
+        @type ret: ignored
+        """
+        if where & SSL_CB_HANDSHAKE_DONE:
+            try:
+                hostname = self.peerName.decode("utf-8") if isinstance(self.peerName, str) else self.peerName
+                verifyHostname(connection, hostname)
+            except VerificationError:
+                f = Failure()
+                transport = connection.get_app_data()
+                transport.failVerification(f)
+
+
+
+def simpleClientContextFactory(hostname):
+    """
+    Get a client context factory.
+    """
+    return ChainingOpenSSLContextFactory(
+        "", "",
+        certificateChainFile="",
+        keychainIdentity="",
+        peerName=hostname,
+    )

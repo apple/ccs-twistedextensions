@@ -3,7 +3,6 @@
 	<name>twextpy</name>
 	<comment></comment>
 	<projects>
-		<project>CalendarServer-Develop-1</project>
 		<project>Twisted</project>
 	</projects>
 	<buildSpec>
