@@ -26,14 +26,12 @@ from ..expression import MatchType
 from ..util import ConstantsContainer
 
 
-
 class LDAPOperand(Values):
     """
     LDAP operands.
     """
     AND = ValueConstant(u"&")
     OR = ValueConstant(u"|")
-
 
 
 class LDAPMatchType(Names):
@@ -98,7 +96,6 @@ class LDAPMatchType(Names):
     greaterThanOrEqualTo.matchType = MatchType.greaterThanOrEqualTo
     greaterThanOrEqualTo.queryString = u"({notOp}{attribute}>={value})"
 
-
     @classmethod
     def fromMatchType(cls, matchType):
         """
@@ -120,14 +117,12 @@ class LDAPMatchType(Names):
         return cls._matchTypeByMatchType.get(matchType, None)
 
 
-
 class LDAPMatchFlags(Values):
     """
     LDAP match flags.
     """
     none = ValueConstant(u"")
     NOT = ValueConstant(u"!")
-
 
 
 class RFC2307Attribute(Values):
@@ -166,7 +161,6 @@ class RFC2307Attribute(Values):
     nisMapEntry = ValueConstant(u"nisMapEntry")
 
 
-
 class RFC2307ObjectClass(Values):
     """
     Network Information Service object classes.
@@ -189,7 +183,6 @@ class RFC2307ObjectClass(Values):
     bootableDevice = ValueConstant(u"bootableDevice")
 
 
-
 class RFC2798Attribute(Values):
     """
     inetOrgPerson object class attributes.
@@ -207,7 +200,6 @@ class RFC2798Attribute(Values):
     userPKCS12 = ValueConstant(u"userPKCS12")
 
 
-
 class RFC2798ObjectClass(Values):
     """
     inetOrgPerson object class.
@@ -215,7 +207,6 @@ class RFC2798ObjectClass(Values):
     See U{RFC 2798, section 3<http://tools.ietf.org/html/rfc2798#section-3>}.
     """
     inetOrgPerson = ValueConstant(u"inetOrgPerson")
-
 
 
 class RFC4519Attribute(Values):
@@ -269,7 +260,6 @@ class RFC4519Attribute(Values):
     x500UniqueIdentifier = ValueConstant(u"x500UniqueIdentifier")
 
 
-
 class RFC4519ObjectClass(Values):
     """
     User application object classes.
@@ -290,7 +280,6 @@ class RFC4519ObjectClass(Values):
     person = ValueConstant(u"person")
     residentialPerson = ValueConstant(u"residentialPerson")
     uidObject = ValueConstant(u"uidObject")
-
 
 
 class RFC4524Attribute(Values):
@@ -325,7 +314,6 @@ class RFC4524Attribute(Values):
     userClass = ValueConstant(u"userClass")
 
 
-
 class RFC4524ObjectClass(Values):
     """
     COSINE and Internet X.500 object classes.
@@ -343,14 +331,12 @@ class RFC4524ObjectClass(Values):
     simpleSecurityObject = ValueConstant(u"simpleSecurityObject")
 
 
-
 class WhoAttribute(Values):
     """
     Attributes needed internally that have no standard name.
     """
     generatedUUID = ValueConstant(u"entryUUID")
     objectClass = ValueConstant(u"objectClass")
-
 
 
 LDAPAttribute = ConstantsContainer((

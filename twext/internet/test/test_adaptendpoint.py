@@ -28,31 +28,29 @@ from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.internet.interfaces import IConnector
 from twisted.trial.unittest import TestCase
 
+
 class names(object):
+
     def __init__(self, **kw):
         self.__dict__.update(kw)
 
 
-
 class RecordingProtocol(Protocol, object):
+
     def __init__(self):
         super(RecordingProtocol, self).__init__()
         self.made = []
         self.data = []
         self.lost = []
 
-
     def connectionMade(self):
         self.made.append(self.transport)
-
 
     def dataReceived(self, data):
         self.data.append(data)
 
-
     def connectionLost(self, why):
         self.lost.append(why)
-
 
 
 class RecordingClientFactory(ClientFactory):
@@ -69,18 +67,14 @@ class RecordingClientFactory(ClientFactory):
         self.fails = []
         self.lost = []
 
-
     def startedConnecting(self, ctr):
         self.starts.append(ctr)
-
 
     def clientConnectionFailed(self, ctr, reason):
         self.fails.append(names(connector=ctr, reason=reason))
 
-
     def clientConnectionLost(self, ctr, reason):
         self.lost.append(names(connector=ctr, reason=reason))
-
 
     def buildProtocol(self, addr):
         b = RecordingProtocol()
@@ -88,12 +82,10 @@ class RecordingClientFactory(ClientFactory):
         return b
 
 
-
 class RecordingEndpoint(object):
 
     def __init__(self):
         self.attempts = []
-
 
     def connect(self, factory):
         d = Deferred()
@@ -101,16 +93,13 @@ class RecordingEndpoint(object):
         return d
 
 
-
 class RecordingTransport(object):
 
     def __init__(self):
         self.lose = []
 
-
     def loseConnection(self):
         self.lose.append(self)
-
 
 
 class AdaptEndpointTests(TestCase):
@@ -122,7 +111,6 @@ class AdaptEndpointTests(TestCase):
         self.factory = RecordingClientFactory()
         self.endpoint = RecordingEndpoint()
         self.connector = connect(self.endpoint, self.factory)
-
 
     def connectionSucceeds(self, addr=object()):
         """
@@ -137,13 +125,11 @@ class AdaptEndpointTests(TestCase):
         attempt.deferred.callback(proto)
         return transport
 
-
     def connectionFails(self, reason):
         """
         The most recent in-progress connection fails.
         """
         self.endpoint.attempts[-1].deferred.errback(reason)
-
 
     def test_connectStartsConnection(self):
         """
@@ -162,7 +148,6 @@ class AdaptEndpointTests(TestCase):
         self.assertEqual(len(made), 1)
         self.assertIdentical(made[0], transport)
 
-
     def test_connectionLost(self):
         """
         When the connection is lost, both the protocol and the factory will be
@@ -176,7 +161,6 @@ class AdaptEndpointTests(TestCase):
         self.assertEquals(len(self.factory.lost), 1)
         self.assertIdentical(self.factory.lost[0].reason, why)
 
-
     def test_connectionFailed(self):
         """
         When the L{Deferred} from the endpoint fails, the L{ClientFactory} gets
@@ -187,7 +171,6 @@ class AdaptEndpointTests(TestCase):
         self.assertEquals(len(self.factory.fails), 1)
         self.assertIdentical(self.factory.fails[0].reason, why)
 
-
     def test_disconnectWhileConnecting(self):
         """
         When the L{IConnector} is told to C{disconnect} before an in-progress
@@ -196,7 +179,6 @@ class AdaptEndpointTests(TestCase):
         self.connector.disconnect()
         self.assertEqual(len(self.factory.fails), 1)
         self.assertTrue(self.factory.fails[0].reason.check(CancelledError))
-
 
     def test_disconnectWhileConnected(self):
         """
@@ -207,7 +189,6 @@ class AdaptEndpointTests(TestCase):
         transport = self.connectionSucceeds()
         self.factory.starts[0].disconnect()
         self.assertEqual(transport.lose, [transport])
-
 
     def test_connectAfterFailure(self):
         """
@@ -221,7 +202,6 @@ class AdaptEndpointTests(TestCase):
         self.assertEqual(len(self.endpoint.attempts), 2)
         self.connectionSucceeds()
 
-
     def test_reConnectTooSoon(self):
         """
         When the L{IConnector} is told to C{connect} while another attempt is
@@ -230,7 +210,6 @@ class AdaptEndpointTests(TestCase):
         self.assertRaises(RuntimeError, self.connector.connect)
         self.assertEqual(len(self.factory.starts), 1)
         self.assertEqual(len(self.endpoint.attempts), 1)
-
 
     def test_stopConnectingWhileConnecting(self):
         """
@@ -241,7 +220,6 @@ class AdaptEndpointTests(TestCase):
         self.assertEqual(len(self.factory.fails), 1)
         self.assertTrue(self.factory.fails[0].reason.check(CancelledError))
 
-
     def test_stopConnectingWhileConnected(self):
         """
         When the L{IConnector} is told to C{stopConnecting} while already
@@ -249,7 +227,6 @@ class AdaptEndpointTests(TestCase):
         """
         self.connectionSucceeds()
         self.assertRaises(RuntimeError, self.connector.stopConnecting)
-
 
     def test_stopConnectingWhileNotConnected(self):
         """

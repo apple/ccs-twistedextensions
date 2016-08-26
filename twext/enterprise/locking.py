@@ -34,12 +34,10 @@ class AlreadyUnlocked(Exception):
     """
 
 
-
 class LockTimeout(Exception):
     """
     The lock you were trying to lock was already locked causing a timeout.
     """
-
 
 
 def makeLockSchema(inSchema):
@@ -63,7 +61,6 @@ def makeLockSchema(inSchema):
 LockSchema = SchemaSyntax(makeLockSchema(Schema(__file__)))
 
 
-
 class NamedLock(Record, fromTable(LockSchema.NAMED_LOCK)):
     """
     An L{AcquiredLock} lock against a shared data store that the current
@@ -82,6 +79,7 @@ class NamedLock(Record, fromTable(LockSchema.NAMED_LOCK)):
         @return: a L{Deferred} that fires with an L{AcquiredLock} when the lock
             has fired, or fails when the lock has not been acquired.
         """
+
         def autoRelease(self):
             txn.preCommit(lambda: self.release(True))
             return self
@@ -93,7 +91,6 @@ class NamedLock(Record, fromTable(LockSchema.NAMED_LOCK)):
         d.addCallback(autoRelease)
         d.addErrback(lockFailed)
         return d
-
 
     def release(self, ignoreAlreadyUnlocked=False):
         """

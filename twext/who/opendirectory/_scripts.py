@@ -29,7 +29,6 @@ from twext.who.expression import (
 from twext.who.opendirectory import DirectoryService
 
 
-
 algorithms = {
     "md5": md5.new,
     "md5-sess": md5.new,
@@ -91,7 +90,6 @@ def calcHA1(
     return HA1.encode("hex")
 
 
-
 # DigestCalcResponse
 def calcResponse(
     HA1,
@@ -128,7 +126,6 @@ def calcResponse(
     m.update(HA2)
     respHash = m.digest().encode("hex")
     return respHash
-
 
 
 @inlineCallbacks
@@ -189,7 +186,6 @@ def authUsernamePassword(username, password):
         print("Via DigestedCredentials, could not authenticate")
 
 
-
 @inlineCallbacks
 def lookup(shortNames):
     service = DirectoryService()
@@ -239,14 +235,12 @@ def lookup(shortNames):
             print(record.description())
 
 
-
 def run_auth():
     username = raw_input("Username: ")
     if username:
         password = getpass()
         if password:
             authUsernamePassword(username, password)
-
 
 
 def run_lookup():

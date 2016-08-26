@@ -35,11 +35,11 @@ from twext.python.log import Logger
 log = Logger()
 
 
-
 class MaxAcceptPortMixin(object):
     """
     Mixin for resetting maxAccepts.
     """
+
     def doRead(self):
         self.numberAccepts = min(
             self.factory.maxRequests - self.factory.outstandingRequests,
@@ -48,19 +48,16 @@ class MaxAcceptPortMixin(object):
         tcp.Port.doRead(self)
 
 
-
 class MaxAcceptTCPPort(MaxAcceptPortMixin, tcp.Port):
     """
     Use for non-inheriting tcp ports.
     """
 
 
-
 class MaxAcceptSSLPort(MaxAcceptPortMixin, ssl.Port):
     """
     Use for non-inheriting SSL ports.
     """
-
 
 
 class InheritedTCPPort(MaxAcceptTCPPort):
@@ -75,10 +72,8 @@ class InheritedTCPPort(MaxAcceptTCPPort):
         self.socket = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
         self._realPortNumber = self.port = self.socket.getsockname()[1]
 
-
     def createInternetSocket(self):
         return self.socket
-
 
     def startListening(self):
         log.info(
@@ -92,7 +87,6 @@ class InheritedTCPPort(MaxAcceptTCPPort):
         self.startReading()
 
 
-
 class InheritedSSLPort(InheritedTCPPort):
     """
     An SSL port which uses an inherited file descriptor.
@@ -102,17 +96,14 @@ class InheritedSSLPort(InheritedTCPPort):
 
     transport = ssl.Server
 
-
     def __init__(self, fd, factory, ctxFactory, reactor):
         InheritedTCPPort.__init__(self, fd, factory, reactor)
         self.ctxFactory = ctxFactory
         self.socket = SSL.Connection(self.ctxFactory.getContext(), self.socket)
 
-
     def _preMakeConnection(self, transport):
         transport._startTLS()
         return tcp.Port._preMakeConnection(self, transport)
-
 
 
 def _allConnectionsClosed(protocolFactory):
@@ -134,7 +125,6 @@ def _allConnectionsClosed(protocolFactory):
     return succeed(None)
 
 
-
 class MaxAcceptTCPServer(internet.TCPServer):
     """
     TCP server which will uses MaxAcceptTCPPorts (and optionally,
@@ -152,7 +142,6 @@ class MaxAcceptTCPServer(internet.TCPServer):
         self.backlog = self.kwargs.get("backlog", None)
         self.interface = self.kwargs.get("interface", None)
 
-
     def _getPort(self):
         from twisted.internet import reactor
 
@@ -168,7 +157,6 @@ class MaxAcceptTCPServer(internet.TCPServer):
         self.myPort = port
         return port
 
-
     def stopService(self):
         """
         Wait for outstanding requests to finish
@@ -178,7 +166,6 @@ class MaxAcceptTCPServer(internet.TCPServer):
         """
         internet.TCPServer.stopService(self)
         return _allConnectionsClosed(self.protocolFactory)
-
 
 
 class MaxAcceptSSLServer(internet.SSLServer):
@@ -194,7 +181,6 @@ class MaxAcceptSSLServer(internet.SSLServer):
         self.inherit = self.kwargs.get("inherit", False)
         self.backlog = self.kwargs.get("backlog", None)
         self.interface = self.kwargs.get("interface", None)
-
 
     def _getPort(self):
         from twisted.internet import reactor
@@ -212,7 +198,6 @@ class MaxAcceptSSLServer(internet.SSLServer):
         port.startListening()
         self.myPort = port
         return port
-
 
     def stopService(self):
         """

@@ -28,6 +28,7 @@ from twisted.internet.task import Clock
 
 
 class FakeTCPEndpoint(object):
+
     def __init__(self, reactor, host, port, contextFactory):
         self._reactor = reactor
         self._host = host
@@ -35,12 +36,10 @@ class FakeTCPEndpoint(object):
         self._attempt = None
         self._contextFactory = contextFactory
 
-
     def connect(self, factory):
         self._attempt = Deferred()
         self._factory = factory
         return self._attempt
-
 
 
 class GAIEndpointTestCase(TestCase):
@@ -54,12 +53,10 @@ class GAIEndpointTestCase(TestCase):
         gaie.deferToThread = self.deferToSomething
         return gaie
 
-
     def subEndpoint(self, reactor, host, port, contextFactory):
         ftcpe = FakeTCPEndpoint(reactor, host, port, contextFactory)
         self.fakeRealEndpoints.append(ftcpe)
         return ftcpe
-
 
     def deferToSomething(self, func, *a, **k):
         """
@@ -72,7 +69,6 @@ class GAIEndpointTestCase(TestCase):
         self.inThreads.append((d, func, a, k))
         return d
 
-
     def gaiResult(self, family, socktype, proto, canonname, sockaddr):
         """
         A call to L{getaddrinfo} has succeeded; invoke the L{Deferred} waiting
@@ -80,7 +76,6 @@ class GAIEndpointTestCase(TestCase):
         """
         d, _ignore_f, _ignore_a, _ignore_k = self.inThreads.pop(0)
         d.callback([(family, socktype, proto, canonname, sockaddr)])
-
 
     def setUp(self):
         """
@@ -90,7 +85,6 @@ class GAIEndpointTestCase(TestCase):
         self.clock = Clock()
         self.fakeRealEndpoints = []
         self.makeEndpoint()
-
 
     def test_simpleSuccess(self):
         """

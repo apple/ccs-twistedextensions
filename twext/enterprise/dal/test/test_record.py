@@ -59,12 +59,10 @@ else:
     skip = False
 
 
-
 class TestRecord(Record, Alpha):
     """
     A sample test record.
     """
-
 
 
 class TestSerializeRecord(SerializableRecord, Alpha):
@@ -73,12 +71,10 @@ class TestSerializeRecord(SerializableRecord, Alpha):
     """
 
 
-
 class TestAutoRecord(Record, Delta):
     """
     A sample test record with default values specified.
     """
-
 
 
 class TestCRUD(TestCase):
@@ -88,7 +84,6 @@ class TestCRUD(TestCase):
 
     def setUp(self):
         self.pool = buildConnectionPool(self, schemaString)
-
 
     @inlineCallbacks
     def test_simpleLoad(self):
@@ -111,7 +106,6 @@ class TestCRUD(TestCase):
         self.assertEqual(rec2.beta, 234)
         self.assertEqual(rec2.gamma, "one")
 
-
     @inlineCallbacks
     def test_missingLoad(self):
         """
@@ -120,7 +114,6 @@ class TestCRUD(TestCase):
         txn = self.pool.connection()
         yield txn.execSQL("insert into ALPHA values (:1, :2)", [234, "one"])
         yield self.assertFailure(TestRecord.load(txn, 456), NoSuchRecord)
-
 
     @inlineCallbacks
     def test_simpleCreate(self):
@@ -136,7 +129,6 @@ class TestCRUD(TestCase):
 
         rows = yield txn.execSQL("select BETA, GAMMA from ALPHA")
         self.assertEqual(rows, [tuple([3, u'epsilon'])])
-
 
     @inlineCallbacks
     def test_simpleDelete(self):
@@ -158,7 +150,6 @@ class TestCRUD(TestCase):
         rows = yield txn.execSQL("select BETA, GAMMA from ALPHA order by BETA")
         self.assertEqual(rows, [(123, u"one"), (345, u"three")])
 
-
     @inlineCallbacks
     def oneRowCommitted(self, beta=123, gamma=u'456'):
         """
@@ -168,7 +159,6 @@ class TestCRUD(TestCase):
         row = yield TestRecord.create(txn, beta=beta, gamma=gamma)
         yield txn.commit()
         returnValue(row)
-
 
     @inlineCallbacks
     def test_deleteWhenDeleted(self):
@@ -182,7 +172,6 @@ class TestCRUD(TestCase):
         yield newRow.delete()
         yield self.assertFailure(newRow.delete(), NoSuchRecord)
 
-
     @inlineCallbacks
     def test_cantCreateWithoutRequiredValues(self):
         """
@@ -192,7 +181,6 @@ class TestCRUD(TestCase):
         txn = self.pool.connection()
         te = yield self.assertFailure(TestAutoRecord.create(txn), TypeError)
         self.assertIn("required attribute 'epsilon' not passed", str(te))
-
 
     @inlineCallbacks
     def test_datetimeType(self):
@@ -217,7 +205,6 @@ class TestCRUD(TestCase):
             datetime.datetime(2012, 12, 12, 12, 12, 12)
         )
 
-
     @inlineCallbacks
     def test_tooManyAttributes(self):
         """
@@ -235,7 +222,6 @@ class TestCRUD(TestCase):
         )
         self.assertIn("extraBonusAttribute, otherBonusAttribute", str(te))
 
-
     @inlineCallbacks
     def test_createFillsInPKey(self):
         """
@@ -248,7 +234,6 @@ class TestCRUD(TestCase):
         tr2 = yield TestAutoRecord.create(txn, epsilon=u'also specified')
         self.assertEquals(tr.phi, 1)
         self.assertEquals(tr2.phi, 2)
-
 
     @inlineCallbacks
     def test_attributesArentMutableYet(self):
@@ -270,7 +255,6 @@ class TestCRUD(TestCase):
         self.assertIn("SQL-backed attribute 'TestRecord.beta' is read-only. "
                       "Use '.update(...)' to modify attributes.", str(ro))
 
-
     @inlineCallbacks
     def test_simpleUpdate(self):
         """
@@ -286,7 +270,6 @@ class TestCRUD(TestCase):
         txn = self.pool.connection()
         rec = yield TestRecord.load(txn, 3)
         self.assertEqual(rec.gamma, u'otherwise')
-
 
     @inlineCallbacks
     def test_simpleQuery(self):
@@ -305,7 +288,6 @@ class TestCRUD(TestCase):
         self.assertEqual(records[0].beta, 345)
         self.assertEqual(records[1].beta, 356)
 
-
     @inlineCallbacks
     def test_querySimple(self):
         """
@@ -322,7 +304,6 @@ class TestCRUD(TestCase):
         records.sort(key=lambda x: x.beta)
         self.assertEqual(records[0].beta, 345)
         self.assertEqual(records[1].beta, 356)
-
 
     @inlineCallbacks
     def test_eq(self):
@@ -343,7 +324,6 @@ class TestCRUD(TestCase):
         self.assertTrue(one == one_copy)
         self.assertFalse(one == two)
 
-
     @inlineCallbacks
     def test_all(self):
         """
@@ -361,7 +341,6 @@ class TestCRUD(TestCase):
             sorted(data)
         )
 
-
     @inlineCallbacks
     def test_count(self):
         """
@@ -377,7 +356,6 @@ class TestCRUD(TestCase):
             (yield TestRecord.count(txn)),
             len(data)
         )
-
 
     @inlineCallbacks
     def test_updatesome(self):
@@ -417,7 +395,6 @@ class TestCRUD(TestCase):
             ])
         )
 
-
     @inlineCallbacks
     def test_deleteall(self):
         """
@@ -433,7 +410,6 @@ class TestCRUD(TestCase):
         yield TestRecord.deleteall(txn)
         all = yield TestRecord.all(txn)
         self.assertEqual(len(all), 0)
-
 
     @inlineCallbacks
     def test_deletesome(self):
@@ -455,7 +431,6 @@ class TestCRUD(TestCase):
         all = yield TestRecord.all(txn)
         self.assertEqual(set([record.beta for record in all]), set((456,)))
 
-
     @inlineCallbacks
     def test_deletesimple(self):
         """
@@ -476,7 +451,6 @@ class TestCRUD(TestCase):
         all = yield TestRecord.all(txn)
         self.assertEqual(set([record.beta for record in all]), set((456, 234)))
 
-
     @inlineCallbacks
     def test_repr(self):
         """
@@ -487,7 +461,6 @@ class TestCRUD(TestCase):
         rec = list((yield TestRecord.all(txn)))[0]
         self.assertIn(" beta=789", repr(rec))
         self.assertIn(" gamma=u'nine'", repr(rec))
-
 
     @inlineCallbacks
     def test_orderedQuery(self):
@@ -510,7 +483,6 @@ class TestCRUD(TestCase):
             txn, TestRecord.gamma == u"three", TestRecord.beta, ascending=False
         )
         self.assertEqual([record.beta for record in records], [356, 345])
-
 
     @inlineCallbacks
     def test_pop(self):
@@ -539,7 +511,6 @@ class TestCRUD(TestCase):
         )
         yield self.assertFailure(TestRecord.pop(txn, 234), NoSuchRecord)
 
-
     def test_columnNamingConvention(self):
         """
         The naming convention maps columns C{LIKE_THIS} to be attributes
@@ -557,7 +528,6 @@ class TestCRUD(TestCase):
             Record.namingConvention(u"LIKE_THIS_ID"),
             "likeThisID"
         )
-
 
     @inlineCallbacks
     def test_lock(self):
@@ -580,7 +550,6 @@ class TestCRUD(TestCase):
         yield rec.lock()
         self.assertEqual(rec.gamma, u'two')
 
-
     @inlineCallbacks
     def test_trylock(self):
         """
@@ -602,7 +571,6 @@ class TestCRUD(TestCase):
         result = yield rec.trylock()
         self.assertTrue(result)
 
-
     @inlineCallbacks
     def test_serialize(self):
         """
@@ -623,7 +591,6 @@ class TestCRUD(TestCase):
         rec = yield TestSerializeRecord.load(txn, 234)
         result = rec.serialize()
         self.assertEqual(result, {"beta": 234, "gamma": u"two"})
-
 
     @inlineCallbacks
     def test_deserialize(self):
@@ -647,6 +614,7 @@ class TestCRUD(TestCase):
         rec = yield TestSerializeRecord.deserialize({"beta": 456, "gamma": u"one"})
         rec.gamma = u"four"
         yield rec.insert(txn)
+
         def _raise():
             rec.gamma = u"five"
         self.assertRaises(ReadOnly, _raise)

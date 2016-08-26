@@ -34,6 +34,7 @@ from .test_xml import (
 
 
 class BaseTest(XMLBaseTest):
+
     def service(self, services=None):
         if services is None:
             services = (self.xmlService(),)
@@ -53,14 +54,12 @@ class BaseTest(XMLBaseTest):
 
         return TestService(u"xyzzy", services)
 
-
     def xmlService(self, xmlData=None, serviceClass=None):
         return xmlService(
             self.mktemp(),
             xmlData=xmlData,
             serviceClass=serviceClass
         )
-
 
 
 class DirectoryServiceTest(
@@ -77,14 +76,12 @@ class DirectoryServiceTest(
         self.assertEquals(repr(service), "<TestService u'xyzzy'>")
 
 
-
 class DirectoryServiceQueryTest(
     unittest.TestCase,
     BaseTest,
     test_xml.DirectoryServiceQueryTestMixIn
 ):
     pass
-
 
 
 class DirectoryServiceImmutableTest(
@@ -95,8 +92,8 @@ class DirectoryServiceImmutableTest(
     directoryRecordClass = DirectoryRecord
 
 
-
 class AggregatedBaseTest(BaseTest):
+
     def service(self):
         class UsersDirectoryService(XMLTestService):
             recordType = ConstantsContainer((XMLTestService.recordType.user,))
@@ -119,13 +116,11 @@ class AggregatedBaseTest(BaseTest):
         )
 
 
-
 class DirectoryServiceAggregatedBaseTest(
     AggregatedBaseTest,
     DirectoryServiceTest,
 ):
     pass
-
 
 
 class DirectoryServiceAggregatedQueryTest(
@@ -136,7 +131,6 @@ class DirectoryServiceAggregatedQueryTest(
     pass
 
 
-
 class DirectoryServiceAggregatedImmutableTest(
     AggregatedBaseTest,
     test_directory.BaseDirectoryServiceImmutableTest,
@@ -144,15 +138,14 @@ class DirectoryServiceAggregatedImmutableTest(
     pass
 
 
-
 class DirectoryServiceTests(BaseTest, unittest.TestCase):
+
     def test_conflictingRecordTypes(self):
         self.assertRaises(
             DirectoryConfigurationError,
             self.service,
             services=(self.xmlService(), self.xmlService(testXMLConfigUsers)),
         )
-
 
 
 testXMLConfigUsers = """<?xml version="1.0" encoding="utf-8"?>

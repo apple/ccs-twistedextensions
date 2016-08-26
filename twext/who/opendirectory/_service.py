@@ -58,12 +58,12 @@ from ._constants import (
 NUM_TRIES = 3
 
 RETRY_CODES = (
-    5200, # Server unreachable
-    5201, # Server not found
-    5202, # Server error
-    5203, # Server timeout
-    5204, # Contact master
-    5205, # Server communication error
+    5200,  # Server unreachable
+    5201,  # Server not found
+    5202,  # Server error
+    5203,  # Server timeout
+    5204,  # Contact master
+    5205,  # Server communication error
 )
 INCORRECT_CREDENTIALS = 5000
 
@@ -110,10 +110,8 @@ def wrapWithAutoreleasePool(f):
     return wrapped
 
 
-
 def deferToThreadWithAutoReleasePool(f, *args, **kwargs):
     return deferToThread(wrapWithAutoreleasePool(f), *args, **kwargs)
-
 
 
 #
@@ -130,7 +128,6 @@ class OpenDirectoryError(DirectoryServiceError):
         self.odError = odError
 
 
-
 class OpenDirectoryConnectionError(DirectoryAvailabilityError):
     """
     OpenDirectory connection error.
@@ -141,12 +138,10 @@ class OpenDirectoryConnectionError(DirectoryAvailabilityError):
         self.odError = odError
 
 
-
 class OpenDirectoryQueryError(OpenDirectoryError):
     """
     OpenDirectory query error.
     """
-
 
 
 class OpenDirectoryDataError(OpenDirectoryError):
@@ -155,12 +150,10 @@ class OpenDirectoryDataError(OpenDirectoryError):
     """
 
 
-
 class UnsupportedRecordTypeError(OpenDirectoryError):
     """
     Record type not supported by service.
     """
-
 
 
 #
@@ -199,7 +192,6 @@ class DirectoryService(BaseDirectoryService):
         self._nodeName = nodeName
         self._suppressSystemRecords = suppressSystemRecords
 
-
         # Create an autorelease pool which will get deleted when someone
         # calls _maybeResetPool( ), but no more often than 60 seconds, hence
         # the "maybe"
@@ -211,7 +203,6 @@ class DirectoryService(BaseDirectoryService):
             DirectoryService._poolDeletionRegistered = True
             reactor.addSystemEventTrigger("after", "shutdown", DirectoryService._deletePool)
 
-
     @classmethod
     def _deletePool(cls):
         """
@@ -219,7 +210,6 @@ class DirectoryService(BaseDirectoryService):
         """
         if hasattr(cls, "_autoReleasePool"):
             del cls._autoReleasePool
-
 
     @classmethod
     def _resetAutoreleasePool(cls):
@@ -230,7 +220,6 @@ class DirectoryService(BaseDirectoryService):
 
         cls._autoReleasePool = NSAutoreleasePool.alloc().init()
         cls._poolCreationTime = time()
-
 
     @classmethod
     def _maybeResetPool(cls):
@@ -243,16 +232,13 @@ class DirectoryService(BaseDirectoryService):
         if (now - poolCreationTime) > 60:
             cls._resetAutoreleasePool()
 
-
     @property
     def nodeName(self):
         return self._nodeName
 
-
     @property
     def realmName(self):
         return u"OpenDirectory Node {self.nodeName!r}".format(self=self)
-
 
     @property
     def node(self):
@@ -262,7 +248,6 @@ class DirectoryService(BaseDirectoryService):
         if not hasattr(self, "_node"):
             self._node = self._connect(self._nodeName)
         return self._node
-
 
     @property
     def localNode(self):
@@ -302,7 +287,6 @@ class DirectoryService(BaseDirectoryService):
 
         return self._localNode
 
-
     @property
     def session(self):
         """
@@ -312,7 +296,6 @@ class DirectoryService(BaseDirectoryService):
             session = ODSession.defaultSession()
             self._session = session
         return self._session
-
 
     def _connect(self, nodeName):
         """
@@ -342,7 +325,6 @@ class DirectoryService(BaseDirectoryService):
             )
 
         return node
-
 
     def _queryStringAndRecordTypeFromMatchExpression(self, expression):
         """
@@ -398,7 +380,6 @@ class DirectoryService(BaseDirectoryService):
             ),
             None,
         )
-
 
     def _queryStringAndRecordTypesFromCompoundExpression(
         self, expression, recordTypes
@@ -463,7 +444,6 @@ class DirectoryService(BaseDirectoryService):
 
         return (u"".join(queryTokens), recordTypes)
 
-
     def _queryStringAndRecordTypesFromExpression(
         self,
         expression,
@@ -497,7 +477,6 @@ class DirectoryService(BaseDirectoryService):
         raise QueryNotSupportedError(
             "Unknown expression type: {0!r}".format(expression)
         )
-
 
     def _queryFromCompoundExpression(
         self, expression, recordTypes=None, local=False, limitResults=None
@@ -544,7 +523,6 @@ class DirectoryService(BaseDirectoryService):
             # None of the requested recordTypes are supported.
             return None
 
-
         if queryString:
             matchType = ODMatchType.compound.value
         else:
@@ -577,12 +555,10 @@ class DirectoryService(BaseDirectoryService):
 
         return query
 
-
     def _getFetchAttributes(self):
         if not hasattr(self, "_fetchAttributes"):
             self._fetchAttributes = [a.value for a in ODAttribute.iterconstants()]
         return self._fetchAttributes
-
 
     def _getSupportedODRecordTypes(self):
         if not hasattr(self, "_supportedODRecordTypes"):
@@ -593,7 +569,6 @@ class DirectoryService(BaseDirectoryService):
                     supportedODRecordTypes.append(odRecordType.value)
             self._supportedODRecordTypes = supportedODRecordTypes
         return self._supportedODRecordTypes
-
 
     def _queryFromMatchExpression(
         self, expression, recordTypes=None, local=False, limitResults=None
@@ -711,7 +686,6 @@ class DirectoryService(BaseDirectoryService):
 
         return query
 
-
     def _isSystemRecord(self, odRecord):
         """
         Examines the OD record to see if it's a Mac OS X system account record.
@@ -773,7 +747,6 @@ class DirectoryService(BaseDirectoryService):
             return True
 
         return False
-
 
     @inlineCallbacks
     def _recordsFromQuery(self, query, timeoutSeconds=None):
@@ -842,13 +815,11 @@ class DirectoryService(BaseDirectoryService):
 
         returnValue(result)
 
-
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
     ):
         DirectoryService._maybeResetPool()
-
 
         if isinstance(expression, MatchExpression):
             self.log.debug("OD call: {}".format(expression))
@@ -872,7 +843,6 @@ class DirectoryService(BaseDirectoryService):
             self, expression,
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
-
 
     @inlineCallbacks
     def recordsFromCompoundExpression(
@@ -921,7 +891,6 @@ class DirectoryService(BaseDirectoryService):
                     results.append(localRecord)
 
         returnValue(results)
-
 
     @inlineCallbacks
     def localRecordsFromCompoundExpression(
@@ -990,7 +959,6 @@ class DirectoryService(BaseDirectoryService):
 
         returnValue(results)
 
-
     def _getUserRecord(self, username):
         """
         Fetch the OD record for a given user.
@@ -1009,7 +977,6 @@ class DirectoryService(BaseDirectoryService):
 
         return record
 
-
     @inlineCallbacks
     def recordWithUID(self, uid, timeoutSeconds=None):
         returnValue(firstResult(
@@ -1018,7 +985,6 @@ class DirectoryService(BaseDirectoryService):
             ))
         ))
 
-
     @inlineCallbacks
     def recordWithGUID(self, guid, timeoutSeconds=None):
         returnValue(firstResult(
@@ -1026,7 +992,6 @@ class DirectoryService(BaseDirectoryService):
                 BaseFieldName.guid, guid, timeoutSeconds=timeoutSeconds
             ))
         ))
-
 
     @inlineCallbacks
     def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
@@ -1049,8 +1014,6 @@ class DirectoryService(BaseDirectoryService):
         returnValue(record)
 
 
-
-
 @implementer(IPlaintextPasswordVerifier, IHTTPDigestVerifier)
 class DirectoryRecord(BaseDirectoryRecord):
     """
@@ -1061,7 +1024,6 @@ class DirectoryRecord(BaseDirectoryRecord):
 
     # GUID is a required attribute for OD records.
     requiredFields = BaseDirectoryRecord.requiredFields + (BaseFieldName.guid,)
-
 
     def __init__(self, service, odRecord):
         details, error = odRecord.recordDetailsForAttributes_error_(None, None)
@@ -1138,10 +1100,8 @@ class DirectoryRecord(BaseDirectoryRecord):
         super(DirectoryRecord, self).__init__(service, fields)
         self._odRecord = odRecord
 
-
     def __hash__(self):
         return hash(self.guid)
-
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -1150,7 +1110,6 @@ class DirectoryRecord(BaseDirectoryRecord):
                 self.guid == other.guid
             )
         return NotImplemented
-
 
     #
     # Verifiers for twext.who.checker stuff.
@@ -1176,7 +1135,6 @@ class DirectoryRecord(BaseDirectoryRecord):
             returnValue(False)
 
         returnValue(result)
-
 
     @inlineCallbacks
     def verifyHTTPDigest(
@@ -1272,8 +1230,6 @@ class DirectoryRecord(BaseDirectoryRecord):
         )
         returnValue(False)
 
-
-
     @inlineCallbacks
     def members(self):
         members = set()
@@ -1283,13 +1239,11 @@ class DirectoryRecord(BaseDirectoryRecord):
             members.add((yield self.service.recordWithUID(uid)))
         returnValue(members)
 
-
     # @inlineCallbacks
     # FIXME: need to implement
     def groups(self):
         groups = set()
         return succeed(groups)
-
 
 
 class NoQOPDigestCredentialFactory(DigestCredentialFactory):

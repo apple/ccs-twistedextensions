@@ -32,14 +32,12 @@ from twext.python.log import Logger
 log = Logger()
 
 
-
 def maxAcceptDoRead(self):
     self.numberAccepts = min(
         self.factory.maxRequests - self.factory.outstandingRequests,
         self.factory.maxAccepts
     )
     self.realDoRead()
-
 
 
 class MaxAcceptSocketFileServer(service.Service):
@@ -57,7 +55,6 @@ class MaxAcceptSocketFileServer(service.Service):
         self.backlog = backlog
         self.myPort = None
 
-
     @inlineCallbacks
     def startService(self):
         from twisted.internet import reactor
@@ -71,7 +68,6 @@ class MaxAcceptSocketFileServer(service.Service):
         self.myPort.doRead = maxAcceptDoRead.__get__(
             self.myPort, self.myPort.__class__
         )
-
 
     @inlineCallbacks
     def stopService(self):

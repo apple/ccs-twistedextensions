@@ -27,6 +27,7 @@ from inspect import getargspec
 
 from twisted.internet.defer import Deferred, succeed
 
+
 class Memoizable(object):
     """
     A class that stores itself in the memo dictionary.
@@ -42,7 +43,6 @@ class Memoizable(object):
         @type memo: C{dict}
         """
         raise NotImplementedError
-
 
 
 def memoizedKey(keyArgument, memoAttribute, deferredResult=True):
@@ -93,7 +93,6 @@ def memoizedKey(keyArgument, memoAttribute, deferredResult=True):
             raise TypeError("could not find key argument %r in %r/%r (%r)" % (
                 argname, args, kw, argpos
             ))
-
 
     def decorate(thunk):
         # cheater move to try to get the right argspec from inlineCallbacks.

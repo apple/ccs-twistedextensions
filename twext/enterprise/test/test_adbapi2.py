@@ -48,21 +48,19 @@ from twext.enterprise.adbapi2 import Commit
 from twext.enterprise.adbapi2 import _HookableOperation
 
 
-
 class TrashCollector(object):
     """
     Test helper for monitoring gc.garbage.
     """
+
     def __init__(self, testCase):
         self.testCase = testCase
         testCase.addCleanup(self.checkTrash)
         self.start()
 
-
     def start(self):
         gc.collect()
         self.garbageStart = len(gc.garbage)
-
 
     def checkTrash(self):
         """
@@ -74,7 +72,6 @@ class TrashCollector(object):
             # Don't clean up twice.
             self.start()
             self.testCase.fail("New garbage: " + repr(newGarbage))
-
 
 
 class AssertResultHelper(object):
@@ -103,7 +100,6 @@ class AssertResultHelper(object):
                     resultList[0].raiseException()
             else:
                 self.assertEqual(resultList, [expected])
-
 
 
 class ConnectionPoolBootTests(TestCase):
@@ -138,7 +134,6 @@ class ConnectionPoolBootTests(TestCase):
         self.assertEquals(justChecking, [None])
         self.assertEquals(threadpool.max, defaultMax)
 
-
     def test_isRunning(self):
         """
         L{ConnectionPool.startService} should set its C{running} attribute to
@@ -151,11 +146,11 @@ class ConnectionPoolBootTests(TestCase):
         self.assertEquals(pool.running, True)
 
 
-
 class ConnectionPoolNameTests(TestCase):
     """
     Tests for L{ConnectionPool}'s C{name} attribute.
     """
+
     def test_default(self):
         """
         If no value is given for the C{name} parameter to L{ConnectionPool}'s
@@ -163,7 +158,6 @@ class ConnectionPoolNameTests(TestCase):
         """
         pool = ConnectionPool(None)
         self.assertIs(None, pool.name)
-
 
     def test_specified(self):
         """
@@ -173,7 +167,6 @@ class ConnectionPoolNameTests(TestCase):
         name = "some test pool"
         pool = ConnectionPool(None, name=name)
         self.assertEqual(name, pool.name)
-
 
 
 class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
@@ -223,7 +216,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         # Sanity check: the commit should have succeeded!
         self.assertEquals(commitResult, [None])
 
-
     def test_stopService(self):
         """
         L{ConnectionPool.stopService} stops all the associated L{ThreadHolder}s
@@ -245,7 +237,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         # Closing fake connections removes them from the list.
         self.assertEquals(len(self.factory.connections), 1)
         self.assertEquals(self.factory.connections[0].closed, True)
-
 
     def test_retryAfterConnectError(self):
         """
@@ -274,7 +265,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.flushHolders()
         self.assertEquals(happened, [[[1, "alpha"]]])
 
-
     def test_shutdownDuringRetry(self):
         """
         If a L{ConnectionPool} is attempting to shut down while it's in the
@@ -294,7 +284,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(holder.started, True)
         self.assertEquals(holder.stopped, True)
 
-
     def test_shutdownDuringAttemptSuccess(self):
         """
         If L{ConnectionPool.stopService} is called while a connection attempt
@@ -311,7 +300,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         [holder] = self.holders
         self.assertEquals(holder.started, True)
         self.assertEquals(holder.stopped, True)
-
 
     def test_shutdownDuringAttemptFailed(self):
         """
@@ -333,7 +321,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(holder.started, True)
         self.assertEquals(holder.stopped, True)
 
-
     def test_stopServicePseudoTxn(self):
         """
         When L{ConnectionPool.stopService} is called with a pending
@@ -350,7 +337,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(holder.stopped, True)
         self.assertEquals(len(self.factory.connections), 1)
         self.assertEquals(self.factory.connections[0].closed, True)
-
 
     def test_stopServiceMidAbort(self):
         """
@@ -373,7 +359,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         # self.assertEquals(abortResult, [None])
         self.assertResultList(stopResult, None)
 
-
     def test_stopServiceWithSpooled(self):
         """
         When L{ConnectionPool.stopService} is called when spooled transactions
@@ -393,7 +378,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.resultOf(self.pool.stopService())
         self.assertEquals(se[0].type, self.translateError(ConnectionError))
         self.assertEquals(ce[0].type, self.translateError(ConnectionError))
-
 
     def test_repoolSpooled(self):
         """
@@ -417,7 +401,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(self.factory.connections[0].closed, True)
         self.assertEquals(self.factory.connections[1].closed, True)
 
-
     def test_connectAfterStop(self):
         """
         Calls to connection() after stopService() result in transactions which
@@ -431,7 +414,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(queryResult), 1)
         self.assertEquals(queryResult[0].type,
                           self.translateError(ConnectionError))
-
 
     def test_connectAfterStartedStopping(self):
         """
@@ -457,7 +439,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             self.translateError(ConnectionError)
         )
 
-
     def test_abortFailsDuringStopService(self):
         """
         L{IAsyncTransaction.abort} might fail, most likely because the
@@ -480,7 +461,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(self.factory.connections[0].closed, True)
         self.assertEquals(self.factory.connections[1].closed, True)
 
-
     def test_partialTxnFailsDuringStopService(self):
         """
         Using the logic in L{ConnectionPool.stopService}, make sure that an
@@ -499,7 +479,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             # Try to send more SQL - must fail
             self.failUnlessRaises(RuntimeError, txn.execSQL, "maybe change something else!")
 
-
     def test_abortRecycledTransaction(self):
         """
         L{ConnectionPool.stopService} will shut down if a recycled transaction
@@ -510,7 +489,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         remember = []
         remember.append(self.createTransaction())
         self.assertEquals(self.resultOf(self.pool.stopService()), [None])
-
 
     def test_abortSpooled(self):
         """
@@ -531,7 +509,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEqual(result, [])
         self.resultOf(spooled.abort())
         self.assertEqual(result[0].type, self.translateError(ConnectionError))
-
 
     def test_waitForAlreadyAbortedTransaction(self):
         """
@@ -564,7 +541,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(abortResult, [None])
         self.assertEquals(stopResult, [None])
 
-
     def test_garbageCollectedTransactionAborts(self):
         """
         When an L{IAsyncTransaction} is garbage collected, it ought to abort
@@ -581,7 +557,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(conns), 1)
         self.assertEquals(conns[0]._rollbackCount, 1)
         self.assertEquals(conns[0]._commitCount, 0)
-
 
     def circularReferenceTest(self, finish, hook):
         """
@@ -608,7 +583,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         carefullyManagedScope()
         tc.checkTrash()
 
-
     def test_noGarbageOnCommit(self):
         """
         Committing a transaction does not cause gc garbage.
@@ -617,7 +591,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             lambda txn: txn.commit(),
             lambda txn, hook: txn.preCommit(hook)
         )
-
 
     def test_noGarbageOnCommitWithAbortHook(self):
         """
@@ -628,7 +601,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             lambda txn, hook: txn.postAbort(hook)
         )
 
-
     def test_noGarbageOnAbort(self):
         """
         Aborting a transaction does not cause gc garbage.
@@ -638,7 +610,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             lambda txn, hook: txn.preCommit(hook)
         )
 
-
     def test_noGarbageOnAbortWithPostCommitHook(self):
         """
         Aborting a transaction does not cause gc garbage.
@@ -647,7 +618,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             lambda txn: txn.abort(),
             lambda txn, hook: txn.postCommit(hook)
         )
-
 
     def test_tooManyConnectionsWhileOthersFinish(self):
         """
@@ -671,13 +641,11 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.holders = oldholders
         self.flushHolders()
 
-
     def setParamstyle(self, paramstyle):
         """
         Change the paramstyle of the transaction under test.
         """
         self.pool.dbtype = self.pool.dbtype.copyreplace(paramstyle=paramstyle)
-
 
     def test_propagateParamstyle(self):
         """
@@ -699,13 +667,11 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         notxn = self.createTransaction()
         self.assertEquals(notxn.dbtype.paramstyle, TEST_PARAMSTYLE)
 
-
     def setDialect(self, dialect):
         """
         Change the dialect of the transaction under test.
         """
         self.pool.dbtype = self.pool.dbtype.copyreplace(dialect=dialect)
-
 
     def test_propagateDialect(self):
         """
@@ -726,7 +692,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.pool.stopService()
         notxn = self.createTransaction()
         self.assertEquals(notxn.dbtype.dialect, TEST_DIALECT)
-
 
     def test_reConnectWhenFirstExecFails(self):
         """
@@ -776,7 +741,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         # errors, we should probably log these messages when they occur.
         self.assertEquals(len(self.flushLoggedErrors(CustomExecuteFailed)), 1)
 
-
     def test_reConnectWhenFirstExecOnExistingConnectionFails(
         self, moreFailureSetup=lambda factory: None
     ):
@@ -812,7 +776,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals("second try!", echo)
         self.assertEquals(len(self.flushLoggedErrors(CustomExecFail)), 1)
 
-
     def test_closeExceptionDoesntHinderReconnection(self):
         """
         In some database bindings, if the server closes the connection,
@@ -839,7 +802,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(errors), 1)
         return t
 
-
     def test_preCommitSuccess(self):
         """
         Callables passed to L{IAsyncTransaction.preCommit} will be invoked upon
@@ -856,7 +818,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         result = self.resultOf(txn.commit())
         self.assertEquals(len(result), 1)
         self.assertEquals(simple.done, True)
-
 
     def test_deferPreCommit(self):
         """
@@ -893,7 +854,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.flushHolders()
         self.assertEquals(len(result), 1)
         self.assertEquals(wait.sqlResult, [[1, "some test sql"]])
-
 
     def test_failPreCommit(self):
         """
@@ -932,7 +892,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         test(failer, ZeroDivisionError)
         test(raiser, EOFError)
 
-
     def test_noOpCommitDoesntHinderReconnection(self):
         """
         Until you've executed a query or performed a statement on an ADBAPI
@@ -958,7 +917,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(self.pool._finishing, [])
         self.assertEquals(len(self.factory.connections), 1)
         self.assertEquals(self.factory.connections[0].closed, False)
-
 
     def test_reConnectWhenSecondExecFailsThenFirstExecFails(self):
         """
@@ -994,7 +952,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(self.factory.connections), 1)
         self.test_reConnectWhenFirstExecFails()
 
-
     def test_disconnectOnFailedRollback(self):
         """
         When C{rollback} fails for any reason on a connection object, then we
@@ -1022,7 +979,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(self.factory.connections[1].closed, False)
         self.assertEquals(len(self.flushLoggedErrors(RollbackFail)), 1)
 
-
     def test_exceptionPropagatesFailedCommit(self):
         """
         A failed C{rollback} is fine (the premature death of the connection
@@ -1043,7 +999,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(self.factory.connections), 2)
         self.assertEquals(self.factory.connections[0].closed, True)
         self.assertEquals(self.factory.connections[1].closed, False)
-
 
     def test_commandBlock(self):
         """
@@ -1069,7 +1024,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(c), 1)
         self.assertEquals(len(d), 1)
         self.assertEquals(len(e), 1)
-
 
     def test_commandBlockWithLatency(self):
         """
@@ -1098,7 +1052,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         self.assertEquals(len(d), 1)
         self.assertEquals(len(e), 1)
 
-
     def test_twoCommandBlocks(self, flush=lambda: None):
         """
         When execution of one command block is complete, it will proceed to the
@@ -1121,14 +1074,12 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             [("a", []), ("b", []), ("c", []), ("d", []), ("e", [])]
         )
 
-
     def test_twoCommandBlocksLatently(self):
         """
         Same as L{test_twoCommandBlocks}, but with slower callbacks.
         """
         self.pauseHolders()
         self.test_twoCommandBlocks(self.flushHolders)
-
 
     def test_commandBlockEndTwice(self):
         """
@@ -1139,7 +1090,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         block = txn.commandBlock()
         block.end()
         self.assertRaises(AlreadyFinishedError, block.end)
-
 
     def test_commandBlockDelaysCommit(self):
         """
@@ -1160,7 +1110,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         block.end()
         self.flushHolders()
         self.assertEquals(commitResult, [None])
-
 
     def test_commandBlockDoesntDelayAbort(self):
         """
@@ -1187,7 +1136,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         block.end()
         block2.end()
 
-
     def test_endedBlockDoesntExecuteMoreSQL(self):
         """
         Attempting to execute SQL on a L{CommandBlock} which has had C{end}
@@ -1201,7 +1149,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
             self.factory.connections[0].cursors[0].allExecutions, []
         )
 
-
     def test_commandBlockAfterCommitRaises(self):
         """
         Once an L{IAsyncTransaction} has been committed, L{commandBlock} raises
@@ -1211,7 +1158,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         txn.commit()
         self.assertRaises(AlreadyFinishedError, txn.commandBlock)
 
-
     def test_commandBlockAfterAbortRaises(self):
         """
         Once an L{IAsyncTransaction} has been committed, L{commandBlock} raises
@@ -1220,7 +1166,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         txn = self.createTransaction()
         self.resultOf(txn.abort())
         self.assertRaises(AlreadyFinishedError, txn.commandBlock)
-
 
     def test_raiseOnZeroRowCount(self):
         """
@@ -1235,7 +1180,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         )[0]
         self.assertRaises(ZeroDivisionError, f.raiseException)
         txn.commit()
-
 
     def test_raiseOnZeroRowCountWithUnreliableRowCount(self):
         """
@@ -1253,7 +1197,6 @@ class ConnectionPoolTests(ConnectionPoolHelper, TestCase, AssertResultHelper):
         )
         [[[_ignore_counter, echo]]] = r
         self.assertEquals(echo, "some-rows")
-
 
 
 class IOPump(object):
@@ -1275,7 +1218,6 @@ class IOPump(object):
         self.c2s = [self.clientTransport, self.server]
         self.s2c = [self.serverTransport, self.client]
 
-
     def moveData(self, (outTransport, inProtocol)):
         """
         Move data from a L{StringTransport} to an L{IProtocol}.
@@ -1291,7 +1233,6 @@ class IOPump(object):
         else:
             return False
 
-
     def pump(self):
         """
         Deliver all input from the client to the server, then from the server
@@ -1300,7 +1241,6 @@ class IOPump(object):
         a = self.moveData(self.c2s)
         b = self.moveData(self.s2c)
         return a or b
-
 
     def flush(self, maxTurns=100):
         """
@@ -1311,7 +1251,6 @@ class IOPump(object):
             turns += 1
             if turns > maxTurns:
                 raise RuntimeError("Ran too long!")
-
 
 
 class NetworkedPoolHelper(ConnectionPoolHelper):
@@ -1335,7 +1274,6 @@ class NetworkedPoolHelper(ConnectionPoolHelper):
             ConnectionPoolConnection(self.pool)
         )
 
-
     def flushHolders(self):
         """
         In addition to flushing the L{ThreadHolder} stubs, also flush any
@@ -1345,12 +1283,10 @@ class NetworkedPoolHelper(ConnectionPoolHelper):
         super(NetworkedPoolHelper, self).flushHolders()
         self.pump.flush()
 
-
     def createTransaction(self):
         txn = self.pump.client.newTransaction()
         self.pump.flush()
         return txn
-
 
     def translateError(self, err):
         """
@@ -1364,12 +1300,10 @@ class NetworkedPoolHelper(ConnectionPoolHelper):
         self.flushLoggedErrors(err)
         return FailsafeException
 
-
     def resultOf(self, it):
         result = resultOf(it)
         self.pump.flush()
         return result
-
 
 
 class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
@@ -1385,14 +1319,12 @@ class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
         super(NetworkedConnectionPoolTests, self).setParamstyle(paramstyle)
         self.pump.client.dbtype = self.pump.client.dbtype.copyreplace(paramstyle=paramstyle)
 
-
     def setDialect(self, dialect):
         """
         Change the dialect on both the pool and the client.
         """
         super(NetworkedConnectionPoolTests, self).setDialect(dialect)
         self.pump.client.dbtype = self.pump.client.dbtype.copyreplace(dialect=dialect)
-
 
     def test_newTransaction(self):
         """
@@ -1403,7 +1335,6 @@ class NetworkedConnectionPoolTests(NetworkedPoolHelper, ConnectionPoolTests):
         verifyObject(IAsyncTransaction, txn)
         self.pump.flush()
         self.assertEquals(len(self.factory.connections), 1)
-
 
 
 class HookableOperationTests(TestCase):

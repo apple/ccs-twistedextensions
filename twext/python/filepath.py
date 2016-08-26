@@ -34,7 +34,6 @@ from stat import S_ISDIR
 from twisted.python.filepath import FilePath as _FilePath
 
 
-
 class CachingFilePath(_FilePath, object):
     """
     A descendent of L{_FilePath} which implements a more aggressive caching
@@ -50,7 +49,6 @@ class CachingFilePath(_FilePath, object):
         super(CachingFilePath, self).__init__(path, alwaysCreate)
         self.existsCached = None
         self.isDirCached = None
-
 
     @property
     def siblingExtensionSearch(self):
@@ -72,7 +70,6 @@ class CachingFilePath(_FilePath, object):
             self, self.__class__
         )
 
-
     def changed(self):
         """
         This path may have changed in the filesystem, so forget all cached
@@ -81,7 +78,6 @@ class CachingFilePath(_FilePath, object):
         self.statinfo = None
         self.existsCached = None
         self.isDirCached = None
-
 
     def _retryListdir(self, pathname):
         """
@@ -102,14 +98,12 @@ class CachingFilePath(_FilePath, object):
 
         raise AssertionError("unreachable code.")
 
-
     def listdir(self):
         """
         List the directory which C{self.path} points to, compensating for
         EINVAL from C{os.listdir}.
         """
         return self._retryListdir(self.path)
-
 
     def restat(self, reraise=True):
         """
@@ -125,7 +119,6 @@ class CachingFilePath(_FilePath, object):
                 self.existsCached = False
                 self.isDirCached = None
 
-
     def moveTo(self, destination, followLinks=True):
         """
         Override L{_FilePath.moveTo}, updating extended cache information if
@@ -140,7 +133,6 @@ class CachingFilePath(_FilePath, object):
 
         return result
 
-
     def remove(self):
         """
         Override L{_FilePath.remove}, updating extended cache information if
@@ -150,7 +142,6 @@ class CachingFilePath(_FilePath, object):
             return super(CachingFilePath, self).remove()
         finally:
             self.changed()
-
 
 
 CachingFilePath.clonePath = CachingFilePath

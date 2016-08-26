@@ -21,7 +21,6 @@ from twisted.trial.unittest import TestCase
 from twext.enterprise.util import parseSQLTimestamp
 
 
-
 class TimestampTests(TestCase):
     """
     Tests for date-related functions.

@@ -21,6 +21,7 @@ from twisted.logger import Logger as _Logger, LogLevel, LogPublisher, \
 from twisted.python import log
 from twisted import logger
 
+
 class Logger(_Logger):
     """
     Logging object.
@@ -49,7 +50,6 @@ class Logger(_Logger):
         cls.filterPublisher = LogPublisher(cls.filterObserver)
         return cls.filterPublisher
 
-
     @classmethod
     def addFilteredObserver(cls, observer):
         log.addObserver(FilteringLogObserver(
@@ -57,12 +57,10 @@ class Logger(_Logger):
             [cls.filterPredicate]
         ))
 
-
     @classmethod
     def beginLoggingTo(cls, observers, redirectStandardIO=True):
         if cls.logBeginner:
             cls.logBeginner.beginLoggingTo(observers, redirectStandardIO=redirectStandardIO)
-
 
     def emit(self, level, format=None, **kwargs):
         """
@@ -84,7 +82,6 @@ class Logger(_Logger):
 
         super(Logger, self).emit(level, format=format, **kwargs)
 
-
     def levels(self):
         """
         Get the L{LogLevelFilterPredicate} associated with this logger.
@@ -92,12 +89,11 @@ class Logger(_Logger):
         return self.filterPredicate
 
 
-
 # Always replace Twisted's legacy log beginner with one that does LogLevel filtering
 class FilteringLogBeginnerWrapper(object):
+
     def __init__(self, beginner):
         self.beginner = beginner
-
 
     def beginLoggingTo(
         self, observers, discardBuffer=False, redirectStandardIO=True

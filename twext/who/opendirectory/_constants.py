@@ -54,7 +54,6 @@ class FieldName(Names):
     nestedGroupsUIDs.multiValue = True
 
 
-
 #
 # OD constants
 #
@@ -62,7 +61,6 @@ class FieldName(Names):
 class ODSearchPath(Values):
     local = ValueConstant(u"/Local/Default")
     search = ValueConstant(u"/Search")
-
 
 
 class ODRecordType(Values):
@@ -127,7 +125,6 @@ class ODRecordType(Values):
     # userAlias = ValueConstant(u"dsRecTypeStandard:UserAliases")
     # webServer = ValueConstant(u"dsRecTypeStandard:WebServer")
 
-
     @classmethod
     def fromRecordType(cls, recordType):
         if not hasattr(cls, "_recordTypeByRecordType"):
@@ -138,7 +135,6 @@ class ODRecordType(Values):
             ))
 
         return cls._recordTypeByRecordType.get(recordType, None)
-
 
 
 class ODAttribute(Values):
@@ -390,7 +386,6 @@ class ODAttribute(Values):
     # LSPSearchPath = ValueConstant(u"dsAttrTypeStandard:LSPSearchPath")
     # CSPSearchPath = ValueConstant(u"dsAttrTypeStandard:CSPSearchPath")
 
-
     @classmethod
     def fromFieldName(cls, fieldName):
         if not hasattr(cls, "_attributesByFieldName"):
@@ -401,7 +396,6 @@ class ODAttribute(Values):
             ))
 
         return cls._attributesByFieldName.get(fieldName, None)
-
 
 
 class ODMatchType(Values):
@@ -442,7 +436,6 @@ class ODMatchType(Values):
 
     compound = ValueConstant(0x210B)
 
-
     @classmethod
     def fromMatchType(cls, matchType):
         if not hasattr(cls, "_matchTypeByMatchType"):
@@ -453,7 +446,6 @@ class ODMatchType(Values):
             ))
 
         return cls._matchTypeByMatchType.get(matchType, None)
-
 
 
 class ODAuthMethod(Values):

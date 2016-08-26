@@ -93,6 +93,7 @@ TEST_RECORDTYPE_SCHEMAS_OTHER = MappingProxyType({
 
 })
 
+
 class DirectoryServiceConcurrencyTest(unittest.TestCase):
     """
     Tests for directory records.
@@ -137,7 +138,6 @@ class DirectoryServiceConcurrencyTest(unittest.TestCase):
         yield dl
 
         returnValue((time.time() - start, ctr[0],))
-
 
     @inlineCallbacks
     def test_ldap_multi_service(self):
@@ -184,7 +184,6 @@ class DirectoryServiceConcurrencyTest(unittest.TestCase):
                     recordTypeSchemas=details["rschema"],
                     threadPoolMax=20,
                 )
-
 
         duration, count = yield self._runTest(num_threads, multiple_services, _serviceMaker, details, num_requests, do_auth)
 

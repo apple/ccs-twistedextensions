@@ -38,10 +38,8 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
     def setUp(self):
         self.service = DirectoryService()
 
-
     def tearDown(self):
         self.service._deletePool()
-
 
     def test_queryFromMatchExpression_recordType(self):
         """
@@ -59,7 +57,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         query
 
     test_queryFromMatchExpression_recordType.todo = ""
-
 
     def test_queryStringFromMatchExpression_matchTypes(self):
         """
@@ -99,7 +96,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 )
             )
 
-
     def test_queryStringFromMatchExpression_match_not(self):
         """
         Match expression with the C{NOT} flag adds the C{!} operator.
@@ -126,7 +122,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 attribute=ODAttribute.shortName.value,
             )
         )
-
 
     def test_queryStringFromMatchExpression_match_caseInsensitive(self):
         """
@@ -160,7 +155,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
         "unimplemented"
     )
 
-
     def test_queryStringFromMatchExpression_match_quoting(self):
         """
         Special characters are quoted properly.
@@ -189,7 +183,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 )
             )
         )
-
 
     def test_queryStringFromExpression(self):
         # CompoundExpressions
@@ -280,7 +273,6 @@ class OpenDirectoryServiceTestCase(unittest.TestCase):
                 u"(dsAttrTypeStandard:RealName=c))"
             )
         )
-
 
     def test_queryStringFromExpression_recordType(self):
         """

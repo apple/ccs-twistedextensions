@@ -19,6 +19,7 @@ from twext.python.log import Logger
 from twisted.logger import LogLevel, LogPublisher, textFileLogObserver
 from twisted.trial import unittest
 
+
 class LogPublisherTests(unittest.TestCase):
     """
     Tests for L{Logger}.
@@ -58,7 +59,6 @@ class LogPublisherTests(unittest.TestCase):
         self.assertEqual(observed[index]["log_format"], u"{msg}")
         self.assertEqual(observed[index]["msg"], u"test {foo}")
         self.assertEqual(sio.getvalue().splitlines()[index].split("#info] ")[1], "test {foo}")
-
 
     def test_utf8(self):
         """

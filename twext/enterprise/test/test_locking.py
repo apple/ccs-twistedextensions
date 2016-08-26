@@ -31,7 +31,6 @@ create table NAMED_LOCK (LOCK_NAME varchar(255) unique primary key);
 """
 
 
-
 class TestLocking(TestCase):
     """
     Test locking and unlocking a database row.
@@ -43,7 +42,6 @@ class TestLocking(TestCase):
         """
         self.pool = buildConnectionPool(self, schemaText)
 
-
     @inlineCallbacks
     def test_acquire(self):
         """
@@ -53,7 +51,6 @@ class TestLocking(TestCase):
         yield NamedLock.acquire(txn, u"a test lock")
         rows = yield Select(From=LockSchema.NAMED_LOCK).on(txn)
         self.assertEquals(rows, [tuple([u"a test lock"])])
-
 
     @inlineCallbacks
     def test_release(self):
@@ -66,7 +63,6 @@ class TestLocking(TestCase):
         rows = yield Select(From=LockSchema.NAMED_LOCK).on(txn)
         self.assertEquals(rows, [])
 
-
     @inlineCallbacks
     def test_autoRelease(self):
         """
@@ -78,7 +74,6 @@ class TestLocking(TestCase):
         txn2 = self.pool.connection()
         rows = yield Select(From=LockSchema.NAMED_LOCK).on(txn2)
         self.assertEquals(rows, [])
-
 
     @inlineCallbacks
     def test_timeout(self):

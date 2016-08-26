@@ -29,6 +29,7 @@ _STATE_RUNNING = 'RUNNING'
 _STATE_STOPPING = 'STOPPING'
 _STATE_STOPPED = 'STOPPED'
 
+
 class ThreadHolder(object):
     """
     A queue which will hold a reactor threadpool thread open until all of the
@@ -42,7 +43,6 @@ class ThreadHolder(object):
         self._q = None
         self._retryCallback = None
 
-
     def _run(self):
         """
         Worker function which runs in a non-reactor thread.
@@ -50,7 +50,6 @@ class ThreadHolder(object):
         self._state = _STATE_RUNNING
         while self._qpull():
             pass
-
 
     def _qpull(self):
         """
@@ -71,19 +70,18 @@ class ThreadHolder(object):
         self._oneWorkUnit(*work)
         return True
 
-
     def _oneWorkUnit(self, deferred, instruction):
         try:
             result = instruction()
         except:
             etype, evalue, etb = sys.exc_info()
+
             def relayFailure():
                 f = Failure(evalue, etype, etb)
                 deferred.errback(f)
             self._reactor.callFromThread(relayFailure)
         else:
             self._reactor.callFromThread(deferred.callback, result)
-
 
     def submit(self, work):
         """
@@ -99,7 +97,6 @@ class ThreadHolder(object):
         self._q.put((d, work))
         return d
 
-
     def start(self):
         """
         Start this thing, if it's stopped.
@@ -111,7 +108,6 @@ class ThreadHolder(object):
         self._reactor.callInThread(self._run)
         self.retry()
 
-
     def retry(self):
         if self._state == _STATE_STARTING:
             if self._retryCallback is not None:
@@ -119,7 +115,6 @@ class ThreadHolder(object):
             self._retryCallback = self._reactor.callLater(0.1, self.retry)
         else:
             self._retryCallback = None
-
 
     def stop(self):
         """

@@ -32,10 +32,8 @@ from . import test_directory
 from .test_directory import RecordStorage
 
 
-
 class TestDirectoryService(DirectoryService):
     recordType = ConstantsContainer((BaseRecordType,))
-
 
 
 def noLoadDirectoryService(superClass):
@@ -52,6 +50,7 @@ def noLoadDirectoryService(superClass):
     assert issubclass(superClass, DirectoryService)
 
     class NoLoadDirectoryService(superClass):
+
         def loadRecords(self):
             pass
 
@@ -70,7 +69,6 @@ def noLoadDirectoryService(superClass):
     return NoLoadDirectoryService
 
 
-
 class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
     """
     Tests for indexed directory services.
@@ -86,7 +84,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         service.records = records
 
         return service
-
 
     def test_indexRecords_positive(self):
         """
@@ -115,7 +112,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                     indexedRecords = index[fieldName][value]
                     self.assertIn(record, indexedRecords)
 
-
     def test_indexRecords_negative(self):
         """
         L{DirectoryService.indexRecords} does not have extra data in the index.
@@ -136,7 +132,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
 
                     self.assertIn(fieldValue, values)
 
-
     def test_flush(self):
         """
         C{flush} empties the index.
@@ -146,7 +141,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         self.assertFalse(emptyIndex(service.index))  # Test the test
         service.flush()
         self.assertTrue(emptyIndex(service.index))
-
 
     @inlineCallbacks
     def _test_indexedRecordsFromMatchExpression(
@@ -168,7 +162,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                 set(uids)
             )
 
-
     def test_indexedRecordsFromMatchExpression_startsWith(self):
         """
         L{DirectoryService.indexedRecordsFromMatchExpression} with a startsWith
@@ -182,7 +175,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             ),
             MatchType.startsWith
         )
-
 
     def test_indexedRecordsFromMatchExpression_contains(self):
         """
@@ -198,7 +190,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             MatchType.contains
         )
 
-
     def test_indexedRecordsFromMatchExpression_equals(self):
         """
         L{DirectoryService.indexedRecordsFromMatchExpression} with an equals
@@ -211,7 +202,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             ),
             MatchType.equals
         )
-
 
     def test_indexedRecordsFromMatchExpression_notIndexed(self):
         """
@@ -227,7 +217,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         )
         return self.assertFailure(result, TypeError)
 
-
     def test_indexedRecordsFromMatchExpression_notMatchExpression(self):
         """
         L{DirectoryService.indexedRecordsFromMatchExpression} with a
@@ -240,7 +229,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             "Not a match type we know about"
         )
         return self.assertFailure(result, NotImplementedError)
-
 
     def test_indexedRecordsFromMatchExpression_recordTypes(self):
         """
@@ -255,7 +243,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             MatchType.startsWith,
             recordTypes=(BaseRecordType.group,)
         )
-
 
     @inlineCallbacks
     def _test_unIndexedRecordsFromMatchExpression(
@@ -277,7 +264,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
                 set(uids)
             )
 
-
     def test_unIndexedRecordsFromMatchExpression_startsWith(self):
         """
         L{DirectoryService.unIndexedRecordsFromMatchExpression} with a
@@ -291,7 +277,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             ),
             MatchType.startsWith
         )
-
 
     def test_unIndexedRecordsFromMatchExpression_contains(self):
         """
@@ -307,7 +292,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             MatchType.contains
         )
 
-
     def test_unIndexedRecordsFromMatchExpression_equals(self):
         """
         L{DirectoryService.unIndexedRecordsFromMatchExpression} with an equals
@@ -320,7 +304,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             ),
             MatchType.equals
         )
-
 
     def test_unIndexedRecordsFromMatchExpression_indexed(self):
         """
@@ -335,7 +318,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             fieldName=BaseFieldName.shortNames
         )
 
-
     def test_unIndexedRecordsFromMatchExpression_notMatchExpression(self):
         """
         L{DirectoryService.unIndexedRecordsFromMatchExpression} with a
@@ -348,7 +330,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
             "Not a match type we know about"
         )
         return self.assertFailure(result, NotImplementedError)
-
 
     @inlineCallbacks
     def test_unIndexedRecordsFromMatchExpression_limitResults(self):
@@ -377,13 +358,11 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         )
         self.assertEquals(len(records), 2)
 
-
     @inlineCallbacks
     def _test_recordsFromNonCompoundExpression(self, expression):
         service = self.noLoadServicePopulated()
         yield service.recordsFromNonCompoundExpression(expression)
         returnValue(service)
-
 
     @inlineCallbacks
     def test_recordsFromNonCompoundExpression_match_indexed(self):
@@ -398,7 +377,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         self.assertTrue(getattr(service, "_calledIndexed", False))
         self.assertFalse(getattr(service, "_calledUnindexed", False))
 
-
     @inlineCallbacks
     def test_recordsFromNonCompoundExpression_match_unindexed(self):
         """
@@ -412,7 +390,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         self.assertFalse(getattr(service, "_calledIndexed", False))
         self.assertTrue(getattr(service, "_calledUnindexed", False))
 
-
     def test_recordsFromNonCompoundExpression_unknown(self):
         """
         L{DirectoryService.recordsFromNonCompoundExpression} with a
@@ -423,7 +400,6 @@ class BaseDirectoryServiceTest(test_directory.BaseDirectoryServiceTest):
         return self.assertFailure(result, QueryNotSupportedError)
 
 
-
 class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
     """
     Tests for L{DirectoryService}.
@@ -432,14 +408,12 @@ class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
     serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
-
     def test_init_noIndex(self):
         """
         Index starts as C{None}.
         """
         service = self.service()
         self.assertTrue(emptyIndex(service._index))
-
 
     def test_index_get(self):
         """
@@ -455,7 +429,6 @@ class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
         service.index
         self.assertTrue(service.loaded)
 
-
     def test_loadRecords(self):
         """
         L{DirectoryService.loadRecords} raises C{NotImplementedError}.
@@ -463,12 +436,10 @@ class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
         service = self.service()
         self.assertRaises(NotImplementedError, service.loadRecords)
 
-
     def _noop(self):
         """
         Does nothing.
         """
-
 
     test_recordWithUID = _noop
     test_recordWithGUID = _noop
@@ -477,14 +448,12 @@ class DirectoryServiceTest(unittest.TestCase, BaseDirectoryServiceTest):
     test_recordsWithEmailAddress = _noop
 
 
-
 class BaseDirectoryServiceImmutableTest(
     test_directory.BaseDirectoryServiceImmutableTest
 ):
     """
     Tests for immutable indexed directory services.
     """
-
 
 
 class DirectoryServiceImmutableTest(
@@ -498,12 +467,10 @@ class DirectoryServiceImmutableTest(
     directoryRecordClass = DirectoryRecord
 
 
-
 class BaseDirectoryRecordTest(test_directory.BaseDirectoryRecordTest):
     """
     Tests for indexed directory records.
     """
-
 
 
 class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
@@ -514,16 +481,13 @@ class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
     serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
-
     def _noop(self):
         """
         Does nothing.
         """
 
-
     test_members_group = _noop
     test_memberships = _noop
-
 
 
 def emptyIndex(index):

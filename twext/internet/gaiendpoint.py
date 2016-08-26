@@ -26,12 +26,12 @@ from twisted.internet.defer import Deferred
 from twisted.internet.threads import deferToThread
 from twisted.internet.task import LoopingCall
 
+
 class MultiFailure(Exception):
 
     def __init__(self, failures):
         super(MultiFailure, self).__init__("Failure with multiple causes.")
         self.failures = failures
-
 
 
 class GAIEndpoint(object):
@@ -81,17 +81,16 @@ class GAIEndpoint(object):
         else:
             return SSL4ClientEndpoint(reactor, host, port, contextFactory)
 
-
     def __init__(self, reactor, host, port, contextFactory=None):
         self.reactor = reactor
         self.host = host
         self.port = port
         self.contextFactory = contextFactory
 
-
     def connect(self, factory):
         dgai = self.deferToThread(getaddrinfo, self.host, self.port,
                                   AF_UNSPEC, SOCK_STREAM)
+
         @dgai.addCallback
         def gaiToEndpoints(gairesult):
             for family, _ignore_socktype, _ignore_proto, _ignore_canonname, sockaddr in gairesult:
@@ -106,9 +105,11 @@ class GAIEndpoint(object):
             errors = []
             succeeded = []
             actuallyDidIt = Deferred()
+
             def removeMe(result, attempt):
                 outstanding.remove(attempt)
                 return result
+
             def connectingDone(result):
                 if lc.running:
                     lc.stop()
@@ -117,16 +118,19 @@ class GAIEndpoint(object):
                     o.cancel()
                 actuallyDidIt.callback(result)
                 return None
+
             def lastChance():
                 if doneTrying and not outstanding and not succeeded:
                     # We've issued our last attempts. There are no remaining
                     # outstanding attempts; they've all failed. We haven't
                     # succeeded.  Time... to die.
                     actuallyDidIt.errback(MultiFailure(errors))
+
             def connectingFailed(why):
                 errors.append(why)
                 lastChance()
                 return None
+
             def nextOne():
                 try:
                     endpoint = endpoints.next()
@@ -151,7 +155,6 @@ class GAIEndpoint(object):
         return dgai
 
 
-
 if __name__ == '__main__':
     from twisted.internet import reactor
     import sys
@@ -166,6 +169,7 @@ if __name__ == '__main__':
     from twisted.internet.protocol import Factory, Protocol
 
     class HelloGoobye(Protocol, object):
+
         def connectionMade(self):
             print('Hello!')
             self.transport.loseConnection()
@@ -173,12 +177,11 @@ if __name__ == '__main__':
         def connectionLost(self, reason):
             print('Goodbye')
 
-
     class MyFactory(Factory, object):
+
         def buildProtocol(self, addr):
             print('Building protocol for:', addr)
             return HelloGoobye()
-
 
     def bye(what):
         print('bye', what)

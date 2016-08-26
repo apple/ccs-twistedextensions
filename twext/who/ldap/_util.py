@@ -23,7 +23,6 @@ from ..expression import (
 from ._constants import LDAPOperand, LDAPMatchType, LDAPMatchFlags
 
 
-
 def ldapQueryStringFromQueryStrings(operand, queryStrings):
     """
     Combines LDAP query strings into a single query string.
@@ -47,7 +46,6 @@ def ldapQueryStringFromQueryStrings(operand, queryStrings):
 
     else:
         return u""
-
 
 
 def ldapQueryStringFromMatchExpression(
@@ -154,7 +152,6 @@ def ldapQueryStringFromMatchExpression(
     raise AssertionError("We shouldn't be here.")
 
 
-
 def ldapQueryStringFromExistsExpression(
     expression, fieldNameToAttributesMap, recordTypeSchemas
 ):
@@ -196,7 +193,6 @@ def ldapQueryStringFromExistsExpression(
 
     operand = LDAPOperand.OR.value
     return ldapQueryStringFromQueryStrings(operand, queryStrings)
-
 
 
 def ldapQueryStringFromBooleanExpression(
@@ -247,10 +243,8 @@ def ldapQueryStringFromBooleanExpression(
             )
         )
 
-
     operand = LDAPOperand.OR.value
     return ldapQueryStringFromQueryStrings(operand, queryStrings)
-
 
 
 def ldapQueryStringFromCompoundExpression(
@@ -292,7 +286,6 @@ def ldapQueryStringFromCompoundExpression(
     ]
 
     return ldapQueryStringFromQueryStrings(operand, queryStrings)
-
 
 
 def ldapQueryStringFromExpression(

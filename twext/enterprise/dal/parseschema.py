@@ -51,7 +51,6 @@ from twext.enterprise.dal.syntax import (
 )
 
 
-
 def _fixKeywords():
     """
     Work around bugs in SQLParse, adding SEQUENCE as a keyword (since it is
@@ -64,7 +63,6 @@ def _fixKeywords():
         del keywords.KEYWORDS[columnNameKeyword]
 
 _fixKeywords()
-
 
 
 def tableFromCreateStatement(schema, stmt):
@@ -90,7 +88,6 @@ def tableFromCreateStatement(schema, stmt):
     return self
 
 
-
 def schemaFromPath(path):
     """
     Get a L{Schema}.
@@ -106,7 +103,6 @@ def schemaFromPath(path):
     return schema
 
 
-
 def schemaFromString(data):
     """
     Get a L{Schema}.
@@ -119,7 +115,6 @@ def schemaFromString(data):
     schema = Schema()
     addSQLToSchema(schema, data)
     return schema
-
 
 
 def addSQLToSchema(schema, schemaData):
@@ -262,7 +257,6 @@ def addSQLToSchema(schema, schemaData):
     return schema
 
 
-
 def parseFunction(schema, stmt):
     """
     A FUNCTION may or may not have an argument list, so we need to account for
@@ -281,7 +275,6 @@ def parseFunction(schema, stmt):
     )
 
 
-
 class _ColumnParser(object):
     """
     Stateful parser for the things between commas.
@@ -297,13 +290,11 @@ class _ColumnParser(object):
         self.iter = parenIter
         self.table = table
 
-
     def __iter__(self):
         """
         This object is an iterator; return itself.
         """
         return self
-
 
     def next(self):
         """
@@ -321,14 +312,12 @@ class _ColumnParser(object):
             return self.next()
         return result
 
-
     def pushback(self, value):
         """
         Push the value back onto this iterator so it will be returned by the
         next call to C{next}.
         """
         self.iter = chain(iter((value,)), self.iter)
-
 
     def parse(self):
         """
@@ -337,7 +326,6 @@ class _ColumnParser(object):
         expect(self.iter, ttype=Punctuation, value=u"(")
         while self.nextColumn():
             pass
-
 
     def nextColumn(self):
         """
@@ -350,7 +338,6 @@ class _ColumnParser(object):
             return self.parseColumn(maybeIdent.get_name())
         else:
             return self.parseConstraint(maybeIdent)
-
 
     def readExpression(self, parens):
         """
@@ -386,7 +373,6 @@ class _ColumnParser(object):
         expect(parens, ttype=Punctuation, value=")")
         return result
 
-
     def nameOrValue(self, tok):
         """
         Inspecting a token present in an expression (for a CHECK constraint on
@@ -397,7 +383,6 @@ class _ColumnParser(object):
             return ColumnSyntax(self.table.columnNamed(tok.get_name()))
         elif tok.ttype == Number.Integer:
             return Constant(int(tok.value))
-
 
     def parseConstraint(self, constraintType):
         """
@@ -426,7 +411,6 @@ class _ColumnParser(object):
 
         return self.checkEnd(self.next())
 
-
     def checkEnd(self, val):
         """
         After a column or constraint, check the end.
@@ -437,7 +421,6 @@ class _ColumnParser(object):
             return False
         else:
             raise ViolatedExpectation(", or )", val)
-
 
     def parseColumn(self, name):
         """
@@ -630,7 +613,6 @@ class _ColumnParser(object):
                     return 0
 
 
-
 class ViolatedExpectation(Exception):
     """
     An expectation about the structure of the SQL syntax was violated.
@@ -642,7 +624,6 @@ class ViolatedExpectation(Exception):
         super(ViolatedExpectation, self).__init__(
             "Expected %r got %s" % (expected, got)
         )
-
 
 
 def nameOrIdentifier(token):
@@ -664,7 +645,6 @@ def nameOrIdentifier(token):
         raise ViolatedExpectation("identifier or name", repr(token))
 
 
-
 def namesInParens(parens):
     parens = iterSignificant(parens)
     expect(parens, ttype=Punctuation, value="(")
@@ -682,7 +662,6 @@ def namesInParens(parens):
 
     expect(parens, ttype=Punctuation, value=")")
     return idnames
-
 
 
 def expectSingle(nextval, ttype=None, value=None, cls=None):
@@ -715,7 +694,6 @@ def expectSingle(nextval, ttype=None, value=None, cls=None):
     return nextval
 
 
-
 def expect(iterator, **kw):
     """
     Retrieve a value from an iterator and check its properties.  Same signature
@@ -727,7 +705,6 @@ def expect(iterator, **kw):
     return expectSingle(nextval, **kw)
 
 
-
 def significant(token):
     """
     Determine if the token is "significant", i.e. that it is not a comment and
@@ -735,7 +712,6 @@ def significant(token):
     """
     # comment has None is_whitespace() result.  intentional?
     return (not isinstance(token, Comment) and not token.is_whitespace())
-
 
 
 def iterSignificant(tokenList):
@@ -748,7 +724,6 @@ def iterSignificant(tokenList):
             yield token
 
 
-
 def _destringify(strval):
     """
     Convert a single-quoted SQL string into its actual repsresented value.
@@ -756,7 +731,6 @@ def _destringify(strval):
     here.  The only quoting syntax respected is "''".)
     """
     return strval[1:-1].replace("''", "'")
-
 
 
 def splitSQLString(sqlString):

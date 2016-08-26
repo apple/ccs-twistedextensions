@@ -46,7 +46,6 @@ from .expression import CompoundExpression, Operand, MatchExpression
 from .util import uniqueResult, describe, ConstantsContainer
 
 
-
 @implementer(IDirectoryService)
 class DirectoryService(object):
     """
@@ -102,7 +101,6 @@ class DirectoryService(object):
         FieldName.emailAddresses: lambda e: e.lower(),
     }
 
-
     def __init__(self, realmName):
         """
         @param realmName: a realm name
@@ -110,17 +108,14 @@ class DirectoryService(object):
         """
         self.realmName = realmName
 
-
     def __repr__(self):
         return (
             "<{self.__class__.__name__} {self.realmName!r}>"
             .format(self=self)
         )
 
-
     def recordTypes(self):
         return self.recordType.iterconstants()
-
 
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None,
@@ -169,7 +164,6 @@ class DirectoryService(object):
         return fail(QueryNotSupportedError(
             "Unknown expression: {0}".format(expression)
         ))
-
 
     @inlineCallbacks
     def recordsFromCompoundExpression(
@@ -247,7 +241,6 @@ class DirectoryService(object):
 
         returnValue(results)
 
-
     def recordsFromExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
@@ -268,7 +261,6 @@ class DirectoryService(object):
                 limitResults=limitResults, timeoutSeconds=timeoutSeconds
             )
 
-
     def recordsWithFieldValue(
         self, fieldName, value, recordTypes=None,
         limitResults=None, timeoutSeconds=None
@@ -280,7 +272,6 @@ class DirectoryService(object):
             timeoutSeconds=timeoutSeconds
         )
 
-
     @inlineCallbacks
     def recordWithUID(self, uid, timeoutSeconds=None):
         returnValue(uniqueResult(
@@ -288,7 +279,6 @@ class DirectoryService(object):
                 FieldName.uid, uid, timeoutSeconds=timeoutSeconds
             ))
         ))
-
 
     @inlineCallbacks
     def recordWithGUID(self, guid, timeoutSeconds=None):
@@ -298,7 +288,6 @@ class DirectoryService(object):
             ))
         ))
 
-
     def recordsWithRecordType(
         self, recordType, limitResults=None, timeoutSeconds=None
     ):
@@ -306,7 +295,6 @@ class DirectoryService(object):
             FieldName.recordType, recordType,
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
-
 
     @inlineCallbacks
     def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
@@ -324,7 +312,6 @@ class DirectoryService(object):
             )
         )
 
-
     def recordsWithEmailAddress(
         self, emailAddress, limitResults=None, timeoutSeconds=None
     ):
@@ -335,22 +322,18 @@ class DirectoryService(object):
             timeoutSeconds=timeoutSeconds
         )
 
-
     def updateRecords(self, records, create=False):
         for _ignore_record in records:
             return fail(NotAllowedError("Record updates not allowed."))
         return succeed(None)
-
 
     def removeRecords(self, uids):
         for _ignore_uid in uids:
             return fail(NotAllowedError("Record removal not allowed."))
         return succeed(None)
 
-
     def flush(self):
         return succeed(None)
-
 
 
 @implementer(IDirectoryRecord)
@@ -373,7 +356,6 @@ class DirectoryRecord(object):
         FieldName.uid,
         FieldName.recordType,
     )
-
 
     def __init__(self, service, fields):
         for fieldName in self.requiredFields:
@@ -457,7 +439,6 @@ class DirectoryRecord(object):
                 self, IPlaintextPasswordVerifier, IHTTPDigestVerifier
             )
 
-
     def __repr__(self):
         try:
             return (
@@ -475,10 +456,8 @@ class DirectoryRecord(object):
                 )
             )
 
-
     def __hash__(self):
         return hash(self.uid)
-
 
     def __eq__(self, other):
         if IDirectoryRecord.implementedBy(other.__class__):
@@ -488,13 +467,11 @@ class DirectoryRecord(object):
             )
         return NotImplemented
 
-
     def __ne__(self, other):
         eq = self.__eq__(other)
         if eq is NotImplemented:
             return NotImplemented
         return not eq
-
 
     def __getattr__(self, name):
         try:
@@ -506,7 +483,6 @@ class DirectoryRecord(object):
             return self.fields[fieldName]
         except KeyError:
             raise AttributeError(name)
-
 
     def description(self):
         """
@@ -550,7 +526,6 @@ class DirectoryRecord(object):
 
         return u"".join(description)
 
-
     def members(self):
         if self.recordType == RecordType.group:
             return fail(
@@ -558,22 +533,17 @@ class DirectoryRecord(object):
             )
         return succeed(())
 
-
     def groups(self):
         return fail(NotImplementedError("Subclasses must implement groups()"))
-
 
     def addMembers(self, members):
         return fail(NotAllowedError("Membership updates not allowed."))
 
-
     def removeMembers(self, members):
         return fail(NotAllowedError("Membership updates not allowed."))
 
-
     def setMembers(self, members):
         return fail(NotAllowedError("Membership updates not allowed."))
-
 
     #
     # Verifiers for twext.who.checker stuff.
@@ -586,7 +556,6 @@ class DirectoryRecord(object):
             return succeed(True)
         else:
             return succeed(False)
-
 
     def verifyHTTPDigest(
         self, username, realm, uri, nonce, cnonce,

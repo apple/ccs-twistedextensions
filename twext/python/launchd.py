@@ -42,7 +42,6 @@ except VerificationError as ve:
     raise ImportError(ve)
 
 
-
 def launchActivateSocket(name):
     fdList = []
 

@@ -21,6 +21,7 @@ Utilities for parallelizing tasks.
 
 from twisted.internet.defer import inlineCallbacks, DeferredList, returnValue
 
+
 class Parallelizer(object):
     """
     Do some operation with a degree of parallelism, using a set of resources
@@ -46,7 +47,6 @@ class Parallelizer(object):
         self.busy = []
         self.activeDeferreds = []
 
-
     @inlineCallbacks
     def do(self, operation):
         """
@@ -69,6 +69,7 @@ class Parallelizer(object):
         active = self.available.pop(0)
         self.busy.append(active)
         o = operation(active)
+
         def andFinally(whatever):
             self.activeDeferreds.remove(o)
             self.busy.remove(active)
@@ -77,7 +78,6 @@ class Parallelizer(object):
         self.activeDeferreds.append(o)
         o.addBoth(andFinally)
         returnValue(None)
-
 
     def done(self):
         """

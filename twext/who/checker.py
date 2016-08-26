@@ -35,7 +35,6 @@ from .idirectory import (
 )
 
 
-
 @implementer(ICredentialsChecker)
 class BaseCredentialChecker(object):
     # credentialInterfaces = (IUsernamePassword, IUsernameHashedPassword)
@@ -52,10 +51,8 @@ class BaseCredentialChecker(object):
         self.service = service
 
 
-
 class UsernamePasswordCredentialChecker(BaseCredentialChecker):
     credentialInterfaces = (IUsernamePassword, IUsernameHashedPassword)
-
 
     @inlineCallbacks
     def requestAvatarId(self, credentials):
@@ -83,7 +80,6 @@ class UsernamePasswordCredentialChecker(BaseCredentialChecker):
         raise UnauthorizedLogin("Incorrect password")
 
 
-
 class IHTTPDigest(ICredentials):
     """
     HTTP digest credentials.
@@ -93,14 +89,11 @@ class IHTTPDigest(ICredentials):
     fields = Attribute("...")  # Attributes would be better.
 
 
-
 classImplements(DigestedCredentials, (IHTTPDigest,))
-
 
 
 class HTTPDigestCredentialChecker(BaseCredentialChecker):
     credentialInterfaces = (IHTTPDigest,)
-
 
     @inlineCallbacks
     def requestAvatarId(self, credentials):

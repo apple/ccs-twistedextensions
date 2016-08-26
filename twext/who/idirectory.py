@@ -43,7 +43,6 @@ from zope.interface import Attribute, Interface
 from twisted.python.constants import Names, NamedConstant
 
 
-
 #
 # Exceptions
 #
@@ -54,19 +53,16 @@ class DirectoryServiceError(Exception):
     """
 
 
-
 class DirectoryConfigurationError(DirectoryServiceError):
     """
     Directory configuration error.
     """
 
 
-
 class DirectoryAvailabilityError(DirectoryServiceError):
     """
     Directory not available.
     """
-
 
 
 class InvalidDirectoryRecordError(DirectoryServiceError):
@@ -86,7 +82,6 @@ class InvalidDirectoryRecordError(DirectoryServiceError):
         self.fields = fields
 
 
-
 class UnknownRecordTypeError(DirectoryServiceError):
     """
     Unknown record type.
@@ -97,12 +92,10 @@ class UnknownRecordTypeError(DirectoryServiceError):
         self.token = token
 
 
-
 class QueryNotSupportedError(DirectoryServiceError):
     """
     Query not supported.
     """
-
 
 
 class NoSuchRecordError(DirectoryServiceError):
@@ -111,12 +104,10 @@ class NoSuchRecordError(DirectoryServiceError):
     """
 
 
-
 class NotAllowedError(DirectoryServiceError):
     """
     It seems you aren't permitted to do that.
     """
-
 
 
 #
@@ -139,7 +130,6 @@ class RecordType(Names):
 
     group = NamedConstant()
     group.description = u"group"
-
 
 
 class FieldName(Names):
@@ -207,7 +197,6 @@ class FieldName(Names):
     password = NamedConstant()
     password.description = u"password"
 
-
     @staticmethod
     def isMultiValue(name):
         """
@@ -221,7 +210,6 @@ class FieldName(Names):
         """
         return getattr(name, "multiValue", False)
 
-
     @staticmethod
     def valueType(name):
         """
@@ -234,7 +222,6 @@ class FieldName(Names):
         @rtype: L{type}
         """
         return getattr(name, "valueType", unicode)
-
 
 
 #
@@ -267,7 +254,6 @@ class IDirectoryService(Interface):
     realmName = Attribute(
         "The name of the authentication realm this service represents."
     )
-
 
     def recordTypes():
         """
@@ -459,7 +445,6 @@ class IDirectoryService(Interface):
         """
 
 
-
 class IDirectoryRecord(Interface):
     """
     Directory record.
@@ -491,7 +476,6 @@ class IDirectoryRecord(Interface):
 
     service = Attribute("The L{IDirectoryService} this record exists in.")
     fields = Attribute("A mapping with L{NamedConstant} keys.")
-
 
     def members():
         """
@@ -537,7 +521,6 @@ class IDirectoryRecord(Interface):
         """
 
 
-
 class IPlaintextPasswordVerifier(Interface):
     """
     Provides a way to verify a plain text password as provided by a client.
@@ -553,7 +536,6 @@ class IPlaintextPasswordVerifier(Interface):
         @return: L{True} if the password matches, L{False} otherwise.
         @rtype: deferred L{BOOL}
         """
-
 
 
 class IHTTPDigestVerifier(Interface):

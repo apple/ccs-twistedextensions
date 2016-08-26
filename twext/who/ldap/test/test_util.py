@@ -55,7 +55,6 @@ class TestFieldName(Names):
     isCool.valueType = bool
 
 
-
 class LDAPQueryTestCase(unittest.TestCase):
     """
     Tests for LDAP query generation.
@@ -69,7 +68,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             fieldNameToAttributesMap=TEST_FIELDNAME_MAP
         )
 
-
     def fieldNameMap(self, service):
         """
         Create a mapping from field names to LDAP attribute names.
@@ -81,7 +79,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             (c, (c.name,))
             for c in service.fieldName.iterconstants()
         ])
-
 
     def recordTypeSchemas(self, service):
         """
@@ -101,19 +98,16 @@ class LDAPQueryTestCase(unittest.TestCase):
             for c in service.recordType.iterconstants()
         ])
 
-
     def _test_ldapQueryStringFromQueryStrings(self, queryStrings, expected):
         for operand in (LDAPOperand.AND.value, LDAPOperand.OR.value):
             compound = ldapQueryStringFromQueryStrings(operand, queryStrings)
             self.assertEquals(compound, expected.format(operand=operand))
-
 
     def test_ldapQueryStringFromQueryStrings_empty(self):
         """
         A single expression should just be returned as-is.
         """
         return self._test_ldapQueryStringFromQueryStrings((), u"")
-
 
     def test_ldapQueryStringFromQueryStrings_single(self):
         """
@@ -124,7 +118,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             queryStrings, queryStrings[0]
         )
 
-
     def test_ldapQueryStringFromQueryStrings_multiple(self):
         """
         Multiple expressions should just be combined with an operator.
@@ -132,7 +125,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         return self._test_ldapQueryStringFromQueryStrings(
             (u"(x=yzzy)", u"(xy=zzy)"), u"({operand}(x=yzzy)(xy=zzy))"
         )
-
 
     def test_queryStringFromExistsExpression(self):
         """
@@ -148,7 +140,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         expected = u"(shortNames=*)"
         self.assertEquals(queryString, expected)
-
 
     def test_queryStringFromBooleanExpression(self):
         """
@@ -182,7 +173,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         expected = u"(cool=true)"
         self.assertEquals(queryString, expected)
 
-
     def test_queryStringFromMatchExpression_matchTypes(self):
         """
         Match expressions with each match type produces the correct
@@ -213,7 +203,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             )
             self.assertEquals(queryString, expected)
 
-
     def test_queryStringFromMatchExpression_match_not(self):
         """
         Match expression with the C{NOT} flag adds the C{!} operator.
@@ -232,7 +221,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             attribute=u"shortNames",
         )
         self.assertEquals(queryString, expected)
-
 
     def test_queryStringFromMatchExpression_match_caseInsensitive(self):
         """
@@ -254,11 +242,9 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         self.assertEquals(queryString, expected)
 
-
     test_queryStringFromMatchExpression_match_caseInsensitive.todo = (
         "unimplemented"
     )
-
 
     def test_queryStringFromMatchExpression_match_quoting(self):
         """
@@ -283,7 +269,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         self.assertEquals(queryString, expected)
 
-
     def test_queryStringFromMatchExpression_unknownFieldName(self):
         """
         Unknown expression.
@@ -300,7 +285,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             expression,
             self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
-
 
     def test_queryStringFromMatchExpression_unknownMatchType(self):
         """
@@ -319,7 +303,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             expression,
             self.fieldNameMap(service), self.recordTypeSchemas(service),
         )
-
 
     def _test_queryStringFromMatchExpression_multiAttribute(
         self, flags, expected
@@ -342,7 +325,6 @@ class LDAPQueryTestCase(unittest.TestCase):
 
         self.assertEquals(queryString, expected)
 
-
     def test_queryStringFromMatchExpression_multipleAttribute(self):
         """
         Match expression when the queried field name maps to multiple
@@ -356,7 +338,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             MatchFlags.none, expected
         )
 
-
     def test_queryStringFromMatchExpression_multipleAttribute_not(self):
         """
         Match expression when the queried field name maps to multiple
@@ -369,7 +350,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         return self._test_queryStringFromMatchExpression_multiAttribute(
             MatchFlags.NOT, expected
         )
-
 
     def _test_queryStringFromMatchExpression_multiRecordType(
         self, flags, expected
@@ -418,7 +398,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             )
         )
 
-
     def test_queryStringFromMatchExpression_multipleRecordType(self):
         """
         Match expression when the queried field name is the record type field,
@@ -436,7 +415,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             MatchFlags.none, expected
         )
 
-
     def test_queryStringFromMatchExpression_multipleRecordType_not(self):
         """
         Match expression when the queried field name is the record type field,
@@ -453,7 +431,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         return self._test_queryStringFromMatchExpression_multiRecordType(
             MatchFlags.NOT, expected
         )
-
 
     def test_queryStringFromCompoundExpression_single(
         self, queryFunction=ldapQueryStringFromCompoundExpression
@@ -489,7 +466,6 @@ class LDAPQueryTestCase(unittest.TestCase):
                 )
             )
             self.assertEquals(queryString, expected)
-
 
     def test_queryStringFromCompoundExpression_multiple(
         self, queryFunction=ldapQueryStringFromCompoundExpression
@@ -531,7 +507,6 @@ class LDAPQueryTestCase(unittest.TestCase):
             )
             self.assertEquals(queryString, expected)
 
-
     def test_queryStringFromExpression_match(self):
         """
         Match expression.
@@ -551,7 +526,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         )
         self.assertEquals(queryString, expected)
 
-
     def test_queryStringFromExpression_compound(self):
         """
         Compound expression.
@@ -562,7 +536,6 @@ class LDAPQueryTestCase(unittest.TestCase):
         self.test_queryStringFromCompoundExpression_multiple(
             queryFunction=ldapQueryStringFromExpression
         )
-
 
     def test_queryStringFromExpression_unknown(self):
         """

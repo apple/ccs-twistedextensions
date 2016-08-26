@@ -63,7 +63,6 @@ class ParseError(DirectoryServiceError):
     """
 
 
-
 ##
 # XML constants
 ##
@@ -107,7 +106,6 @@ class Element(Values):
     memberUID.fieldName = IndexFieldName.memberUIDs
 
 
-
 class Attribute(Values):
     """
     XML attribute names.
@@ -115,7 +113,6 @@ class Attribute(Values):
 
     realm = ValueConstant(u"realm")
     recordType = ValueConstant(u"type")
-
 
 
 class RecordTypeValue(Values):
@@ -128,7 +125,6 @@ class RecordTypeValue(Values):
 
     group = ValueConstant(u"group")
     group.recordType = BaseRecordType.group
-
 
 
 ##
@@ -160,7 +156,6 @@ class DirectoryService(BaseDirectoryService):
         IndexFieldName.memberUIDs,
     )
 
-
     def __init__(self, filePath, refreshInterval=4):
         """
         @param filePath: A file path for the XML data to load into the
@@ -177,7 +172,6 @@ class DirectoryService(BaseDirectoryService):
         self.filePreamble = ""
         self.refreshInterval = refreshInterval
 
-
     def __repr__(self):
         realmName = self._realmName
         if realmName is None:
@@ -192,30 +186,25 @@ class DirectoryService(BaseDirectoryService):
             )
         )
 
-
     @property
     def realmName(self):
         self.loadRecords()
         return self._realmName
-
 
     @realmName.setter
     def realmName(self, value):
         if value is not noRealmName:
             raise AttributeError("realmName may not be set directly")
 
-
     @property
     def unknownRecordTypes(self):
         self.loadRecords()
         return self._unknownRecordTypes
 
-
     @property
     def unknownFieldElements(self):
         self.loadRecords()
         return self._unknownFieldElements
-
 
     def loadRecords(self, loadNow=False, stat=True):
         """
@@ -326,7 +315,6 @@ class DirectoryService(BaseDirectoryService):
 
         return etree
 
-
     def parseRecordNode(self, recordNode, unknownFieldElements=None):
         recordTypeAttribute = recordNode.get(
             self.attribute.recordType.value, u""
@@ -406,14 +394,12 @@ class DirectoryService(BaseDirectoryService):
 
         return DirectoryRecord(self, fields)
 
-
     def _uidForRecordNode(self, recordNode):
         uidNode = recordNode.find(self.element.uid.value)
         if uidNode is None:
             raise NotImplementedError("No UID node")
 
         return uidNode.text
-
 
     def _constantElement(self, node):
         """
@@ -456,7 +442,6 @@ class DirectoryService(BaseDirectoryService):
                 .format(child.tag, node.tag)
             )
 
-
     def flush(self):
         BaseDirectoryService.flush(self)
 
@@ -465,7 +450,6 @@ class DirectoryService(BaseDirectoryService):
         self._unknownFieldElements = None
         self._cacheTag = None
         self._lastRefresh = 0
-
 
     def updateRecords(self, records, create=False):
         # Index the records to update by UID
@@ -556,7 +540,6 @@ class DirectoryService(BaseDirectoryService):
 
         self._writeDirectoryNode(directoryNode)
 
-
     def removeRecords(self, uids):
         directoryNode = self._directoryNodeForEditing()
 
@@ -572,7 +555,6 @@ class DirectoryService(BaseDirectoryService):
 
         self._writeDirectoryNode(directoryNode)
 
-
     def _directoryNodeForEditing(self):
         """
         Drop cached data and load the XML DOM.
@@ -581,11 +563,9 @@ class DirectoryService(BaseDirectoryService):
         etree = self.loadRecords(loadNow=True, stat=False)
         return etree.getroot()
 
-
     def _writeDirectoryNode(self, directoryNode):
         self.filePath.setContent("{preamble}\n{xml}\n".format(preamble=self.filePreamble, xml=etreeToString(directoryNode, "utf-8")))
         self.flush()
-
 
 
 noRealmName = object()

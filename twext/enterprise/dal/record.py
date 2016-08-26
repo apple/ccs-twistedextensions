@@ -56,12 +56,10 @@ class ReadOnly(AttributeError):
         )
 
 
-
 class NoSuchRecord(Exception):
     """
     No matching record could be found.
     """
-
 
 
 class _RecordMeta(type):
@@ -111,7 +109,6 @@ class _RecordMeta(type):
         return super(_RecordMeta, cls).__new__(cls, name, tuple(newbases), ns)
 
 
-
 class fromTable(object):
     """
     Inherit from this after L{Record} to specify which table your L{Record}
@@ -124,7 +121,6 @@ class fromTable(object):
         @type table: L{twext.enterprise.dal.syntax.TableSyntax}
         """
         self.table = aTable
-
 
 
 class Record(object):
@@ -161,7 +157,6 @@ class Record(object):
 
         return super(Record, self).__setattr__(name, value)
 
-
     def __repr__(self):
         r = (
             "<{0} record from table {1}"
@@ -172,10 +167,8 @@ class Record(object):
         r += ">"
         return r
 
-
     def __hash__(self):
         return hash(tuple([getattr(self, attr) for attr in self.__attrmap__.keys()]))
-
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -183,7 +176,6 @@ class Record(object):
         attrs = dict([(attr, getattr(self, attr),) for attr in self.__attrmap__.keys()])
         otherattrs = dict([(attr, getattr(other, attr),) for attr in other.__attrmap__.keys()])
         return attrs == otherattrs
-
 
     @classmethod
     def fromTable(cls, table):
@@ -200,7 +192,6 @@ class Record(object):
             attrname = cls.namingConvention(column.model.name)
             cls.__attrmap__[attrname] = column
             cls.__colmap__[column] = attrname
-
 
     @staticmethod
     def namingConvention(columnName):
@@ -219,11 +210,9 @@ class Record(object):
 
         return words[0] + "".join(map(cap, words[1:]))
 
-
     @classmethod
     def _primaryKeyExpression(cls):
         return Tuple([ColumnSyntax(c) for c in cls.table.model.primaryKey])
-
 
     def _primaryKeyValue(self):
         val = []
@@ -231,11 +220,9 @@ class Record(object):
             val.append(getattr(self, self.__class__.__colmap__[col]))
         return val
 
-
     @classmethod
     def _primaryKeyComparison(cls, primaryKey):
         return cls._primaryKeyExpression() == Tuple(map(Constant, primaryKey))
-
 
     @classmethod
     @inlineCallbacks
@@ -248,7 +235,6 @@ class Record(object):
             raise NoSuchRecord()
         else:
             returnValue(results[0])
-
 
     @classmethod
     @inlineCallbacks
@@ -263,7 +249,6 @@ class Record(object):
         self = cls.make(**k)
         yield self.insert(transaction)
         returnValue(self)
-
 
     @classmethod
     def make(cls, **k):
@@ -295,14 +280,11 @@ class Record(object):
 
         return self
 
-
     def duplicate(self):
         return self.make(**dict([(attr, getattr(self, attr),) for attr in self.__attrmap__.keys()]))
 
-
     def isnew(self):
         return self.transaction is None
-
 
     def _attributesFromRow(self, attributeList):
         """
@@ -317,7 +299,6 @@ class Record(object):
             if setColumn.model.type.name == "timestamp" and setValue is not None:
                 setValue = parseSQLTimestamp(setValue)
             setattr(self, setAttribute, setValue)
-
 
     @inlineCallbacks
     def insert(self, transaction):
@@ -358,7 +339,6 @@ class Record(object):
 
         self.transaction = transaction
 
-
     def delete(self):
         """
         Delete this row from the database.
@@ -371,7 +351,6 @@ class Record(object):
             From=self.table,
             Where=self._primaryKeyComparison(self._primaryKeyValue())
         ).on(self.transaction, raiseOnZeroRowCount=NoSuchRecord)
-
 
     @inlineCallbacks
     def update(self, **kw):
@@ -391,7 +370,6 @@ class Record(object):
         ).on(self.transaction)
 
         self.__dict__.update(kw)
-
 
     @inlineCallbacks
     def lock(self, where=None):
@@ -414,7 +392,6 @@ class Record(object):
             Where=where,
             ForUpdate=True,
         ).on(self.transaction)
-
 
     @inlineCallbacks
     def trylock(self, where=None):
@@ -455,7 +432,6 @@ class Record(object):
             yield savepoint.release(self.transaction)
             returnValue(True)
 
-
     @classmethod
     def pop(cls, transaction, *primaryKey):
         """
@@ -475,7 +451,6 @@ class Record(object):
             ),
             lambda: NoSuchRecord()
         ).addCallback(lambda x: x[0])
-
 
     @classmethod
     def query(cls, transaction, expr, order=None, group=None, limit=None, forUpdate=False, noWait=False, skipLocked=False, ascending=True, distinct=False):
@@ -519,7 +494,6 @@ class Record(object):
             ),
             None
         )
-
 
     @classmethod
     def queryExpr(cls, expr, attributes=None, order=None, group=None, limit=None, forUpdate=False, noWait=False, skipLocked=False, ascending=True, distinct=False):
@@ -572,7 +546,6 @@ class Record(object):
             **kw
         )
 
-
     @classmethod
     def querysimple(cls, transaction, **kw):
         """
@@ -587,7 +560,6 @@ class Record(object):
             else:
                 where = where.And(subexpr)
         return cls.query(transaction, where)
-
 
     @classmethod
     def all(cls, transaction):
@@ -605,7 +577,6 @@ class Record(object):
             None
         )
 
-
     @classmethod
     @inlineCallbacks
     def count(cls, transaction, where=None):
@@ -618,7 +589,6 @@ class Record(object):
             Where=where,
         ).on(transaction)
         returnValue(rows[0][0])
-
 
     @classmethod
     def updatesome(cls, transaction, where, **kw):
@@ -634,14 +604,12 @@ class Record(object):
             Where=where
         ).on(transaction)
 
-
     @classmethod
     def deleteall(cls, transaction):
         """
         Delete all rows from the table that corresponds to C{cls}.
         """
         return cls.deletesome(transaction, None)
-
 
     @classmethod
     @inlineCallbacks
@@ -671,7 +639,6 @@ class Record(object):
             ).on(transaction)
         returnValue(result)
 
-
     @classmethod
     def deletesimple(cls, transaction, **kw):
         """
@@ -686,7 +653,6 @@ class Record(object):
             else:
                 where = where.And(subexpr)
         return cls.deletesome(transaction, where)
-
 
     @classmethod
     @inlineCallbacks
@@ -717,7 +683,6 @@ class Record(object):
         returnValue(selves)
 
 
-
 class SerializableRecord(Record):
     """
     An L{Record} that serializes/deserializes its attributes for a text-based
@@ -744,7 +709,6 @@ class SerializableRecord(Record):
                 value = str(value)
             result[attr] = value
         return result
-
 
     @classmethod
     def deserialize(cls, attrmap):

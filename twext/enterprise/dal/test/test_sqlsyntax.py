@@ -50,7 +50,6 @@ from twext.enterprise.dal.syntax import Tuple
 from twext.enterprise.dal.syntax import Constant
 
 
-
 class _FakeTransaction(object):
     """
     An L{IAsyncTransaction} that provides the relevant metadata for SQL
@@ -61,13 +60,11 @@ class _FakeTransaction(object):
         self.dbtype = DatabaseType(POSTGRES_DIALECT, "qmark")
 
 
-
 class FakeCXOracleModule(object):
     NUMBER = "the NUMBER type"
     STRING = "a string type (for varchars)"
     NCLOB = "the NCLOB type. (for text)"
     TIMESTAMP = "for timestamps!"
-
 
 
 class CatchSQL(object):
@@ -81,13 +78,11 @@ class CatchSQL(object):
         self.pendingResults = []
         self.dbtype = dbtype
 
-
     def nextResult(self, result):
         """
         Make it so that the next result from L{execSQL} will be the argument.
         """
         self.pendingResults.append(result)
-
 
     def execSQL(self, sql, args, rozrc):
         """
@@ -104,7 +99,6 @@ class CatchSQL(object):
         return succeed(result)
 
 
-
 class NullTestingOracleTxn(object):
     """
     Fake transaction for testing oracle NULL behavior.
@@ -114,7 +108,6 @@ class NullTestingOracleTxn(object):
 
     def execSQL(self, text, params, exc):
         return succeed([[None, None]])
-
 
 
 EXAMPLE_SCHEMA = """
@@ -131,7 +124,6 @@ create table NULLCHECK (ASTRING varchar(255) not null,
 """
 
 
-
 class ExampleSchemaHelper(SchemaTestHelper):
     """
     setUp implementor.
@@ -139,7 +131,6 @@ class ExampleSchemaHelper(SchemaTestHelper):
 
     def setUp(self):
         self.schema = SchemaSyntax(self.schemaFromString(EXAMPLE_SCHEMA))
-
 
 
 class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
@@ -157,7 +148,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO", [])
         )
 
-
     def test_tableSyntaxFromSchemaSyntaxCompare(self):
         """
         One L{TableSyntax} is equivalent to another wrapping the same table;
@@ -165,7 +155,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         """
         self.assertEquals(self.schema.FOO, self.schema.FOO)
         self.assertNotEquals(self.schema.FOO, self.schema.BOZ)
-
 
     def test_simpleWhereClause(self):
         """
@@ -179,7 +168,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO where BAR = ?", [1])
         )
-
 
     def test_alternateMetadata(self):
         """
@@ -197,7 +185,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO where BAR = $$", [1])
         )
 
-
     def test_columnComparison(self):
         """
         L{Select} generates a C{select} statement which compares columns.
@@ -209,7 +196,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO where BAR = BAZ", [])
         )
-
 
     def test_comparisonTestErrorPrevention(self):
         """
@@ -224,7 +210,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             if self.schema.FOO.BAR > self.schema.FOO.BAZ:
                 return "comparison should not succeed"
         self.assertRaises(DALError, sampleComparison)
-
 
     def test_compareWithNULL(self):
         """
@@ -245,7 +230,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO where BAR is not null", [])
         )
-
 
     def test_compareWithEmptyStringOracleSpecialCase(self):
         """
@@ -286,7 +270,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO where BAR is not null", [])
         )
 
-
     def test_compoundWhere(self):
         """
         L{Select.And} and L{Select.Or} will return compound columns.
@@ -298,7 +281,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO where BAR < ? or BAR > ?", [2, 5])
         )
-
 
     def test_orderBy(self):
         """
@@ -312,7 +294,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO order by BAR")
         )
-
 
     def test_orderByOrder(self):
         """
@@ -346,7 +327,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO order by BAR, BAZ asc")
         )
 
-
     def test_orderByParens(self):
         """
         L{Select}'s L{OrderBy} paraneter, if specified as a L{Tuple}, generates
@@ -361,7 +341,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO order by BAR, BAZ")
         )
-
 
     def test_forUpdate(self):
         """
@@ -385,7 +364,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO for update nowait skip locked")
         )
 
-
     def test_groupBy(self):
         """
         L{Select}'s L{GroupBy} parameter generates a C{group by} clause for a
@@ -399,7 +377,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO group by BAR")
         )
 
-
     def test_groupByMulti(self):
         """
         L{Select}'s L{GroupBy} parameter can accept multiple columns in a list.
@@ -411,7 +388,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO group by BAR, BAZ")
         )
-
 
     def test_joinClause(self):
         """
@@ -427,7 +403,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select * from FOO join BOZ on BAR = QUX", [])
         )
 
-
     def test_commaJoin(self):
         """
         A join with no clause specified will generate a cross join. This variant
@@ -437,7 +412,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(From=self.schema.FOO.join(self.schema.BOZ, type=",")).toSQL(),
             SQLFragment("select * from FOO, BOZ")
         )
-
 
     def test_crossJoin(self):
         """
@@ -449,7 +423,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(From=self.schema.FOO.join(self.schema.BOZ)).toSQL(),
             SQLFragment("select * from FOO cross join BOZ")
         )
-
 
     def test_joinJoin(self):
         """
@@ -466,7 +439,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 "select FOO.BAR, QUX from FOO cross join BOZ cross join OTHER"
             )
         )
-
 
     def test_multiJoin(self):
         """
@@ -491,7 +463,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_tableAliasing(self):
         """
         Tables may be given aliases, in order to facilitate self-joins.
@@ -502,7 +473,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(From=self.schema.FOO.join(sfoo2)).toSQL(),
             SQLFragment("select * from FOO cross join FOO alias1")
         )
-
 
     def test_columnsOfAliasedTable(self):
         """
@@ -515,7 +485,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select([sfoo2.BAR], From=sfoo2).toSQL(),
             SQLFragment("select alias1.BAR from FOO alias1")
         )
-
 
     def test_multipleTableAliases(self):
         """
@@ -536,7 +505,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_columnSelection(self):
         """
         If a column is specified by the argument to L{Select}, those will be
@@ -546,7 +514,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select([self.schema.FOO.BAR], From=self.schema.FOO).toSQL(),
             SQLFragment("select BAR from FOO")
         )
-
 
     def test_tableIteration(self):
         """
@@ -558,14 +525,12 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             [self.schema.FOO.BAR, self.schema.FOO.BAZ]
         )
 
-
     def test_noColumn(self):
         """
         Accessing an attribute that is not a defined column on a L{TableSyntax}
         raises an L{AttributeError}.
         """
         self.assertRaises(AttributeError, lambda: self.schema.FOO.NOT_A_COLUMN)
-
 
     def test_columnAliases(self):
         """
@@ -591,7 +556,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             self.schema.FOO.BAR.model
         )
 
-
     def test_multiColumnSelection(self):
         """
         If multiple columns are specified by the argument to L{Select}, those
@@ -605,7 +569,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select BAZ, BAR from FOO")
         )
-
 
     def test_joinColumnSelection(self):
         """
@@ -623,7 +586,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select BAZ, QUX from FOO join BOZ on BAR = QUX")
         )
 
-
     def test_tableMismatch(self):
         """
         When a column in the C{columns} argument does not match the table from
@@ -633,7 +595,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             TableMismatch,
             Select, [self.schema.BOZ.QUX], From=self.schema.FOO
         )
-
 
     def test_qualifyNames(self):
         """
@@ -655,7 +616,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_bindParameters(self):
         """
         L{SQLFragment.bind} returns a copy of that L{SQLFragment} with the
@@ -673,7 +633,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_rightHandSideExpression(self):
         """
         Arbitrary expressions may be used as the right-hand side of a
@@ -686,7 +645,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select * from FOO where BAR > (BAZ + ?)", [3])
         )
-
 
     def test_setSelects(self):
         """
@@ -806,7 +764,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_simpleSubSelects(self):
         """
         L{Max}C{(column)} produces an object in the C{columns} clause that
@@ -840,7 +797,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select max(QUX) from (select QUX from BOZ) alias_BAR")
         )
 
-
     def test_setSubSelects(self):
         """
         L{SetExpression} in a C{From} sub-select.
@@ -867,7 +823,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 "UNION (select BAR from FOO where BAR = ?)) genid_1", [1, 2]
             )
         )
-
 
     def test_selectColumnAliases(self):
         """
@@ -913,7 +868,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_inSubSelect(self):
         """
         L{ColumnSyntax.In} returns a sub-expression using the SQL C{in} syntax
@@ -928,7 +882,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 "select * from FOO where BAR in (select QUX from BOZ)"
             )
         )
-
 
     def test_inParameter(self):
         """
@@ -1041,7 +994,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             names=["a", "b", "c"]
         )
 
-
     def test_inIterable(self):
         """
         L{ColumnSyntax.In} returns a sub-expression using the SQL C{in} syntax
@@ -1133,7 +1085,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 ),
             )
 
-
     def test_max(self):
         """
         L{Max}C{(column)} produces an object in the C{columns} clause that
@@ -1144,7 +1095,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select max(QUX) from BOZ")
         )
 
-
     def test_min(self):
         """
         L{Min}C{(column)} produces an object in the C{columns} clause that
@@ -1154,7 +1104,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select([Min(self.schema.BOZ.QUX)], From=self.schema.BOZ).toSQL(),
             SQLFragment("select min(QUX) from BOZ")
         )
-
 
     def test_coalesce(self):
         """
@@ -1170,7 +1119,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select QUX from BOZ where coalesce(QUX, QUUX) = ?", [1])
         )
 
-
     def test_nullif(self):
         """
         L{Coalesce}C{(column)} produces an object in the C{columns} clause that
@@ -1184,7 +1132,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select nullif(QUX, ?) from BOZ", [False])
         )
 
-
     def test_countAllCoumns(self):
         """
         L{Count}C{(ALL_COLUMNS)} produces an object in the C{columns} clause
@@ -1194,7 +1141,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select([Count(ALL_COLUMNS)], From=self.schema.BOZ).toSQL(),
             SQLFragment("select count(*) from BOZ")
         )
-
 
     def test_aggregateComparison(self):
         """
@@ -1208,7 +1154,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select max(QUX) + ? from BOZ", [12])
         )
-
 
     def test_multiColumnExpression(self):
         """
@@ -1224,7 +1169,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select ((BAR + BAZ) / ?) * ? from FOO", [3, 7])
         )
 
-
     def test_len(self):
         """
         Test for the L{Len} function for determining character length of a
@@ -1238,7 +1182,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select character_length(MYTEXT) from TEXTUAL")
         )
-
 
     def test_startswith(self):
         """
@@ -1258,7 +1201,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_endswith(self):
         """
         Test for the string starts with comparison.
@@ -1277,7 +1219,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_contains(self):
         """
         Test for the string starts with comparison.
@@ -1295,7 +1236,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 ["%", "test", "%"]
             )
         )
-
 
     def test_not(self):
         """
@@ -1363,7 +1303,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_insert(self):
         """
         L{Insert.toSQL} generates an C{insert} statement with all the relevant
@@ -1376,7 +1315,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("insert into FOO (BAR, BAZ) values (?, ?)", [23, 9])
         )
 
-
     def test_insertNotEnough(self):
         """
         L{Insert}'s constructor will raise L{NotEnoughValues} if columns have
@@ -1386,7 +1324,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             NotEnoughValues, Insert, {self.schema.OTHER.BAR: 9}
         )
         self.assertEquals(str(notEnough), "Columns [FOO_BAR] required.")
-
 
     def test_insertReturning(self):
         """
@@ -1403,7 +1340,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_insertMultiReturn(self):
         """
         L{Insert}'s C{Return} argument can also be a C{tuple}, which will
@@ -1419,7 +1355,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 [23, 9]
             )
         )
-
 
     def test_insertMultiReturnOracle(self):
         """
@@ -1441,7 +1376,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 [40, 50, Parameter("oracle_out_0"), Parameter("oracle_out_1")]
             )
         )
-
 
     def test_insertMultiReturnSQLite(self):
         """
@@ -1482,7 +1416,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ]
         )
 
-
     def test_insertNoReturnSQLite(self):
         """
         Insert a row I{without} a C{Return=} parameter should also work as
@@ -1497,7 +1430,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             csql.execed,
             [["insert into FOO (BAR, BAZ) values (:1, :2)", [12, 48]]]
         )
-
 
     def test_updateReturningSQLite(self):
         """
@@ -1537,7 +1469,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ["select BAR from FOO where rowid = :1", ["sample row id"]]
         )
 
-
     def test_updateReturningMultipleValuesSQLite(self):
         """
         When SQLite updates multiple values, it must embed the row ID of each
@@ -1576,7 +1507,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ]
         )
 
-
     def test_deleteReturningSQLite(self):
         """
         When SQLite deletes a value, ...
@@ -1599,7 +1529,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ["delete from FOO where BAZ = :1", [1234]]
         )
 
-
     def test_insertMismatch(self):
         """
         L{Insert} raises L{TableMismatch} if the columns specified aren't all
@@ -1613,7 +1542,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 self.schema.TEXTUAL.MYTEXT: "hello"
             }
         )
-
 
     def test_quotingOnKeywordConflict(self):
         """
@@ -1651,7 +1579,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_updateReturning(self):
         """
         L{update}'s C{Return} argument will update an SQL C{returning} clause.
@@ -1668,7 +1595,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_updateMismatch(self):
         """
         L{Update} raises L{TableMismatch} if the columns specified aren't all
@@ -1683,7 +1609,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             },
             Where=self.schema.FOO.BAZ == 9
         )
-
 
     def test_updateFunction(self):
         """
@@ -1701,7 +1626,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_insertFunction(self):
         """
         L{Update} values may be L{FunctionInvocation}s, to update to computed
@@ -1714,7 +1638,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("insert into FOO (BAR, BAZ) values (?, hello())", [23])
         )
-
 
     def test_deleteReturning(self):
         """
@@ -1729,7 +1652,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("delete from FOO where BAR = ? returning BAZ", [7])
         )
 
-
     def test_update(self):
         """
         L{Update.toSQL} generates an C{update} statement.
@@ -1741,7 +1663,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("update FOO set BAR = ? where BAZ = ?", [4321, 1234])
         )
-
 
     def test_delete(self):
         """
@@ -1757,7 +1678,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("delete from FOO")
         )
 
-
     def test_lock(self):
         """
         L{Lock.exclusive} generates a C{lock table} statement, locking the
@@ -1768,7 +1688,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("lock table FOO in exclusive mode")
         )
 
-
     def test_databaseLock(self):
         """
         L{DatabaseLock} generates a C{pg_advisory_lock} statement
@@ -1777,7 +1696,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             DatabaseLock().toSQL(),
             SQLFragment("select pg_advisory_lock(1)")
         )
-
 
     def test_databaseUnlock(self):
         """
@@ -1788,7 +1706,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select pg_advisory_unlock(1)")
         )
 
-
     def test_savepoint(self):
         """
         L{Savepoint} generates a C{savepoint} statement.
@@ -1797,7 +1714,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Savepoint("test").toSQL(),
             SQLFragment("savepoint test")
         )
-
 
     def test_rollbacktosavepoint(self):
         """
@@ -1808,7 +1724,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("rollback to savepoint test")
         )
 
-
     def test_releasesavepoint(self):
         """
         L{ReleaseSavepoint} generates a C{release savepoint} statement.
@@ -1818,13 +1733,11 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("release savepoint test")
         )
 
-
     def test_savepointaction(self):
         """
         L{SavepointAction} generates a C{savepoint} statement.
         """
         self.assertEquals(SavepointAction("test")._name, "test")
-
 
     def test_limit(self):
         """
@@ -1839,7 +1752,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select BAR from FOO limit ?", [123])
         )
-
 
     def test_limitOracle(self):
         """
@@ -1864,7 +1776,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_having(self):
         """
         A L{Select} object with a C{Having} keyword parameter will generate
@@ -1878,7 +1789,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("select BAR from FOO having max(BAZ) < ?", [7])
         )
-
 
     def test_distinct(self):
         """
@@ -1895,7 +1805,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select distinct BAR from FOO")
         )
 
-
     def test_nextSequenceValue(self):
         """
         When a sequence is used as a value in an expression, it renders as the
@@ -1905,7 +1814,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Insert({self.schema.BOZ.QUX: self.schema.A_SEQ}).toSQL(),
             SQLFragment("insert into BOZ (QUX) values (nextval('A_SEQ'))", [])
         )
-
 
     def test_nextSequenceValueOracle(self):
         """
@@ -1921,7 +1829,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )),
             SQLFragment("insert into BOZ (QUX) values (A_SEQ.nextval)", [])
         )
-
 
     def test_nextSequenceDefaultImplicitExplicitOracle(self):
         """
@@ -1962,7 +1869,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ),
         )
 
-
     def test_numericParams(self):
         """
         An L{IAsyncTransaction} with the C{numeric} paramstyle attribute will
@@ -1972,6 +1878,7 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         stmts = []
 
         class FakeOracleTxn(object):
+
             def execSQL(self, text, params, exc):
                 stmts.append((text, params))
             dbtype = DatabaseType(ORACLE_DIALECT, "numeric")
@@ -1986,7 +1893,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             stmts,
             [("select BAR from FOO where BAR = :1 and BAZ = :2", [7, 9])]
         )
-
 
     def test_rewriteOracleNULLs_Select(self):
         """
@@ -2009,7 +1915,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
 
         self.assertEquals(rows, [["", None]])
 
-
     def test_rewriteOracleNULLs_SelectAllColumns(self):
         """
         Same as L{test_rewriteOracleNULLs_Select}, but with the L{ALL_COLUMNS}
@@ -2019,7 +1924,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Select(From=self.schema.NULLCHECK).on(NullTestingOracleTxn())
         )[0]
         self.assertEquals(rows, [["", None]])
-
 
     def test_nestedLogicalExpressions(self):
         """
@@ -2091,7 +1995,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_updateWithNULL(self):
         """
         As per the DB-API specification, "SQL NULL values are represented by
@@ -2106,7 +2009,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             ).toSQL(),
             SQLFragment("update BOZ set QUX = ? where QUX = ?", [None, 7])
         )
-
 
     def test_subSelectComparison(self):
         """
@@ -2134,7 +2036,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 [9, 12]
             )
         )
-
 
     def test_tupleComparison(self):
         """
@@ -2166,7 +2067,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_tupleOfConstantsComparison(self):
         """
         For some reason Oracle requires multiple parentheses for comparisons.
@@ -2184,7 +2084,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
                 "select BAR from FOO where (BAR, BAZ) = ((?, ?))", [7, 9]
             )
         )
-
 
     def test_oracleTableTruncation(self):
         """
@@ -2211,7 +2110,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             )
         )
 
-
     def test_columnEqualityTruth(self):
         """
         Mostly in support of L{test_columnsAsDictKeys}, the "same" column
@@ -2221,7 +2119,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(bool(s.FOO.BAR == s.FOO.BAR), True)
         self.assertEquals(bool(s.FOO.BAR != s.FOO.BAR), False)
         self.assertEquals(bool(s.FOO.BAZ != s.FOO.BAR), True)
-
 
     def test_columnsAsDictKeys(self):
         """
@@ -2235,7 +2132,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         self.assertEquals(values, {self.schema.FOO.BAR: 1})
         values.pop(self.schema.FOO.BAR)
         self.assertEquals(values, {})
-
 
     def test_case(self):
         """
@@ -2268,7 +2164,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             SQLFragment("select case when BAR < ? then null else ? end from FOO limit ?", [1, 3, 123])
         )
         self.assertEqual(Case((self.schema.FOO.BAR < 1), None, Constant(3)).allColumns(), [self.schema.FOO.BAR, ])
-
 
     def test_call(self):
         """
@@ -2311,7 +2206,6 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
             Call("procedure").toSQL,
             QueryGenerator(DatabaseType(POSTGRES_DIALECT, "qmark"))
         )
-
 
     def test_quoteUIDOracle(self):
         """
@@ -2356,8 +2250,8 @@ class GenerationTests(ExampleSchemaHelper, TestCase, AssertResultHelper):
         )
 
 
-
 class OracleConnectionMethods(object):
+
     def test_rewriteOracleNULLs_Insert(self):
         """
         The behavior described in L{test_rewriteOracleNULLs_Select} applies to
@@ -2381,7 +2275,6 @@ class OracleConnectionMethods(object):
         )[0]
         self.assertEquals(rows, [["", None]])
 
-
     def test_insertMultiReturnOnOracleTxn(self):
         """
         As described in L{test_insertMultiReturnOracle}, Oracle deals with
@@ -2401,7 +2294,6 @@ class OracleConnectionMethods(object):
         self.assertEquals(curvars[0].type, FakeCXOracleModule.NUMBER)
         self.assertEquals(curvars[1].type, FakeCXOracleModule.STRING)
 
-
     def test_insertNoReturnOracle(self):
         """
         In addition to being able to execute insert statements with a Return
@@ -2415,7 +2307,6 @@ class OracleConnectionMethods(object):
         )
         result = self.resultOf(i.on(self.createTransaction()))
         self.assertEquals(result, [[]])
-
 
 
 class OracleConnectionTests(
@@ -2436,7 +2327,6 @@ class OracleConnectionTests(
         self.patch(syntax, "cx_Oracle", FakeCXOracleModule)
         super(OracleConnectionTests, self).setUp()
         ExampleSchemaHelper.setUp(self)
-
 
 
 class OracleNetConnectionTests(

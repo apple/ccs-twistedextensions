@@ -48,7 +48,6 @@ from twext.python.filepath import CachingFilePath
 #         self.path = CachingFilePath(self.path.path)
 
 
-
 class EINVALTestCase(TestCase):
     """
     Sometimes, L{os.listdir} will raise C{EINVAL}.  This is a transient error,
@@ -64,7 +63,6 @@ class EINVALTestCase(TestCase):
         self.clock = Clock()
         self.cfp._sleep = self.clock.advance
 
-
     def test_testValidity(self):
         """
         If C{listdir} is replaced on a L{CachingFilePath}, we should be able to
@@ -79,13 +77,13 @@ class EINVALTestCase(TestCase):
         self.assertRaises(CustomException, self.cfp.listdir)
         self.assertRaises(CustomException, self.cfp.children)
 
-
     def test_retryLoop(self):
         """
         L{CachingFilePath} should catch C{EINVAL} and respond by retrying the
         C{listdir} operation until it succeeds.
         """
         calls = []
+
         def raiseEINVAL(dirname):
             calls.append(dirname)
             if len(calls) < 5:
@@ -99,13 +97,13 @@ class EINVALTestCase(TestCase):
             CachingFilePath(pathjoin(self.cfp.path, 'c')),
         ])
 
-
     def requireTimePassed(self, filenames):
         """
         Create a replacement for listdir() which only fires after a certain
         amount of time.
         """
         self.calls = []
+
         def thunk(dirname):
             now = self.clock.seconds()
             if now < 20.0:
@@ -114,7 +112,6 @@ class EINVALTestCase(TestCase):
             else:
                 return filenames
         self.cfp._listdir = thunk
-
 
     def assertRequiredTimePassed(self):
         """
@@ -137,7 +134,6 @@ class EINVALTestCase(TestCase):
             ))
         )
 
-
     def test_backoff(self):
         """
         L{CachingFilePath} will wait for an increasing interval up to
@@ -145,7 +141,6 @@ class EINVALTestCase(TestCase):
         """
         self.requireTimePassed(['a', 'b', 'c'])
         self.assertEquals(self.cfp.listdir(), ['a', 'b', 'c'])
-
 
     # def test_siblingExtensionSearch(self):
     #     """

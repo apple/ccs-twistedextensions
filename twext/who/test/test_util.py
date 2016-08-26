@@ -29,7 +29,6 @@ from ..idirectory import DirectoryServiceError
 from ..util import ConstantsContainer, uniqueResult, describe
 
 
-
 class Tools(Names):
     hammer = NamedConstant()
     hammer.description = u"nail pounder"
@@ -37,13 +36,11 @@ class Tools(Names):
     screwdriver = NamedConstant()
     screwdriver.description = u"screw twister"
 
-
     @staticmethod
     def isPounder(tool):
         if getattr(tool, "description", "").endswith("pounder"):
             return True
         return False
-
 
 
 class MoreTools(Names):
@@ -54,32 +51,26 @@ class MoreTools(Names):
     mallet.description = u"soft pounder"
 
 
-
 class Instruments(Names):
     hammer = NamedConstant()
     chisel = NamedConstant()
-
 
 
 class Statuses(Values):
     OK = ValueConstant(200)
     NOT_OK = ValueConstant(500)
 
-
     @staticmethod
     def isError(status):
         return status.value < 500
 
 
-
 class MoreStatuses(Values):
     MOOLAH = ValueConstant(402)
-
 
     @staticmethod
     def isError(status):
         return status.value < 400
-
 
 
 class Switches(Flags):
@@ -92,7 +83,6 @@ class Switches(Flags):
     b.description = u"blue"
 
     black = FlagConstant()
-
 
 
 class ConstantsContainerTest(unittest.TestCase):
@@ -110,7 +100,6 @@ class ConstantsContainerTest(unittest.TestCase):
             constants,
         )
 
-
     def test_constants_from_containers(self):
         """
         Initialize a container from other containers.
@@ -119,7 +108,6 @@ class ConstantsContainerTest(unittest.TestCase):
             set(ConstantsContainer((Tools, MoreTools)).iterconstants()),
             set(chain(Tools.iterconstants(), MoreTools.iterconstants())),
         )
-
 
     def test_constants_from_constantsContainers(self):
         """
@@ -135,7 +123,6 @@ class ConstantsContainerTest(unittest.TestCase):
             set(chain(Tools.iterconstants(), MoreTools.iterconstants())),
         )
 
-
     def test_constants_from_iterables(self):
         """
         Initialize a container from iterables of constants.
@@ -149,13 +136,11 @@ class ConstantsContainerTest(unittest.TestCase):
             set(chain(Tools.iterconstants(), MoreTools.iterconstants())),
         )
 
-
     def test_conflictingClasses(self):
         """
         A container can't contain two constants with different types.
         """
         self.assertRaises(TypeError, ConstantsContainer, (Tools, Switches))
-
 
     def test_conflictingNames_different(self):
         """
@@ -163,20 +148,17 @@ class ConstantsContainerTest(unittest.TestCase):
         """
         self.assertRaises(ValueError, ConstantsContainer, (Tools, Instruments))
 
-
     def test_conflictingNames_same(self):
         """
         A container can combine containers which contain the same constants.
         """
         ConstantsContainer((Tools, Tools))
 
-
     def test_notConstantClass(self):
         """
         A container can't contain random classes.
         """
         self.assertRaises(TypeError, ConstantsContainer, (self.__class__,))
-
 
     def test_attrs(self):
         """
@@ -191,7 +173,6 @@ class ConstantsContainerTest(unittest.TestCase):
         self.assertEquals(container.chisel, Instruments.chisel)
         self.assertRaises(AttributeError, lambda: container.plugh)
 
-
     def test_iterconstants(self):
         """
         L{ConstantsContainer.iterconstants}C{()} produces the contained
@@ -205,7 +186,6 @@ class ConstantsContainerTest(unittest.TestCase):
             constants,
         )
 
-
     def test_staticmethod(self):
         """
         Static methods from source containers are accessible via attributes.
@@ -217,7 +197,6 @@ class ConstantsContainerTest(unittest.TestCase):
         self.assertFalse(container.isPounder(container.screwdriver))
         self.assertFalse(container.isPounder(container.saw))
 
-
     def test_conflictingMethods(self):
         """
         A container can't contain two static methods with the same name.
@@ -225,7 +204,6 @@ class ConstantsContainerTest(unittest.TestCase):
         self.assertRaises(
             ValueError, ConstantsContainer, (Statuses, MoreStatuses)
         )
-
 
     def test_lookupByName(self):
         """
@@ -256,7 +234,6 @@ class ConstantsContainerTest(unittest.TestCase):
             container.lookupByName, "plugh",
         )
 
-
     def test_lookupByValue(self):
         """
         Containers with L{ValueConstant}s are assessible via
@@ -268,7 +245,6 @@ class ConstantsContainerTest(unittest.TestCase):
         self.assertEquals(container.lookupByValue(500), Statuses.NOT_OK)
 
         self.assertRaises(ValueError, container.lookupByValue, 999)
-
 
 
 class UtilTest(unittest.TestCase):
@@ -286,7 +262,6 @@ class UtilTest(unittest.TestCase):
         self.assertEquals(1, uniqueResult((1,)))
         self.assertRaises(DirectoryServiceError, uniqueResult, (1, 2, 3))
 
-
     def test_describeConstant(self):
         """
         L{describe} will look up the C{description} attribute on constants and
@@ -294,7 +269,6 @@ class UtilTest(unittest.TestCase):
         """
         self.assertEquals(u"nail pounder", describe(Tools.hammer))
         self.assertEquals(u"hammer", describe(Instruments.hammer))
-
 
     def test_describeFlags(self):
         """
@@ -304,7 +278,6 @@ class UtilTest(unittest.TestCase):
         self.assertEquals(u"blue", describe(Switches.b))
         self.assertEquals(u"green|red", describe(Switches.r | Switches.g))
         self.assertEquals(u"black|blue", describe(Switches.b | Switches.black))
-
 
     def test_describeObject(self):
         """

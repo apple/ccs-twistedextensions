@@ -52,7 +52,6 @@ class Operand(Names):
     AND.description = u"and"
 
 
-
 class CompoundExpression(object):
     """
     An expression that groups multiple expressions with an operand.
@@ -66,14 +65,12 @@ class CompoundExpression(object):
         self.expressions = tuple(expressions)
         self.operand = operand
 
-
     def __repr__(self):
         return (
             "<{self.__class__.__name__}: "
             "{self.expressions!r} {self.operand!r}>"
             .format(self=self)
         )
-
 
     def __eq__(self, other):
         if isinstance(other, CompoundExpression):
@@ -83,7 +80,6 @@ class CompoundExpression(object):
             )
         else:
             return NotImplemented
-
 
 
 #
@@ -119,7 +115,6 @@ class MatchType(Names):
     greaterThanOrEqualTo.description = u"greater than or equal to"
 
 
-
 class MatchFlags(Flags):
     """
     Match expression flags.
@@ -131,7 +126,6 @@ class MatchFlags(Flags):
     caseInsensitive.description = u"case insensitive"
 
     none = None
-
 
     @staticmethod
     def _setMatchFunctions(flags):
@@ -174,7 +168,6 @@ class MatchFlags(Flags):
 
         return flags
 
-
     @staticmethod
     def predicator(flags):
         """
@@ -191,7 +184,6 @@ class MatchFlags(Flags):
         if not hasattr(flags, "_predicate"):
             flags = MatchFlags._setMatchFunctions(flags)
         return flags._predicate
-
 
     @staticmethod
     def normalizer(flags):
@@ -214,7 +206,6 @@ class MatchFlags(Flags):
 
 # Lame way to create a FlagsConstant with no flags in it:
 MatchFlags.none = MatchFlags.NOT & MatchFlags.caseInsensitive
-
 
 
 class MatchExpression(object):
@@ -254,7 +245,6 @@ class MatchExpression(object):
         self.matchType = matchType
         self.flags = flags
 
-
     def __repr__(self):
         if self.flags.value == 0:
             flags = ""
@@ -273,7 +263,6 @@ class MatchExpression(object):
             )
         )
 
-
     def __eq__(self, other):
         if isinstance(other, MatchExpression):
             return (
@@ -284,7 +273,6 @@ class MatchExpression(object):
             )
         else:
             return NotImplemented
-
 
     def match(self, value):
         """
@@ -337,7 +325,6 @@ class MatchExpression(object):
         ))
 
 
-
 class ExistsExpression(object):
     """
     Query for the existence a given field.
@@ -354,7 +341,6 @@ class ExistsExpression(object):
 
         self.fieldName = fieldName
 
-
     def __repr__(self):
         return (
             "<{self.__class__.__name__}: {fieldName!r} "
@@ -364,13 +350,11 @@ class ExistsExpression(object):
             )
         )
 
-
     def __eq__(self, other):
         if isinstance(other, ExistsExpression):
             return (self.fieldName is other.fieldName)
         else:
             return NotImplemented
-
 
 
 class BooleanExpression(object):
@@ -389,7 +373,6 @@ class BooleanExpression(object):
 
         self.fieldName = fieldName
 
-
     def __repr__(self):
         return (
             "<{self.__class__.__name__}: {fieldName!r} "
@@ -398,7 +381,6 @@ class BooleanExpression(object):
                 fieldName=describe(self.fieldName),
             )
         )
-
 
     def __eq__(self, other):
         if isinstance(other, BooleanExpression):

@@ -42,12 +42,10 @@ class AlreadyFinishedError(Exception):
     """
 
 
-
 class ConnectionError(Exception):
     """
     An error occurred with the underlying database connection.
     """
-
 
 
 POSTGRES_DIALECT = "postgres-dialect"
@@ -62,7 +60,10 @@ one of the C{*_DIALECT} constants in this module. The C{paramstyle}
 attribute is a copy of the DB-API 2.0 module attribute. The C{options}
 attribute is a set of optional features for the DB in use.
 """
+
+
 class DatabaseType(object):
+
     def __init__(self, dialect, paramstyle, options=()):
         """
         @param dialect: database dialect to use
@@ -75,7 +76,6 @@ class DatabaseType(object):
         self.dialect = dialect
         self.paramstyle = paramstyle
         self.options = frozenset(options)
-
 
     def copyreplace(self, dialect=None, paramstyle=None, options=None):
         """
@@ -97,7 +97,6 @@ class DatabaseType(object):
         )
 
 
-
 class ISQLExecutor(Interface):
     """
     Base SQL-execution interface, for a group of commands or a transaction.
@@ -109,7 +108,6 @@ class ISQLExecutor(Interface):
         a L{DatabaseType}.
         """
     )
-
 
     def execSQL(sql, args=(), raiseOnZeroRowCount=None):
         """
@@ -129,7 +127,6 @@ class ISQLExecutor(Interface):
         @raise: C{raiseOnZeroRowCount} if it was specified and no rows were
             affected.
         """
-
 
 
 class IAsyncTransaction(ISQLExecutor):
@@ -230,7 +227,6 @@ class IAsyncTransaction(ISQLExecutor):
         """
 
 
-
 class ICommandBlock(ISQLExecutor):
     """
     This is a block of SQL commands that are grouped together.
@@ -256,7 +252,6 @@ class ICommandBlock(ISQLExecutor):
             L{ICommandBlock}.  (This may be changed in a future version for the
             sake of convenience, however.)
         """
-
 
 
 class IDerivedParameter(Interface):
@@ -298,7 +293,6 @@ class IDerivedParameter(Interface):
 
         @return: C{None}
         """
-
 
 
 class IQueuer(Interface):

@@ -63,7 +63,6 @@ from ._util import (
 from zope.interface import implementer
 
 
-
 #
 # Exceptions
 #
@@ -78,12 +77,10 @@ class LDAPError(DirectoryServiceError):
         self.ldapError = ldapError
 
 
-
 class LDAPConfigurationError(ValueError):
     """
     LDAP configuration error.
     """
-
 
 
 class LDAPConnectionError(DirectoryAvailabilityError):
@@ -96,19 +93,16 @@ class LDAPConnectionError(DirectoryAvailabilityError):
         self.ldapError = ldapError
 
 
-
 class LDAPBindAuthError(LDAPConnectionError):
     """
     LDAP bind auth error.
     """
 
 
-
 class LDAPQueryError(LDAPError):
     """
     LDAP query error.
     """
-
 
 
 #
@@ -127,7 +121,6 @@ class FieldName(Names):
     memberDNs.multiValue = True
 
 
-
 #
 # LDAP schema descriptions
 #
@@ -136,6 +129,7 @@ class RecordTypeSchema(object):
     """
     Describes the LDAP schema for a record type.
     """
+
     def __init__(self, relativeDN, attributes):
         """
         @param relativeDN: The relative distinguished name for the record type.
@@ -149,7 +143,6 @@ class RecordTypeSchema(object):
         """
         self.relativeDN = relativeDN
         self.attributes = tuple(tuple(pair) for pair in attributes)
-
 
 
 # We use strings (constant.value) instead of constants for the values in
@@ -250,7 +243,6 @@ class ConnectionPool(object):
                 self.ds.poolStats["connection-{}-blocked".format(self.poolName)] += 1
                 connection = self.connectionQueue.get()
 
-
         connectionID = "connection-{}-{}".format(
             self.poolName, self.connections.index(connection)
         )
@@ -269,7 +261,6 @@ class ConnectionPool(object):
             )
         return connection
 
-
     def returnConnection(self, connection):
         """
         A connection is no longer needed - return it to the pool.
@@ -277,7 +268,6 @@ class ConnectionPool(object):
         self.connectionQueue.put(connection)
         self.activeCount = len(self.connections) - self.connectionQueue.qsize()
         self.ds.poolStats["connection-{}-active".format(self.poolName)] = self.activeCount
-
 
     def failedConnection(self, connection):
         """
@@ -288,7 +278,6 @@ class ConnectionPool(object):
         self.connections.remove(connection)
         self.activeCount = len(self.connections) - self.connectionQueue.qsize()
         self.ds.poolStats["connection-{}-active".format(self.poolName)] = self.activeCount
-
 
     def _connect(self):
         """
@@ -336,7 +325,6 @@ class ConnectionPool(object):
                 )
 
         return connection
-
 
     def _newConnection(self):
         """
@@ -390,7 +378,6 @@ class DirectoryService(BaseDirectoryService):
     recordType = ConstantsContainer((
         BaseRecordType.user, BaseRecordType.group,
     ))
-
 
     def __init__(
         self,
@@ -532,14 +519,12 @@ class DirectoryService(BaseDirectoryService):
         reactor.callWhenRunning(self.start)
         reactor.addSystemEventTrigger("during", "shutdown", self.stop)
 
-
     def start(self):
         """
         Start up this service. Initialize the threadpool (if we own it).
         """
         if self.ownThreadpool:
             self.threadpool.start()
-
 
     def stop(self):
         """
@@ -552,11 +537,9 @@ class DirectoryService(BaseDirectoryService):
         # FIXME: we should probably also close the pool of active connections
         # too.
 
-
     @property
     def realmName(self):
         return u"{self.url}".format(self=self)
-
 
     class Connection(object):
         """
@@ -583,8 +566,6 @@ class DirectoryService(BaseDirectoryService):
                 self.pool.failedConnection(self.connection)
                 return False
 
-
-
     def _authenticateUsernamePassword(self, dn, password):
         """
         Open a secondary connection to the LDAP server and try binding to it
@@ -604,7 +585,6 @@ class DirectoryService(BaseDirectoryService):
             self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
             self.poolStats["connection-thread-blocked"] += 1
         return d
-
 
     def _authenticateUsernamePassword_inThread(self, dn, password, testStats=None):
         """
@@ -672,7 +652,6 @@ class DirectoryService(BaseDirectoryService):
                 else:
                     self.log.error("LDAP connection failure; retrying...")
 
-
     def _recordsFromQueryString(
         self, queryString, recordTypes=None,
         limitResults=None, timeoutSeconds=None
@@ -691,14 +670,12 @@ class DirectoryService(BaseDirectoryService):
             self.poolStats["connection-thread-blocked"] += 1
         return d
 
-
     def _addExtraFilter(self, recordType, queryString):
         if self._extraFilters and self._extraFilters.get(recordType, ""):
             queryString = "(&{extra}{query})".format(
                 extra=self._extraFilters[recordType], query=queryString
             )
         return queryString
-
 
     def _recordsFromQueryString_inThread(
         self, queryString, recordTypes=None,
@@ -777,7 +754,6 @@ class DirectoryService(BaseDirectoryService):
                                 ),
                             )
                             s.processResults()
-
 
                         except ldap.SIZELIMIT_EXCEEDED as e:
                             self.log.debug(
@@ -877,7 +853,6 @@ class DirectoryService(BaseDirectoryService):
 
         return records
 
-
     def _recordWithDN(self, dn):
         d = deferToThreadPool(
             reactor, self.threadpool,
@@ -888,7 +863,6 @@ class DirectoryService(BaseDirectoryService):
             self.log.error("LDAP thread pool overflowing: {qsize}", qsize=qsize)
             self.poolStats["connection-thread-blocked"] += 1
         return d
-
 
     def _recordWithDN_inThread(self, dn, testStats=None):
         """
@@ -945,7 +919,6 @@ class DirectoryService(BaseDirectoryService):
             return records[0]
         else:
             return None
-
 
     def _recordsFromReply(self, reply, recordType=None):
         records = []
@@ -1077,7 +1050,6 @@ class DirectoryService(BaseDirectoryService):
 
         return records
 
-
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None, limitResults=None,
         timeoutSeconds=None
@@ -1117,7 +1089,6 @@ class DirectoryService(BaseDirectoryService):
             timeoutSeconds=timeoutSeconds
         )
 
-
     def recordsFromCompoundExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
@@ -1134,7 +1105,6 @@ class DirectoryService(BaseDirectoryService):
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
-
     def recordsWithRecordType(
         self, recordType, limitResults=None, timeoutSeconds=None
     ):
@@ -1147,18 +1117,15 @@ class DirectoryService(BaseDirectoryService):
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
-
     # def updateRecords(self, records, create=False):
     #     for record in records:
     #         return fail(NotAllowedError("Record updates not allowed."))
     #     return succeed(None)
 
-
     # def removeRecords(self, uids):
     #     for uid in uids:
     #         return fail(NotAllowedError("Record removal not allowed."))
     #     return succeed(None)
-
 
 
 def splitIntoBatches(data, size):
@@ -1172,7 +1139,6 @@ def splitIntoBatches(data, size):
     while data:
         yield data[:size]
         del data[:size]
-
 
 
 @implementer(IPlaintextPasswordVerifier)
@@ -1252,11 +1218,9 @@ class DirectoryRecord(BaseDirectoryRecord):
 
         returnValue(members)
 
-
     # @inlineCallbacks
     def groups(self):
         raise NotImplementedError()
-
 
     #
     # Verifiers for twext.who.checker stuff.
@@ -1264,7 +1228,6 @@ class DirectoryRecord(BaseDirectoryRecord):
 
     def verifyPlaintextPassword(self, password):
         return self.service._authenticateUsernamePassword(self.dn, password)
-
 
 
 def normalizeDNstr(dnStr):
@@ -1275,7 +1238,6 @@ def normalizeDNstr(dnStr):
     @return: normalized dn C{str}
     """
     return ' '.join(ldap.dn.dn2str(ldap.dn.str2dn(dnStr.lower())).split())
-
 
 
 def reverseDict(source):
@@ -1289,7 +1251,6 @@ def reverseDict(source):
             new.setdefault(value, []).append(key)
 
     return new
-
 
 
 def recordTypeForDN(baseDnStr, recordTypeSchemas, dnStr):
@@ -1318,13 +1279,11 @@ def recordTypeForDN(baseDnStr, recordTypeSchemas, dnStr):
     return None
 
 
-
 def dnContainedIn(child, parent):
     """
     Return True if child dn is contained within parent dn, otherwise False.
     """
     return child[-len(parent):] == parent
-
 
 
 def recordTypeForRecordData(recordTypeSchemas, recordData):

@@ -37,7 +37,6 @@ __all__ = [
 from twisted.python.util import FancyEqMixin
 
 
-
 class SQLType(object):
     """
     A data-type as defined in SQL; like C{integer} or C{real} or
@@ -56,7 +55,6 @@ class SQLType(object):
         self.name = name
         self.length = length if length else 0
 
-
     def __eq__(self, other):
         """
         Compare equal to other L{SQLTypes} with matching name and length. The name is
@@ -66,7 +64,6 @@ class SQLType(object):
             return NotImplemented
         return (self.normalizedName(), self.length) == (other.normalizedName(), other.length)
 
-
     def __ne__(self, other):
         """
         (Inequality is the opposite of equality.)
@@ -75,7 +72,6 @@ class SQLType(object):
             return NotImplemented
         return not self.__eq__(other)
 
-
     def __repr__(self):
         """
         A useful string representation which includes the name and length if
@@ -83,7 +79,6 @@ class SQLType(object):
         """
         lendesc = "({})".format(self.length) if self.length else ""
         return "<SQL Type: {}{}>".format(self.name, lendesc)
-
 
     def normalizedName(self):
         """
@@ -97,7 +92,6 @@ class SQLType(object):
             "nclob": "text",
             "boolean": "integer",
         }.get(self.name, self.name)
-
 
 
 class Constraint(object):
@@ -123,14 +117,11 @@ class Constraint(object):
         self.columnNames = tuple([c.name for c in self.affectsColumns])
         self.name = name
 
-
     def __repr__(self):
         return "<Constraint: ({} {} {})>".format(self.type, self.columnNames, self.name)
 
-
     def __hash__(self):
         return hash((self.type, self.columnNames, self.name,))
-
 
     def __eq__(self, other):
         return (
@@ -139,10 +130,8 @@ class Constraint(object):
             self.name == other.name
         )
 
-
     def __ne__(self, other):
         return not self.__eq__(other)
-
 
 
 class Check(Constraint):
@@ -161,7 +150,6 @@ class Check(Constraint):
         )
 
 
-
 class ProcedureCall(FancyEqMixin):
     """
     An invocation of a stored procedure or built-in function.
@@ -175,13 +163,11 @@ class ProcedureCall(FancyEqMixin):
         self.args = args
 
 
-
 class NO_DEFAULT(object):
     """
     Placeholder value for not having a default.  (C{None} would not be
     suitable, as that would imply a default of C{NULL}).
     """
-
 
 
 def _checkstr(x):
@@ -193,10 +179,8 @@ def _checkstr(x):
         raise ValueError("{!r} is not a str.".format(x,))
 
 
-
 def listIfNone(x):
     return [] if x is None else x
-
 
 
 def stringIfNone(x, attr=None):
@@ -204,7 +188,6 @@ def stringIfNone(x, attr=None):
         return "" if x is None else getattr(x, attr)
     else:
         return "" if x is None else x
-
 
 
 class Column(FancyEqMixin, object):
@@ -246,10 +229,8 @@ class Column(FancyEqMixin, object):
         self.references = None
         self.deleteAction = None
 
-
     def __repr__(self):
         return "<Column ({} {!r})>".format(self.name, self.type)
-
 
     def compare(self, other):
         """
@@ -282,7 +263,6 @@ class Column(FancyEqMixin, object):
             results.append("Table: {}, column name {} delete action mismatch".format(self.table.name, self.name,))
         return results
 
-
     def canBeNull(self):
         """
         Can this column ever be C{NULL}, i.e. C{None}?  In other words, is it
@@ -296,14 +276,12 @@ class Column(FancyEqMixin, object):
                     return False
         return True
 
-
     def setDefaultValue(self, value):
         """
         Change the default value of this column.  (Should only be called during
         schema parsing.)
         """
         self.default = value
-
 
     def needsValue(self):
         """
@@ -318,7 +296,6 @@ class Column(FancyEqMixin, object):
         return not (self.canBeNull() or
                     (self.default not in (None, NO_DEFAULT)))
 
-
     def doesReferenceName(self, name):
         """
         Change this column to refer to a table in the schema.  (Should only be
@@ -328,7 +305,6 @@ class Column(FancyEqMixin, object):
         @type name: L{str}
         """
         self.references = self.table.schema.tableNamed(name)
-
 
 
 class Table(FancyEqMixin, object):
@@ -359,10 +335,8 @@ class Table(FancyEqMixin, object):
         self.primaryKey = None
         self.schema.tables.append(self)
 
-
     def __repr__(self):
         return "<Table {}:{!r}>".format(self.name, self.columns)
-
 
     def compare(self, other):
         """
@@ -410,7 +384,6 @@ class Table(FancyEqMixin, object):
 
         return results
 
-
     def columnNamed(self, name):
         """
         Retrieve a column from this table with a given name.
@@ -425,7 +398,6 @@ class Table(FancyEqMixin, object):
             if column.name == name:
                 return column
         raise KeyError("no such column: {}".format(name,))
-
 
     def addColumn(self, name, type, default=NO_DEFAULT, notNull=False, primaryKey=False):
         """
@@ -445,7 +417,6 @@ class Table(FancyEqMixin, object):
             self.primaryKey = [column]
         return column
 
-
     def tableConstraint(self, constraintType, columnNames):
         """
         This table is affected by a constraint.  (Should only be called during
@@ -459,7 +430,6 @@ class Table(FancyEqMixin, object):
             affectsColumns.append(self.columnNamed(name))
         self.constraints.append(Constraint(constraintType, affectsColumns))
 
-
     def checkConstraint(self, protoExpression, name=None):
         """
         This table is affected by a C{check} constraint.  (Should only be
@@ -468,7 +438,6 @@ class Table(FancyEqMixin, object):
         @param protoExpression: proto expression.
         """
         self.constraints.append(Check(protoExpression, name))
-
 
     def insertSchemaRow(self, values, columns=None):
         """
@@ -492,7 +461,6 @@ class Table(FancyEqMixin, object):
             row[column] = value
         self.schemaRows.append(row)
 
-
     def addComment(self, comment):
         """
         Add a comment to C{descriptiveComment}.
@@ -501,7 +469,6 @@ class Table(FancyEqMixin, object):
         @type comment: C{str}
         """
         self.descriptiveComment = comment
-
 
     def uniques(self):
         """
@@ -513,7 +480,6 @@ class Table(FancyEqMixin, object):
         for constraint in self.constraints:
             if constraint.type is Constraint.UNIQUE:
                 yield list(constraint.affectsColumns)
-
 
     def pseudoConstraints(self):
         """
@@ -538,7 +504,6 @@ class Table(FancyEqMixin, object):
         return (constraint for constraint in constraints)
 
 
-
 class Index(object):
     """
     An L{Index} is an SQL index.
@@ -551,10 +516,8 @@ class Index(object):
         self.columns = []
         schema.indexes.append(self)
 
-
     def addColumn(self, column):
         self.columns.append(column)
-
 
 
 class PseudoIndex(object):
@@ -577,7 +540,6 @@ class PseudoIndex(object):
         self.table = table
         self.index_type = index_type
         self.columns = columns
-
 
     def compare(self, other):
         """
@@ -606,7 +568,6 @@ class PseudoIndex(object):
         return results
 
 
-
 class Sequence(FancyEqMixin, object):
     """
     A sequence object.
@@ -620,10 +581,8 @@ class Sequence(FancyEqMixin, object):
         self.referringColumns = []
         schema.sequences.append(self)
 
-
     def __repr__(self):
         return "<Sequence {}>".format(self.name,)
-
 
     def compare(self, other):
         """
@@ -635,7 +594,6 @@ class Sequence(FancyEqMixin, object):
 
         # TODO: figure out whether to compare referringColumns attribute
         return []
-
 
 
 class Function(FancyEqMixin, object):
@@ -650,10 +608,8 @@ class Function(FancyEqMixin, object):
         self.name = name
         schema.functions.append(self)
 
-
     def __repr__(self):
         return "<Function {}>".format(self.name,)
-
 
     def compare(self, other):
         """
@@ -667,7 +623,6 @@ class Function(FancyEqMixin, object):
         return []
 
 
-
 def _namedFrom(name, sequence):
     """
     Retrieve an item with a given name attribute from a given sequence, or
@@ -677,7 +632,6 @@ def _namedFrom(name, sequence):
         if item.name == name:
             return item
     raise KeyError(name)
-
 
 
 class Schema(object):
@@ -692,10 +646,8 @@ class Schema(object):
         self.sequences = []
         self.functions = []
 
-
     def __repr__(self):
         return "<Schema {}>".format(self.filename,)
-
 
     def compare(self, other):
         """
@@ -709,6 +661,7 @@ class Schema(object):
 
         def lowerTruncateName(name):
             return name.lower()[:63]
+
         def lowerName(name):
             return name.lower()
 
@@ -738,7 +691,6 @@ class Schema(object):
             results.insert(0, "Comparing schema: {} to {}".format(self.filename, other.filename,))
         return results
 
-
     def pseudoIndexes(self):
         """
         Return a set of indexes that include "implicit" indexes from
@@ -765,18 +717,14 @@ class Schema(object):
 
         return results
 
-
     def tableNamed(self, name):
         return _namedFrom(name, self.tables)
-
 
     def sequenceNamed(self, name):
         return _namedFrom(name, self.sequences)
 
-
     def indexNamed(self, name):
         return _namedFrom(name, self.indexes)
-
 
     def functionNamed(self, name):
         return _namedFrom(name, self.functions)

@@ -36,15 +36,14 @@ from ..xml import ParseError, DirectoryService, DirectoryRecord
 from . import test_index
 
 
-
 class BaseTest(object):
+
     def service(self, subClass=None, xmlData=None):
         return xmlService(
             self.mktemp(),
             xmlData=xmlData,
             serviceClass=subClass
         )
-
 
     def assertRecords(self, records, uids):
         self.assertEquals(
@@ -53,8 +52,8 @@ class BaseTest(object):
         )
 
 
-
 class DirectoryServiceConvenienceTestMixIn(object):
+
     @inlineCallbacks
     def test_recordWithUID(self):
         service = self.service()
@@ -64,7 +63,6 @@ class DirectoryServiceConvenienceTestMixIn(object):
 
         record = (yield service.recordWithUID(u"__wsanchez__"))
         self.assertEquals(record.uid, u"__wsanchez__")
-
 
     @inlineCallbacks
     def test_recordWithGUID(self):
@@ -84,7 +82,6 @@ class DirectoryServiceConvenienceTestMixIn(object):
         )
         self.assertEquals(record.uid, u"__dre__")
 
-
     @inlineCallbacks
     def test_recordsWithRecordType_unknown(self):
         service = self.service()
@@ -93,7 +90,6 @@ class DirectoryServiceConvenienceTestMixIn(object):
             yield service.recordsWithRecordType(UnknownConstant.unknown)
         )
         self.assertEquals(set(records), set())
-
 
     @inlineCallbacks
     def test_recordsWithRecordType(self):
@@ -129,7 +125,6 @@ class DirectoryServiceConvenienceTestMixIn(object):
             ),
         )
 
-
     @inlineCallbacks
     def test_recordWithShortName(self):
         service = self.service()
@@ -158,7 +153,6 @@ class DirectoryServiceConvenienceTestMixIn(object):
         )
         self.assertEquals(record.uid, u"__wsanchez__")
 
-
     @inlineCallbacks
     def test_recordsWithEmailAddress(self):
         service = self.service()
@@ -183,7 +177,6 @@ class DirectoryServiceConvenienceTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__sagen__", u"__dre__"))
-
 
     @inlineCallbacks
     def test_limitResults(self):
@@ -210,8 +203,8 @@ class DirectoryServiceConvenienceTestMixIn(object):
         self.assertEquals(len(records), 9)
 
 
-
 class DirectoryServiceRealmTestMixIn(object):
+
     def test_realmNameImmutable(self):
         def setRealmName():
             service = self.service()
@@ -220,8 +213,8 @@ class DirectoryServiceRealmTestMixIn(object):
         self.assertRaises(AttributeError, setRealmName)
 
 
-
 class DirectoryServiceQueryTestMixIn(object):
+
     @inlineCallbacks
     def test_queryAnd(self):
         service = self.service()
@@ -235,7 +228,6 @@ class DirectoryServiceQueryTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__sagen__",))
-
 
     @inlineCallbacks
     def test_queryAndNoneFirst(self):
@@ -254,7 +246,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, ())
 
-
     @inlineCallbacks
     def test_queryOr(self):
         service = self.service()
@@ -271,7 +262,6 @@ class DirectoryServiceQueryTestMixIn(object):
             records,
             (u"__sagen__", u"__dre__", u"__wsanchez__")
         )
-
 
     @inlineCallbacks
     def test_queryNot(self):
@@ -292,7 +282,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__dre__",))
 
-
     @inlineCallbacks
     def test_queryNotNoIndex(self):
         service = self.service()
@@ -310,7 +299,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__sagen__",))
 
-
     @inlineCallbacks
     def test_queryCaseInsensitive(self):
         service = self.service()
@@ -321,7 +309,6 @@ class DirectoryServiceQueryTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__sagen__",))
-
 
     @inlineCallbacks
     def test_queryCaseInsensitiveNoIndex(self):
@@ -334,7 +321,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__sagen__",))
 
-
     @inlineCallbacks
     def test_queryStartsWith(self):
         service = self.service()
@@ -346,7 +332,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__wsanchez__",))
 
-
     @inlineCallbacks
     def test_queryStartsWithNoIndex(self):
         service = self.service()
@@ -357,7 +342,6 @@ class DirectoryServiceQueryTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__wsanchez__",))
-
 
     @inlineCallbacks
     def test_queryStartsWithNot(self):
@@ -385,7 +369,6 @@ class DirectoryServiceQueryTestMixIn(object):
                 u"__twisted__",
             ),
         )
-
 
     @inlineCallbacks
     def test_queryStartsWithNotAny(self):
@@ -421,7 +404,6 @@ class DirectoryServiceQueryTestMixIn(object):
             ),
         )
 
-
     @inlineCallbacks
     def test_queryStartsWithNotNoIndex(self):
         service = self.service()
@@ -449,7 +431,6 @@ class DirectoryServiceQueryTestMixIn(object):
             ),
         )
 
-
     @inlineCallbacks
     def test_queryStartsWithCaseInsensitive(self):
         service = self.service()
@@ -461,7 +442,6 @@ class DirectoryServiceQueryTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__wsanchez__",))
-
 
     @inlineCallbacks
     def test_queryStartsWithCaseInsensitiveNoIndex(self):
@@ -475,7 +455,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__wsanchez__",))
 
-
     @inlineCallbacks
     def test_queryContains(self):
         service = self.service()
@@ -487,7 +466,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__wsanchez__",))
 
-
     @inlineCallbacks
     def test_queryContainsNoIndex(self):
         service = self.service()
@@ -498,7 +476,6 @@ class DirectoryServiceQueryTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__wsanchez__",))
-
 
     @inlineCallbacks
     def test_queryContainsNot(self):
@@ -527,7 +504,6 @@ class DirectoryServiceQueryTestMixIn(object):
             ),
         )
 
-
     @inlineCallbacks
     def test_queryContainsNotNoIndex(self):
         service = self.service()
@@ -555,7 +531,6 @@ class DirectoryServiceQueryTestMixIn(object):
             ),
         )
 
-
     @inlineCallbacks
     def test_queryContainsCaseInsensitive(self):
         service = self.service()
@@ -568,7 +543,6 @@ class DirectoryServiceQueryTestMixIn(object):
         )
         self.assertRecords(records, (u"__wsanchez__",))
 
-
     @inlineCallbacks
     def test_queryContainsCaseInsensitiveNoIndex(self):
         service = self.service()
@@ -580,7 +554,6 @@ class DirectoryServiceQueryTestMixIn(object):
             )
         )
         self.assertRecords(records, (u"__wsanchez__",))
-
 
     @inlineCallbacks
     def test_queryWithRecordTypes(self):
@@ -603,8 +576,8 @@ class DirectoryServiceQueryTestMixIn(object):
         )
 
 
-
 class DirectoryServiceMutableTestMixIn(object):
+
     @inlineCallbacks
     def test_updateRecord(self):
         service = self.service()
@@ -632,7 +605,6 @@ class DirectoryServiceMutableTestMixIn(object):
             set((u"Wilfredo Sanchez Vega",))
         )
 
-
     @inlineCallbacks
     def test_addRecord(self):
         service = self.service()
@@ -659,7 +631,6 @@ class DirectoryServiceMutableTestMixIn(object):
         record = (yield service.recordWithUID(u"__plugh__"))
         self.assertEquals(set(record.shortNames), set((u"plugh",)))
 
-
     def test_addRecordNoCreate(self):
         service = self.service()
 
@@ -677,7 +648,6 @@ class DirectoryServiceMutableTestMixIn(object):
             NoSuchRecordError
         )
 
-
     @inlineCallbacks
     def test_removeRecord(self):
         service = self.service()
@@ -691,12 +661,10 @@ class DirectoryServiceMutableTestMixIn(object):
         service.flush()
         self.assertEquals((yield service.recordWithUID(u"__wsanchez__")), None)
 
-
     def test_removeRecordNoExist(self):
         service = self.service()
 
         return service.removeRecords((u"__plugh__",))
-
 
 
 class DirectoryServiceTest(
@@ -719,8 +687,8 @@ class DirectoryServiceTest(
         self.assertEquals(repr(service), u"<TestService u'xyzzy'>")
 
 
-
 class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
+
     def test_reloadInterval(self):
         service = self.service()
 
@@ -731,7 +699,6 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
         sleep(1)
         service.loadRecords(stat=False)
         self.assertEquals(lastRefresh, service._lastRefresh)
-
 
     def test_reloadStat(self):
         service = self.service()
@@ -744,12 +711,10 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
         service.loadRecords(loadNow=True)
         self.assertEquals(lastRefresh, service._lastRefresh)
 
-
     def test_badXML(self):
         service = self.service(xmlData="Hello")
 
         self.assertRaises(ParseError, service.loadRecords)
-
 
     def test_badRootElement(self):
         service = self.service(xmlData=(dedent(
@@ -768,7 +733,6 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
         else:
             raise AssertionError("Expected ParseError")
 
-
     def test_noRealmName(self):
         service = self.service(xmlData=(dedent(
             b"""
@@ -786,11 +750,9 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
         else:
             raise AssertionError("Expected ParseError")
 
-
     def test_unknownFieldElementsClean(self):
         service = self.service()
         self.assertEquals(set(service.unknownFieldElements), set())
-
 
     def test_unknownFieldElementsDirty(self):
         service = self.service(xmlData=(dedent(
@@ -811,11 +773,9 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
             set((u"political-affiliation",))
         )
 
-
     def test_unknownRecordTypesClean(self):
         service = self.service()
         self.assertEquals(set(service.unknownRecordTypes), set())
-
 
     def test_unknownRecordTypesDirty(self):
         service = self.service(xmlData=(dedent(
@@ -834,11 +794,9 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
 
         self.assertEquals(set(service.unknownRecordTypes), set((u"camera",)))
 
-
     def test_unknownFieldElementClean(self):
         service = self.service()
         self.assertEquals(set(service.unknownFieldElements), set())
-
 
     @inlineCallbacks
     def test_unknownFieldElementDirty(self):
@@ -870,7 +828,6 @@ class DirectoryServiceParsingTest(unittest.TestCase, BaseTest):
         self.assertEquals(set(record.shortNames), set((u"wsanchez",)))
 
 
-
 class DirectoryRecordTest(
     unittest.TestCase,
     BaseTest,
@@ -879,7 +836,6 @@ class DirectoryRecordTest(
 
     serviceClass = DirectoryService
     directoryRecordClass = DirectoryRecord
-
 
     @inlineCallbacks
     def test_members_group(self):
@@ -917,7 +873,6 @@ class DirectoryRecordTest(
             )
         )
 
-
     @inlineCallbacks
     def test_memberships(self):
         service = self.service()
@@ -935,7 +890,6 @@ class DirectoryRecordTest(
         )
 
 
-
 class MissingFileTest(unittest.TestCase):
 
     def test_missingFile(self):
@@ -947,8 +901,8 @@ class MissingFileTest(unittest.TestCase):
         )
 
 
-
 class QueryMixIn(object):
+
     def query(
         self,
         field, value,
@@ -963,15 +917,12 @@ class QueryMixIn(object):
         )
 
 
-
 class TestService(DirectoryService, QueryMixIn):
     pass
 
 
-
 class UnknownConstant(Names):
     unknown = NamedConstant()
-
 
 
 def xmlService(tmp, xmlData=None, serviceClass=None):
@@ -991,7 +942,6 @@ def xmlService(tmp, xmlData=None, serviceClass=None):
             "Unable to instantiate XML service {0}: {1}"
             .format(serviceClass, e)
         )
-
 
 
 testXMLConfig = b"""<?xml version="1.0" encoding="utf-8"?>

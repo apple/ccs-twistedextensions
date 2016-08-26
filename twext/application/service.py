@@ -31,7 +31,6 @@ from twisted.application.service import MultiService
 from twext.python.log import Logger
 
 
-
 class ReExecService(MultiService):
     """
     A MultiService which catches SIGHUP and re-exec's the process.
@@ -50,7 +49,6 @@ class ReExecService(MultiService):
         self.reactor = reactor
         MultiService.__init__(self)
 
-
     def reExec(self):
         """
         Removes pidfile, registers an exec to happen after shutdown, then
@@ -68,15 +66,12 @@ class ReExecService(MultiService):
         )
         self.reactor.stop()
 
-
     def sighupHandler(self, num, frame):
         self.reactor.callFromThread(self.reExec)
-
 
     def startService(self):
         self.previousHandler = signal.signal(signal.SIGHUP, self.sighupHandler)
         MultiService.startService(self)
-
 
     def stopService(self):
         signal.signal(signal.SIGHUP, self.previousHandler)

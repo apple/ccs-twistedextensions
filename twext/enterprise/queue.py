@@ -115,7 +115,7 @@ class _IWorkPerformer(Interface):
     (in the worst case) pass from worker->controller->controller->worker.
     """
 
-    def performWork(table, workID): #@NoSelf
+    def performWork(table, workID):  # @NoSelf
         """
         @param table: The table where work is waiting.
         @type table: L{TableSyntax}
@@ -127,7 +127,6 @@ class _IWorkPerformer(Interface):
             complete.
         @rtype: L{Deferred} firing L{dict}
         """
-
 
 
 def makeNodeSchema(inSchema):
@@ -165,7 +164,6 @@ def makeNodeSchema(inSchema):
 NodeInfoSchema = SchemaSyntax(makeNodeSchema(Schema(__file__)))
 
 
-
 @inlineCallbacks
 def inTransaction(transactionCreator, operation):
     """
@@ -194,13 +192,11 @@ def inTransaction(transactionCreator, operation):
         returnValue(result)
 
 
-
 def astimestamp(v):
     """
     Convert the given datetime to a POSIX timestamp.
     """
     return (v - datetime.utcfromtimestamp(0)).total_seconds()
-
 
 
 class TableSyntaxByName(Argument):
@@ -221,7 +217,6 @@ class TableSyntaxByName(Argument):
         """
         return getattr(proto.schema, inString.decode("UTF-8"))
 
-
     def toString(self, inObject):
         """
         Convert a L{TableSyntax} object into just its name for wire transport.
@@ -233,7 +228,6 @@ class TableSyntaxByName(Argument):
         @rtype: L{bytes}
         """
         return inObject.model.name.encode("UTF-8")
-
 
 
 class NodeInfo(Record, fromTable(NodeInfoSchema.NODE_INFO)):
@@ -252,7 +246,6 @@ class NodeInfo(Record, fromTable(NodeInfoSchema.NODE_INFO)):
         return TCP4ClientEndpoint(reactor, self.hostname, self.port)
 
 
-
 def abstract(thunk):
     """
     The decorated function is abstract.
@@ -266,7 +259,6 @@ def abstract(thunk):
             qual(cls) + " does not implement " + thunk.func_name
         )
     return inner
-
 
 
 class WorkItem(Record):
@@ -363,7 +355,6 @@ class WorkItem(Record):
 
     group = None
 
-
     @abstract
     def doWork(self):
         """
@@ -399,7 +390,6 @@ class WorkItem(Record):
         ))
 
 
-
 class PerformWork(Command):
     """
     Notify another process that it must do some work that has been persisted to
@@ -414,7 +404,6 @@ class PerformWork(Command):
     response = []
 
 
-
 class ReportLoad(Command):
     """
     Notify another node of the total, current load for this whole node (all of
@@ -424,7 +413,6 @@ class ReportLoad(Command):
         ("load", Integer())
     ]
     response = []
-
 
 
 class IdentifyNode(Command):
@@ -444,7 +432,6 @@ class IdentifyNode(Command):
     ]
 
 
-
 class SchemaAMP(AMP):
     """
     An AMP instance which also has a L{Schema} attached to it.
@@ -456,7 +443,6 @@ class SchemaAMP(AMP):
     def __init__(self, schema, boxReceiver=None, locator=None):
         self.schema = schema
         super(SchemaAMP, self).__init__(boxReceiver, locator)
-
 
 
 class ConnectionFromPeerNode(SchemaAMP):
@@ -500,13 +486,11 @@ class ConnectionFromPeerNode(SchemaAMP):
             peerPool.schema, boxReceiver, locator
         )
 
-
     def reportCurrentLoad(self):
         """
         Report the current load for the local worker pool to this peer.
         """
         return self.callRemote(ReportLoad, load=self.totalLoad())
-
 
     @ReportLoad.responder
     def reportedLoad(self, load):
@@ -516,7 +500,6 @@ class ConnectionFromPeerNode(SchemaAMP):
         self._reportedLoad = (load - self._bonusLoad)
         return {}
 
-
     def startReceivingBoxes(self, sender):
         """
         Connection is up and running; add this to the list of active peers.
@@ -524,7 +507,6 @@ class ConnectionFromPeerNode(SchemaAMP):
         r = super(ConnectionFromPeerNode, self).startReceivingBoxes(sender)
         self.peerPool.addPeerConnection(self)
         return r
-
 
     def stopReceivingBoxes(self, reason):
         """
@@ -534,7 +516,6 @@ class ConnectionFromPeerNode(SchemaAMP):
         self.peerPool.removePeerConnection(self)
         r = super(ConnectionFromPeerNode, self).stopReceivingBoxes(reason)
         return r
-
 
     def currentLoadEstimate(self):
         """
@@ -546,7 +527,6 @@ class ConnectionFromPeerNode(SchemaAMP):
         @rtype: L{int}
         """
         return self._reportedLoad + self._bonusLoad
-
 
     def performWork(self, table, workID):
         """
@@ -570,7 +550,6 @@ class ConnectionFromPeerNode(SchemaAMP):
 
         return d
 
-
     @PerformWork.responder
     def dispatchToWorker(self, table, workID):
         """
@@ -589,12 +568,10 @@ class ConnectionFromPeerNode(SchemaAMP):
         d.addCallback(lambda ignored: {})
         return d
 
-
     @IdentifyNode.responder
     def identifyPeer(self, host, port):
         self.peerPool.mapPeer(host, port, self)
         return {}
-
 
 
 class WorkerConnectionPool(object):
@@ -611,7 +588,6 @@ class WorkerConnectionPool(object):
         self.workers = []
         self.maximumLoadPerWorker = maximumLoadPerWorker
 
-
     def addWorker(self, worker):
         """
         Add a L{ConnectionFromWorker} to this L{WorkerConnectionPool} so that
@@ -619,14 +595,12 @@ class WorkerConnectionPool(object):
         """
         self.workers.append(worker)
 
-
     def removeWorker(self, worker):
         """
         Remove a L{ConnectionFromWorker} from this L{WorkerConnectionPool} that
         was previously added.
         """
         self.workers.remove(worker)
-
 
     def hasAvailableCapacity(self):
         """
@@ -638,13 +612,11 @@ class WorkerConnectionPool(object):
                 return True
         return False
 
-
     def allWorkerLoad(self):
         """
         The total load of all currently connected workers.
         """
         return sum(worker.currentLoad for worker in self.workers)
-
 
     def _selectLowestLoadWorker(self):
         """
@@ -655,7 +627,6 @@ class WorkerConnectionPool(object):
         @rtype: L{ConnectionFromWorker}
         """
         return sorted(self.workers[:], key=lambda w: w.currentLoad)[0]
-
 
     def performWork(self, table, workID):
         """
@@ -677,7 +648,6 @@ class WorkerConnectionPool(object):
         return result
 
 
-
 class ConnectionFromWorker(SchemaAMP):
     """
     An individual connection from a worker, as seem from the master's
@@ -690,14 +660,12 @@ class ConnectionFromWorker(SchemaAMP):
         self.peerPool = peerPool
         self._load = 0
 
-
     @property
     def currentLoad(self):
         """
         What is the current load of this worker?
         """
         return self._load
-
 
     def startReceivingBoxes(self, sender):
         """
@@ -708,7 +676,6 @@ class ConnectionFromWorker(SchemaAMP):
         self.peerPool.workerPool.addWorker(self)
         return result
 
-
     def stopReceivingBoxes(self, reason):
         """
         AMP boxes will no longer be received.
@@ -716,7 +683,6 @@ class ConnectionFromWorker(SchemaAMP):
         result = super(ConnectionFromWorker, self).stopReceivingBoxes(reason)
         self.peerPool.workerPool.removeWorker(self)
         return result
-
 
     @PerformWork.responder
     def performWork(self, table, workID):
@@ -735,7 +701,6 @@ class ConnectionFromWorker(SchemaAMP):
             return result
 
         return d
-
 
 
 class ConnectionFromController(SchemaAMP):
@@ -757,11 +722,9 @@ class ConnectionFromController(SchemaAMP):
         from twisted.internet import reactor
         self.reactor = reactor
 
-
     def startReceivingBoxes(self, sender):
         super(ConnectionFromController, self).startReceivingBoxes(sender)
         self.whenConnected(self)
-
 
     def choosePerformer(self):
         """
@@ -773,13 +736,11 @@ class ConnectionFromController(SchemaAMP):
         """
         return self
 
-
     def performWork(self, table, workID):
         """
         Ask the controller to perform some work on our behalf.
         """
         return self.callRemote(PerformWork, table=table, workID=workID)
-
 
     def enqueueWork(self, txn, workItemType, **kw):
         """
@@ -802,7 +763,6 @@ class ConnectionFromController(SchemaAMP):
         wp._start()
         return wp
 
-
     @PerformWork.responder
     def actuallyReallyExecuteWorkHere(self, table, workID):
         """
@@ -813,7 +773,6 @@ class ConnectionFromController(SchemaAMP):
         d = ultimatelyPerform(self.transactionFactory, table, workID)
         d.addCallback(lambda ignored: {})
         return d
-
 
 
 def ultimatelyPerform(txnFactory, table, workID):
@@ -854,7 +813,6 @@ def ultimatelyPerform(txnFactory, table, workID):
     return inTransaction(txnFactory, work)
 
 
-
 class LocalPerformer(object):
     """
     Implementor of C{performWork} that does its work in the local process,
@@ -868,13 +826,11 @@ class LocalPerformer(object):
         """
         self.txnFactory = txnFactory
 
-
     def performWork(self, table, workID):
         """
         Perform the given work right now.
         """
         return ultimatelyPerform(self.txnFactory, table, workID)
-
 
 
 class WorkerFactory(Factory, object):
@@ -891,7 +847,6 @@ class WorkerFactory(Factory, object):
         self.schema = schema
         self.whenConnected = whenConnected
 
-
     def buildProtocol(self, addr):
         """
         Create a L{ConnectionFromController} connected to the
@@ -901,12 +856,10 @@ class WorkerFactory(Factory, object):
                                         self.whenConnected)
 
 
-
 class TransactionFailed(Exception):
     """
     A transaction failed.
     """
-
 
 
 def _cloneDeferred(d):
@@ -919,7 +872,6 @@ def _cloneDeferred(d):
     d2 = Deferred()
     d.chainDeferred(d2)
     return d2
-
 
 
 class WorkProposal(object):
@@ -952,7 +904,6 @@ class WorkProposal(object):
         self._whenExecuted = Deferred()
         self._whenCommitted = Deferred()
         self.workItem = None
-
 
     def _start(self):
         """
@@ -999,7 +950,6 @@ class WorkProposal(object):
 
         created.addCallbacks(whenCreated, whenNotCreated)
 
-
     def whenExecuted(self):
         """
         Let the caller know when the proposed work has been fully executed.
@@ -1022,7 +972,6 @@ class WorkProposal(object):
         """
         return _cloneDeferred(self._whenExecuted)
 
-
     def whenProposed(self):
         """
         Let the caller know when the work has been proposed; i.e. when the work
@@ -1034,7 +983,6 @@ class WorkProposal(object):
             reason.
         """
         return _cloneDeferred(self._whenProposed)
-
 
     def whenCommitted(self):
         """
@@ -1049,7 +997,6 @@ class WorkProposal(object):
         return _cloneDeferred(self._whenCommitted)
 
 
-
 class _BaseQueuer(object):
     implements(IQueuer)
 
@@ -1057,15 +1004,12 @@ class _BaseQueuer(object):
         super(_BaseQueuer, self).__init__()
         self.proposalCallbacks = set()
 
-
     def callWithNewProposals(self, callback):
         self.proposalCallbacks.add(callback)
-
 
     def transferProposalCallbacks(self, newQueuer):
         newQueuer.proposalCallbacks = self.proposalCallbacks
         return newQueuer
-
 
     def enqueueWork(self, txn, workItemType, **kw):
         """
@@ -1089,7 +1033,6 @@ class _BaseQueuer(object):
         for callback in self.proposalCallbacks:
             callback(wp)
         return wp
-
 
 
 class PeerConnectionPool(_BaseQueuer, MultiService, object):
@@ -1175,17 +1118,14 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         self._lastSeenTotalNodes = 1
         self._lastSeenNodeIndex = 1
 
-
     def addPeerConnection(self, peer):
         """
         Add a L{ConnectionFromPeerNode} to the active list of peers.
         """
         self.peers.append(peer)
 
-
     def totalLoad(self):
         return self.workerPool.allWorkerLoad()
-
 
     def workerListenerFactory(self):
         """
@@ -1195,13 +1135,11 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         f.buildProtocol = lambda addr: ConnectionFromWorker(self)
         return f
 
-
     def removePeerConnection(self, peer):
         """
         Remove a L{ConnectionFromPeerNode} to the active list of peers.
         """
         self.peers.remove(peer)
-
 
     def choosePerformer(self, onlyLocally=False):
         """
@@ -1223,7 +1161,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         else:
             return LocalPerformer(self.transactionFactory)
 
-
     def performWorkForPeer(self, table, workID):
         """
         A peer has requested us to perform some work; choose a work performer
@@ -1231,7 +1168,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         performer = self.choosePerformer(onlyLocally=True)
         return performer.performWork(table, workID)
-
 
     def allWorkItemTypes(self):
         """
@@ -1251,7 +1187,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
                                                          self.schema]):
                 yield workItemSubclass
 
-
     def totalNumberOfNodes(self):
         """
         How many nodes are there, total?
@@ -1264,7 +1199,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         # TODO
         return self._lastSeenTotalNodes
-
 
     def nodeIndex(self):
         """
@@ -1279,7 +1213,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         """
         # TODO
         return self._lastSeenNodeIndex
-
 
     def _periodicLostWorkCheck(self):
         """
@@ -1349,7 +1282,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
 
         self._currentWorkDeferred = scheduleNext
 
-
     def startService(self):
         """
         Register ourselves with the database and establish all outgoing
@@ -1390,7 +1322,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             self._lostWorkCheckLoop()
             return result
 
-
     @inlineCallbacks
     def stopService(self):
         """
@@ -1422,13 +1353,11 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
         for peer in self.peers:
             peer.transport.abortConnection()
 
-
     def activeNodes(self, txn):
         """
         Load information about all other nodes.
         """
         return NodeInfo.all(txn)
-
 
     def mapPeer(self, host, port, peer):
         """
@@ -1472,7 +1401,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
 
         connected.addCallbacks(whenConnected, noted)
 
-
     def peerFactory(self):
         """
         Factory for peer connections.
@@ -1481,7 +1409,6 @@ class PeerConnectionPool(_BaseQueuer, MultiService, object):
             protocols attached to this L{PeerConnectionPool}.
         """
         return _PeerPoolFactory(self)
-
 
 
 class _PeerPoolFactory(Factory, object):
@@ -1493,10 +1420,8 @@ class _PeerPoolFactory(Factory, object):
     def __init__(self, peerConnectionPool):
         self.peerConnectionPool = peerConnectionPool
 
-
     def buildProtocol(self, addr):
         return ConnectionFromPeerNode(self.peerConnectionPool)
-
 
 
 class LocalQueuer(_BaseQueuer):
@@ -1512,13 +1437,11 @@ class LocalQueuer(_BaseQueuer):
             from twisted.internet import reactor
         self.reactor = reactor
 
-
     def choosePerformer(self):
         """
         Choose to perform the work locally.
         """
         return LocalPerformer(self.txnFactory)
-
 
 
 class NonPerformer(object):
@@ -1537,7 +1460,6 @@ class NonPerformer(object):
         return succeed(None)
 
 
-
 class NonPerformingQueuer(_BaseQueuer):
     """
     When work is enqueued with this queuer, it is never executed locally.
@@ -1550,7 +1472,6 @@ class NonPerformingQueuer(_BaseQueuer):
         if reactor is None:
             from twisted.internet import reactor
         self.reactor = reactor
-
 
     def choosePerformer(self):
         """

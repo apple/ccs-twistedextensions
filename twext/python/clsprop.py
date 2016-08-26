@@ -21,7 +21,6 @@ A small utility for defining static class properties.
 __all__ = ["classproperty"]
 
 
-
 class classproperty(object):
     """
     Decorator for a method that wants to return a static class property.  The
@@ -34,10 +33,8 @@ class classproperty(object):
         self.thunk = thunk
         self._classcache = {}
 
-
     def __call__(self, thunk):
         return self.__class__(thunk, self.cache)
-
 
     def __get__(self, instance, owner):
         if not self.cache:

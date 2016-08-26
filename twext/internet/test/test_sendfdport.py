@@ -39,14 +39,12 @@ else:
     skip = False
 
 
-
 def verifiedImplementer(interface):
     def _(cls):
         result = implementer(interface)(cls)
         verifyClass(interface, result)
         return result
     return _
-
 
 
 @verifiedImplementer(IReactorFDSet)
@@ -56,34 +54,26 @@ class ReaderAdder(object):
         self.readers = []
         self.writers = []
 
-
     def addReader(self, reader):
         self.readers.append(reader)
-
 
     def getReaders(self):
         return self.readers[:]
 
-
     def addWriter(self, writer):
         self.writers.append(writer)
-
 
     def removeAll(self):
         self.__init__()
 
-
     def getWriters(self):
         return self.writers[:]
-
 
     def removeReader(self, reader):
         self.readers.remove(reader)
 
-
     def removeWriter(self, writer):
         self.writers.remove(writer)
-
 
 
 def isNonBlocking(skt):
@@ -100,31 +90,26 @@ def isNonBlocking(skt):
     return bool(fcntl.fcntl(skt.fileno(), fcntl.F_GETFL) & os.O_NONBLOCK)
 
 
-
 @verifiedImplementer(IStatus)
 class Status(object):
+
     def __init__(self):
         self.count = 0
         self.available = False
 
-
     def effective(self):
         return self.count
 
-
     def active(self):
         return self.available
-
 
     def start(self):
         self.available = False
         return self
 
-
     def restarted(self):
         self.available = True
         return self
-
 
     def stop(self):
         self.count = 0
@@ -132,31 +117,26 @@ class Status(object):
         return self
 
 
-
 @verifiedImplementer(IStatusWatcher)
 class Watcher(object):
+
     def __init__(self, q):
         self.q = q
         self._closeCounter = 1
-
 
     def newConnectionStatus(self, previous):
         previous.count += 1
         return previous
 
-
     def statusFromMessage(self, previous, message):
         previous.count -= 1
         return previous
 
-
     def statusesChanged(self, statuses):
         self.q.append([(status.count, status.available) for status in statuses])
 
-
     def initialStatus(self):
         return Status()
-
 
     def closeCountFromStatus(self, status):
         result = (self._closeCounter, status)
@@ -164,15 +144,14 @@ class Watcher(object):
         return result
 
 
-
 class InheritedSocketDispatcherTests(TestCase):
     """
     Inherited socket dispatcher tests.
     """
+
     def setUp(self):
         self.dispatcher = InheritedSocketDispatcher(ConnectionLimiter(2, 20))
         self.dispatcher.reactor = ReaderAdder()
-
 
     def test_closeSomeSockets(self):
         """
@@ -225,7 +204,6 @@ class InheritedSocketDispatcherTests(TestCase):
         self.assertEquals(two.closed, False)
         self.assertEquals(three.closed, False)
 
-
     def test_nonBlocking(self):
         """
         Creating a L{_SubprocessSocket} via
@@ -240,7 +218,6 @@ class InheritedSocketDispatcherTests(TestCase):
         self.assertTrue(isNonBlocking(inputSocket), "Input is blocking.")
         self.assertTrue(isNonBlocking(outputSocket), "Output is blocking.")
 
-
     def test_addAfterStart(self):
         """
         Adding a socket to an L{InheritedSocketDispatcher} after it has already
@@ -251,7 +228,6 @@ class InheritedSocketDispatcherTests(TestCase):
         dispatcher.addSocket()
         self.assertEquals(dispatcher.reactor.getReaders(),
                           dispatcher._subprocessSockets)
-
 
     def test_statusesChangedOnNewConnection(self):
         """
@@ -269,7 +245,6 @@ class InheritedSocketDispatcherTests(TestCase):
         dispatcher.sendFileDescriptor(object(), description)
         self.assertEquals(q, [[(0, True)], [(1, True)], [(2, True)]])
 
-
     def test_statusesChangedOnStatusMessage(self):
         """
         L{InheritedSocketDispatcher.sendFileDescriptor} will update its
@@ -286,7 +261,6 @@ class InheritedSocketDispatcherTests(TestCase):
         dispatcher.statusMessage(subskt, message)
         dispatcher.statusMessage(subskt, message)
         self.assertEquals(q, [[(-1, False)], [(-2, False)]])
-
 
     def test_statusesChangedOnStartRestartStop(self):
         """

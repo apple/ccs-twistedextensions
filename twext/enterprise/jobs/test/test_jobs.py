@@ -60,7 +60,6 @@ except ImportError:
         )
 
 
-
 class Clock(_Clock):
     """
     More careful L{IReactorTime} fake which mimics the exception behavior of
@@ -71,7 +70,6 @@ class Clock(_Clock):
         if _seconds < 0:
             raise ValueError("%s<0: " % (_seconds,))
         return super(Clock, self).callLater(_seconds, _f, *args, **kw)
-
 
     @inlineCallbacks
     def advanceCompletely(self, amount):
@@ -93,16 +91,15 @@ class Clock(_Clock):
             self._sortCalls()
 
 
-
 class MemoryReactorWithClock(MemoryReactor, Clock):
     """
     Simulate a real reactor.
     """
+
     def __init__(self):
         MemoryReactor.__init__(self)
         Clock.__init__(self)
         self._sortCalls()
-
 
 
 def transactionally(transactionCreator):
@@ -126,7 +123,6 @@ def transactionally(transactionCreator):
     return thunk
 
 
-
 class UtilityTests(TestCase):
     """
     Tests for supporting utilities.
@@ -139,6 +135,7 @@ class UtilityTests(TestCase):
         argument when it succeeds.
         """
         class faketxn(object):
+
             def __init__(self):
                 self.commits = []
                 self.aborts = []
@@ -179,11 +176,10 @@ class UtilityTests(TestCase):
         self.assertEquals(x, [35])
 
 
-
 class SimpleSchemaHelper(SchemaTestHelper):
+
     def id(self):
         return "worker"
-
 
 
 SQL = passthru
@@ -269,7 +265,6 @@ else:
     skip = False
 
 
-
 class DummyWorkItem(WorkItem, DummyWorkItemTable):
     """
     Sample L{WorkItem} subclass that adds two integers together and stores them
@@ -285,7 +280,6 @@ class DummyWorkItem(WorkItem, DummyWorkItemTable):
             raise JobTemporaryError(120)
         self.results[self.jobID] = self.a + self.b
         return succeed(None)
-
 
     @classmethod
     @inlineCallbacks
@@ -304,7 +298,6 @@ class DummyWorkItem(WorkItem, DummyWorkItemTable):
         returnValue(workItems)
 
 
-
 class DummyWorkSingletonItem(SingletonWorkItem, DummyWorkSingletonItemTable):
     """
     Sample L{SingletonWorkItem} subclass that adds two integers together and stores them
@@ -320,7 +313,6 @@ class DummyWorkSingletonItem(SingletonWorkItem, DummyWorkSingletonItemTable):
         return succeed(None)
 
 
-
 class DummyWorkPauseItem(WorkItem, DummyWorkPauseItemTable):
     """
     Sample L{WorkItem} subclass that pauses until a Deferred is fired.
@@ -332,7 +324,6 @@ class DummyWorkPauseItem(WorkItem, DummyWorkPauseItemTable):
     def doWork(self):
         self.workStarted.callback(None)
         return self.unpauseWork
-
 
 
 class AggregatorWorkItem(WorkItem, AggregatorWorkItemTable):
@@ -356,7 +347,6 @@ class AggregatorWorkItem(WorkItem, AggregatorWorkItemTable):
         yield d
 
 
-
 class UpdateWorkItem(WorkItem, UpdateWorkItemTable):
     """
     Sample L{WorkItem} subclass that will have its weight and
@@ -365,7 +355,6 @@ class UpdateWorkItem(WorkItem, UpdateWorkItemTable):
 
     default_priority = WORK_PRIORITY_MEDIUM
     default_weight = WORK_WEIGHT_5
-
 
 
 class AMPTests(TestCase):
@@ -384,6 +373,7 @@ class AMPTests(TestCase):
             arguments = [("id", Integer())]
 
         class Receiver(AMP):
+
             @SampleCommand.responder
             def gotIt(self, id):
                 self.it = id
@@ -399,7 +389,6 @@ class AMPTests(TestCase):
         self.assertEqual(server.it, 123)
 
 
-
 class WorkItemTests(TestCase):
     """
     A L{WorkItem} is an item of work that can be executed.
@@ -413,7 +402,6 @@ class WorkItemTests(TestCase):
         self.assertIdentical(
             JobItem.workItemForType(schema.DUMMY_WORK_ITEM.model.name), DummyWorkItem
         )
-
 
     @inlineCallbacks
     def _enqueue(self, dbpool, a, b, notBefore=None, priority=None, weight=None, cl=DummyWorkItem):
@@ -446,7 +434,6 @@ class WorkItemTests(TestCase):
 
         returnValue(qpool)
 
-
     @inlineCallbacks
     def test_enqueue(self):
         """
@@ -473,7 +460,6 @@ class WorkItemTests(TestCase):
         work = yield checkWork
         self.assertTrue(len(work) == 1)
         self.assertTrue(work[0].jobID == jobs[0].jobID)
-
 
     @inlineCallbacks
     def test_assign(self):
@@ -502,7 +488,6 @@ class WorkItemTests(TestCase):
         self.assertTrue(len(jobs) == 1)
         self.assertTrue(jobs[0].assigned is not None)
         self.assertEqual(jobs[0].isAssigned, 1)
-
 
     @inlineCallbacks
     def test_nextjob(self):
@@ -551,6 +536,7 @@ class WorkItemTests(TestCase):
 
         # Unassigned, paused job with past notBefore not returned
         yield self._enqueue(dbpool, 3, 1, now + datetime.timedelta(days=-1), priority=WORK_PRIORITY_HIGH)
+
         @inlineCallbacks
         def pauseJob(txn, pause=True):
             works = yield DummyWorkItem.all(txn)
@@ -568,6 +554,7 @@ class WorkItemTests(TestCase):
         job, work = yield inTransaction(dbpool.connection, _next)
         self.assertTrue(job is not None)
         self.assertTrue(work.a == 3)
+
         @inlineCallbacks
         def deleteJob(txn, jobID):
             job = yield JobItem.load(txn, jobID)
@@ -592,7 +579,6 @@ class WorkItemTests(TestCase):
         self.assertTrue(job is None)
         self.assertTrue(work is None)
 
-
     @inlineCallbacks
     def test_notsingleton(self):
         """
@@ -613,7 +599,6 @@ class WorkItemTests(TestCase):
         jobs = yield inTransaction(dbpool.connection, allJobs)
         self.assertTrue(len(jobs) == 2)
 
-
     @inlineCallbacks
     def test_singleton(self):
         """
@@ -633,7 +618,6 @@ class WorkItemTests(TestCase):
 
         jobs = yield inTransaction(dbpool.connection, allJobs)
         self.assertTrue(len(jobs) == 1)
-
 
     @inlineCallbacks
     def test_singleton_reschedule(self):
@@ -668,7 +652,6 @@ class WorkItemTests(TestCase):
         work = yield inTransaction(dbpool.connection, allWork)
         self.assertTrue(len(work) == 1)
         self.assertTrue(work[0][1].notBefore != datetime.datetime(2014, 5, 17, 12, 0, 0))
-
 
     def test_updateWorkTypes(self):
         """
@@ -773,7 +756,6 @@ class WorkItemTests(TestCase):
             {"priority": WORK_PRIORITY_MEDIUM, "weight": WORK_WEIGHT_5},
         )
 
-
     def test_dumpWorkTypes(self):
         """
         L{workItem.dumpWorkTypes} dumps weight and priority correctly.
@@ -827,7 +809,6 @@ class WorkItemTests(TestCase):
         )
 
 
-
 class WorkerConnectionPoolTests(TestCase):
     """
     A L{WorkerConnectionPool} is responsible for managing, in a node's
@@ -836,18 +817,17 @@ class WorkerConnectionPoolTests(TestCase):
     """
 
 
-
 class ControllerQueueUnitTests(TestCase):
     """
     L{ControllerQueue} has many internal components.
     """
+
     def setUp(self):
         """
         Create a L{ControllerQueue} that is just initialized enough.
         """
         self.pcp = ControllerQueue(None, None)
         DummyWorkItem.results = {}
-
 
     def checkPerformer(self, cls):
         """
@@ -857,7 +837,6 @@ class ControllerQueueUnitTests(TestCase):
         performer = self.pcp.choosePerformer()
         self.failUnlessIsInstance(performer, cls)
         verifyObject(_IJobPerformer, performer)
-
 
     def _setupPools(self):
         """
@@ -886,7 +865,6 @@ class ControllerQueueUnitTests(TestCase):
 
         return cph, qpool, reactor, performerChosen
 
-
     def test_choosingPerformerWhenNoPeersAndNoWorkers(self):
         """
         If L{ControllerQueue.choosePerformer} is invoked when no workers
@@ -907,7 +885,6 @@ class ControllerQueueUnitTests(TestCase):
         self.pcp = ControllerQueue(None, None, useWorkerPool=False)
         self.checkPerformer(LocalPerformer)
 
-
     def test_choosingPerformerWithLocalCapacity(self):
         """
         If L{ControllerQueue.choosePerformer} is invoked when some workers
@@ -927,7 +904,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEqual(self.pcp.workerPool.hasAvailableCapacity(), True)
         # Now it has some capacity.
         self.checkPerformer(WorkerConnectionPool)
-
 
     @inlineCallbacks
     def test_notBeforeWhenCheckingForWork(self):
@@ -970,7 +946,6 @@ class ControllerQueueUnitTests(TestCase):
         # Work item complete
         self.assertTrue(DummyWorkItem.results == {1: 3, 2: 7})
 
-
     @inlineCallbacks
     def test_notBeforeWhenEnqueueing(self):
         """
@@ -1009,7 +984,6 @@ class ControllerQueueUnitTests(TestCase):
         # Work item complete
         self.assertTrue(DummyWorkItem.results == {1: 12})
 
-
     @inlineCallbacks
     def test_notBeforeBefore(self):
         """
@@ -1038,7 +1012,6 @@ class ControllerQueueUnitTests(TestCase):
         # Work item complete
         self.assertTrue(DummyWorkItem.results == {1: 12})
 
-
     def test_workerConnectionPoolPerformJob(self):
         """
         L{WorkerConnectionPool.performJob} performs work by selecting a
@@ -1066,7 +1039,6 @@ class ControllerQueueUnitTests(TestCase):
         peerPool.workerPool.performJob(JobDescriptor(2, 1, "ABC"))
         self.assertEquals(worker1.currentLoad, 1)
         self.assertEquals(worker2.currentLoad, 1)
-
 
     def test_workerPerformJobNoZeroWeight(self):
         """
@@ -1100,7 +1072,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEquals(worker1.currentLoad, 6)
         self.assertEquals(worker2.currentLoad, 1)
 
-
     def test_poolStartServiceChecksForWork(self):
         """
         L{ControllerQueue.startService} kicks off the idle work-check loop.
@@ -1131,7 +1102,6 @@ class ControllerQueueUnitTests(TestCase):
             DummyWorkItem.results,
             {1: 7, 2: 16}
         )
-
 
     @inlineCallbacks
     def test_exceptionWhenWorking(self):
@@ -1169,7 +1139,6 @@ class ControllerQueueUnitTests(TestCase):
         # Work item complete
         self.assertTrue(DummyWorkItem.results == {1: 1, 3: 2})
 
-
     @inlineCallbacks
     def test_exceptionUnassign(self):
         """
@@ -1203,7 +1172,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEqual(jobs[0].isAssigned, 0)
         self.assertTrue(jobs[0].failed == 1)
         self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow())
-
 
     @inlineCallbacks
     def test_temporaryFailure(self):
@@ -1239,7 +1207,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertTrue(jobs[0].failed == 1)
         self.assertTrue(jobs[0].notBefore > datetime.datetime.utcnow() + datetime.timedelta(seconds=90))
 
-
     @inlineCallbacks
     def test_loopFailure_noRecovery(self):
         """
@@ -1249,6 +1216,7 @@ class ControllerQueueUnitTests(TestCase):
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
 
         oldNextJob = JobItem.nextjob
+
         @inlineCallbacks
         def _nextJob(cls, txn, now, minPriority, rowLimit):
             job = yield oldNextJob(txn, now, minPriority, rowLimit)
@@ -1291,7 +1259,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEqual(jobs[1].failed, 0)
         self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
 
-
     @inlineCallbacks
     def test_loopFailure_recovery(self):
         """
@@ -1301,6 +1268,7 @@ class ControllerQueueUnitTests(TestCase):
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
 
         oldAssign = JobItem.assign
+
         @inlineCallbacks
         def _assign(self, when, overdue):
             work = yield self.workItem()
@@ -1339,7 +1307,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEqual(jobs[0].failed, 1)
         self.assertGreater(jobs[0].notBefore, datetime.datetime.utcnow() + datetime.timedelta(seconds=30))
 
-
     @inlineCallbacks
     def test_loopFailure_failedRecovery(self):
         """
@@ -1349,6 +1316,7 @@ class ControllerQueueUnitTests(TestCase):
         fakeNow = datetime.datetime(2012, 12, 12, 12, 12, 12)
 
         oldAssign = JobItem.assign
+
         @inlineCallbacks
         def _assign(self, when, overdue):
             work = yield self.workItem()
@@ -1397,7 +1365,6 @@ class ControllerQueueUnitTests(TestCase):
         self.assertEqual(jobs[1].failed, 0)
         self.assertEqual(jobs[1].notBefore, fakeNow - datetime.timedelta(20 * 60, 5))
 
-
     @inlineCallbacks
     def test_enableDisable(self):
         """
@@ -1435,19 +1402,17 @@ class ControllerQueueUnitTests(TestCase):
         self.assertTrue(DummyWorkItem.results == {1: 12})
 
 
-
 class HalfConnection(object):
+
     def __init__(self, protocol):
         self.protocol = protocol
         self.transport = StringTransport()
-
 
     def start(self):
         """
         Hook up the protocol and the transport.
         """
         self.protocol.makeConnection(self.transport)
-
 
     def extract(self):
         """
@@ -1458,7 +1423,6 @@ class HalfConnection(object):
         io.seek(0)
         io.truncate()
         return value
-
 
     def deliver(self, data):
         """
@@ -1474,7 +1438,6 @@ class HalfConnection(object):
         return False
 
 
-
 class Connection(object):
 
     def __init__(self, local, remote):
@@ -1484,14 +1447,12 @@ class Connection(object):
         self.receiver = HalfConnection(local)
         self.sender = HalfConnection(remote)
 
-
     def start(self):
         """
         Start up the connection.
         """
         self.sender.start()
         self.receiver.start()
-
 
     def pump(self):
         """
@@ -1501,7 +1462,6 @@ class Connection(object):
         self.receiver, self.sender = self.sender, self.receiver
         return result
 
-
     def flush(self, turns=10):
         """
         Keep relaying data until there's no more.
@@ -1509,7 +1469,6 @@ class Connection(object):
         for _ignore_x in range(turns):
             if not (self.pump() or self.pump()):
                 return
-
 
 
 class ControllerQueueIntegrationTests(TestCase):
@@ -1559,6 +1518,7 @@ class ControllerQueueIntegrationTests(TestCase):
             reactor, indirectedTransactionFactory, useWorkerPool=False)
 
         class FireMeService(Service, object):
+
             def __init__(self, d):
                 super(FireMeService, self).__init__()
                 self.d = d
@@ -1574,6 +1534,7 @@ class ControllerQueueIntegrationTests(TestCase):
         self.node1.setServiceParent(ms)
         self.node2.setServiceParent(ms)
         ms.startService()
+
         @inlineCallbacks
         def _clean():
             yield ms.stopService()
@@ -1584,7 +1545,6 @@ class ControllerQueueIntegrationTests(TestCase):
         self.store.queuer = self.node1
 
         DummyWorkItem.results = {}
-
 
     @inlineCallbacks
     def test_enqueueWorkDone(self):
@@ -1607,7 +1567,6 @@ class ControllerQueueIntegrationTests(TestCase):
 
         self.assertEquals(DummyWorkItem.results, {100: 7})
 
-
     @inlineCallbacks
     def test_noWorkDoneWhenConcurrentlyDeleted(self):
         """
@@ -1627,7 +1586,6 @@ class ControllerQueueIntegrationTests(TestCase):
         yield JobItem.waitEmpty(self.store.newTransaction, reactor, 60)
 
         self.assertEquals(DummyWorkItem.results, {})
-
 
     @inlineCallbacks
     def test_locked(self):
@@ -1668,7 +1626,6 @@ class ControllerQueueIntegrationTests(TestCase):
         jobs = yield inTransaction(self.store.newTransaction, checkJob)
         self.assertTrue(len(jobs) == 0)
 
-
     @inlineCallbacks
     def test_overdueStillRunning(self):
         """
@@ -1679,6 +1636,7 @@ class ControllerQueueIntegrationTests(TestCase):
         # they are called. Also, change the overdue to be one second ahead of assigned.
         assigned = [0]
         _oldAssign = JobItem.assign
+
         def _newAssign(self, when, overdue):
             assigned[0] += 1
             return _oldAssign(self, when, 1)
@@ -1686,6 +1644,7 @@ class ControllerQueueIntegrationTests(TestCase):
 
         bumped = [0]
         _oldBumped = JobItem.bumpOverdue
+
         def _newBump(self, bump):
             bumped[0] += 1
             return _oldBumped(self, 100)
@@ -1739,7 +1698,6 @@ class ControllerQueueIntegrationTests(TestCase):
         self.assertTrue(assigned[0] == 1)
         self.assertTrue(bumped[0] == 1)
 
-
     @inlineCallbacks
     def test_overdueWorkGotLost(self):
         """
@@ -1751,6 +1709,7 @@ class ControllerQueueIntegrationTests(TestCase):
         # they are called. Also, change the overdue to be one second ahead of assigned.
         assigned = [0]
         _oldAssign = JobItem.assign
+
         def _newAssign(self, when, overdue):
             assigned[0] += 1
             return _oldAssign(self, when, 1)
@@ -1758,6 +1717,7 @@ class ControllerQueueIntegrationTests(TestCase):
 
         bumped = [0]
         _oldBumped = JobItem.bumpOverdue
+
         def _newBump(self, bump):
             bumped[0] += 1
             return _oldBumped(self, 5)
@@ -1765,6 +1725,7 @@ class ControllerQueueIntegrationTests(TestCase):
 
         failed = [0]
         waitFail = Deferred()
+
         def _newFailedToRun(self, locked=False, delay=None):
             failed[0] += 1
             waitFail.callback(None)
@@ -1774,6 +1735,7 @@ class ControllerQueueIntegrationTests(TestCase):
         def _newDoWorkRaise(self):
             self.workStarted.callback(None)
             raise ValueError()
+
         def _newDoWorkSuccess(self):
             return succeed(None)
 
@@ -1820,7 +1782,6 @@ class ControllerQueueIntegrationTests(TestCase):
         self.assertTrue(bumped[0] == 0)
         self.assertTrue(failed[0] == 1)
 
-
     @inlineCallbacks
     def test_lowPriorityOverdueWorkNotAssigned(self):
         """
@@ -1830,12 +1791,14 @@ class ControllerQueueIntegrationTests(TestCase):
 
         # Patch the work item to fail once and appear as overdue
         _oldAssign = JobItem.assign
+
         def _newAssign(self, when, overdue):
             return _oldAssign(self, when, 1)
         self.patch(JobItem, "assign", _newAssign)
 
         failed = [0]
         waitFail = Deferred()
+
         def _newFailedToRun(self, locked=False, delay=None):
             failed[0] += 1
             waitFail.callback(None)
@@ -1845,6 +1808,7 @@ class ControllerQueueIntegrationTests(TestCase):
         def _newDoWorkRaise(self):
             self.workStarted.callback(None)
             raise ValueError()
+
         def _newDoWorkSuccess(self):
             return succeed(None)
 
@@ -1895,7 +1859,6 @@ class ControllerQueueIntegrationTests(TestCase):
         self.assertTrue(len(jobs) == 0)
         self.assertTrue(failed[0] == 1)
 
-
     @inlineCallbacks
     def test_aggregator_lock(self):
         """
@@ -1905,6 +1868,7 @@ class ControllerQueueIntegrationTests(TestCase):
         # Patch JobItem.failedToRun to track how many times it is called.
         failed = [0]
         _oldFailed = JobItem.failedToRun
+
         def _newFailed(self, locked=False, delay=None):
             failed[0] += 1
             return _oldFailed(self, locked, 5)
@@ -1938,7 +1902,6 @@ class ControllerQueueIntegrationTests(TestCase):
         self.assertEqual(len(jobs), 0)
         self.assertEqual(failed[0], 1)
 
-
     @inlineCallbacks
     def test_aggregator_no_deadlock(self):
         """
@@ -1949,6 +1912,7 @@ class ControllerQueueIntegrationTests(TestCase):
         # they are called.
         failed = [0]
         _oldFailed = JobItem.failedToRun
+
         def _newFailed(self, locked=False, delay=None):
             failed[0] += 1
             return _oldFailed(self, locked, 5)
@@ -1982,7 +1946,6 @@ class ControllerQueueIntegrationTests(TestCase):
         self.assertTrue(len(jobs) == 0)
         self.assertEqual(failed[0], 1)
 
-
     @inlineCallbacks
     def test_pollingBackoff(self):
         """
@@ -1996,7 +1959,7 @@ class ControllerQueueIntegrationTests(TestCase):
         # Wait for backoff
         while self.node1._actualPollInterval == self.node1.queuePollInterval:
             d = Deferred()
-            reactor.callLater(1.0, lambda : d.callback(None))
+            reactor.callLater(1.0, lambda: d.callback(None))
             yield d
 
         self.assertEqual(self.node1._actualPollInterval, 60.0)
@@ -2013,7 +1976,7 @@ class ControllerQueueIntegrationTests(TestCase):
         # Backoff terminated
         while self.node1._actualPollInterval != self.node1.queuePollInterval:
             d = Deferred()
-            reactor.callLater(0.1, lambda : d.callback(None))
+            reactor.callLater(0.1, lambda: d.callback(None))
             yield d
         self.assertEqual(self.node1._actualPollInterval, self.node1.queuePollInterval)
 
@@ -2023,11 +1986,10 @@ class ControllerQueueIntegrationTests(TestCase):
         # Wait for backoff
         while self.node1._actualPollInterval == self.node1.queuePollInterval:
             d = Deferred()
-            reactor.callLater(1.0, lambda : d.callback(None))
+            reactor.callLater(1.0, lambda: d.callback(None))
             yield d
 
         self.assertEqual(self.node1._actualPollInterval, 60.0)
-
 
 
 class NonPerformingQueuerTests(TestCase):

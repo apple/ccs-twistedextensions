@@ -27,7 +27,6 @@ from twisted.trial.reporter import TestResult
 from twext.enterprise.adbapi2 import ConnectionPool
 
 
-
 class PoolTests(TestCase):
     """
     Tests for fixtures that create a connection pool.
@@ -41,6 +40,7 @@ class PoolTests(TestCase):
         collect = []
 
         class SampleTest(TestCase):
+
             def setUp(self):
                 self.pool = buildConnectionPool(self)
 

@@ -58,6 +58,7 @@ In the worker process:
 
 """
 
+
 class _IJobPerformer(Interface):
     """
     An object that can perform work.
@@ -77,7 +78,6 @@ class _IJobPerformer(Interface):
         """
 
 
-
 class PerformJob(Command):
     """
     Notify a worker that it must do a job that has been persisted to
@@ -90,7 +90,6 @@ class PerformJob(Command):
     response = []
 
 
-
 class EnqueuedJob(Command):
     """
     Notify the controller process that a worker enqueued some work. This is used to "wake up"
@@ -99,7 +98,6 @@ class EnqueuedJob(Command):
 
     arguments = []
     response = []
-
 
 
 class WorkerConnectionPool(object):
@@ -118,7 +116,6 @@ class WorkerConnectionPool(object):
         self.workers = []
         self.maximumLoadPerWorker = maximumLoadPerWorker
 
-
     def addWorker(self, worker):
         """
         Add a L{ConnectionFromWorker} to this L{WorkerConnectionPool} so that
@@ -126,14 +123,12 @@ class WorkerConnectionPool(object):
         """
         self.workers.append(worker)
 
-
     def removeWorker(self, worker):
         """
         Remove a L{ConnectionFromWorker} from this L{WorkerConnectionPool} that
         was previously added.
         """
         self.workers.remove(worker)
-
 
     def hasAvailableCapacity(self):
         """
@@ -144,7 +139,6 @@ class WorkerConnectionPool(object):
             if worker.currentLoad < self.maximumLoadPerWorker:
                 return True
         return False
-
 
     def loadLevel(self):
         """
@@ -158,20 +152,17 @@ class WorkerConnectionPool(object):
         total = len(self.workers) * self.maximumLoadPerWorker
         return ((current * 100) / total) if total else 100
 
-
     def eachWorkerLoad(self):
         """
         The load of all currently connected workers.
         """
         return [(worker.currentAssigned, worker.currentLoad, worker.totalCompleted) for worker in self.workers]
 
-
     def allWorkerLoad(self):
         """
         The total load of all currently connected workers.
         """
         return sum(worker.currentLoad for worker in self.workers)
-
 
     def _selectLowestLoadWorker(self):
         """
@@ -185,7 +176,6 @@ class WorkerConnectionPool(object):
         # Stable sort based on worker load
         self.workers.sort(key=lambda w: w.currentLoad)
         return self.workers[0]
-
 
     @inlineCallbacks
     def performJob(self, job):
@@ -211,7 +201,6 @@ class WorkerConnectionPool(object):
         returnValue(result)
 
 
-
 class ConnectionFromWorker(AMP):
     """
     An individual connection from a worker, as seen from the controller's
@@ -225,14 +214,12 @@ class ConnectionFromWorker(AMP):
         self._load = 0
         self._completed = 0
 
-
     @property
     def currentAssigned(self):
         """
         How many jobs currently assigned to this worker?
         """
         return self._assigned
-
 
     @property
     def currentLoad(self):
@@ -241,14 +228,12 @@ class ConnectionFromWorker(AMP):
         """
         return self._load
 
-
     @property
     def totalCompleted(self):
         """
         What is the current load of this worker?
         """
         return self._completed
-
 
     def startReceivingBoxes(self, sender):
         """
@@ -258,7 +243,6 @@ class ConnectionFromWorker(AMP):
         self.controllerQueue.workerPool.addWorker(self)
         return result
 
-
     def stopReceivingBoxes(self, reason):
         """
         AMP boxes will no longer be received.
@@ -266,7 +250,6 @@ class ConnectionFromWorker(AMP):
         result = super(ConnectionFromWorker, self).stopReceivingBoxes(reason)
         self.controllerQueue.workerPool.removeWorker(self)
         return result
-
 
     def performJob(self, job):
         """
@@ -288,7 +271,6 @@ class ConnectionFromWorker(AMP):
 
         return d
 
-
     @EnqueuedJob.responder
     def enqueuedJob(self):
         """
@@ -299,7 +281,6 @@ class ConnectionFromWorker(AMP):
 
         self.controllerQueue.enqueuedJob()
         return {}
-
 
 
 class ConnectionFromController(AMP):
@@ -319,17 +300,14 @@ class ConnectionFromController(AMP):
         from twisted.internet import reactor
         self.reactor = reactor
 
-
     def transactionFactory(self, *args, **kwargs):
         txn = self._txnFactory(*args, **kwargs)
         txn._queuer = self
         return txn
 
-
     def startReceivingBoxes(self, sender):
         super(ConnectionFromController, self).startReceivingBoxes(sender)
         self.whenConnected(self)
-
 
     @inlineCallbacks
     def enqueueWork(self, txn, workItemType, **kw):
@@ -347,7 +325,6 @@ class ConnectionFromController(AMP):
         self.callRemote(EnqueuedJob)
         returnValue(work)
 
-
     @PerformJob.responder
     def executeJobHere(self, job):
         """
@@ -358,7 +335,6 @@ class ConnectionFromController(AMP):
         d = JobItem.ultimatelyPerform(self.transactionFactory, job)
         d.addCallback(lambda ignored: {})
         return d
-
 
 
 class WorkerFactory(Factory, object):
@@ -374,7 +350,6 @@ class WorkerFactory(Factory, object):
         self.transactionFactory = transactionFactory
         self.whenConnected = whenConnected
 
-
     def buildProtocol(self, addr):
         """
         Create a L{ConnectionFromController} connected to the
@@ -385,14 +360,12 @@ class WorkerFactory(Factory, object):
         )
 
 
-
 class _BaseQueuer(object):
     implements(IQueuer)
 
     def __init__(self):
         super(_BaseQueuer, self).__init__()
         self.proposalCallbacks = set()
-
 
     @inlineCallbacks
     def enqueueWork(self, txn, workItemType, **kw):
@@ -409,13 +382,11 @@ class _BaseQueuer(object):
         self.enqueuedJob()
         returnValue(work)
 
-
     def enqueuedJob(self):
         """
         Work has been enqueued
         """
         pass
-
 
 
 class ControllerQueue(_BaseQueuer, MultiService, object):
@@ -490,13 +461,11 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         self._inWorkCheck = False
         self._inOverdueCheck = False
 
-
     def enable(self):
         """
         Turn on work queue processing.
         """
         self.disableWorkProcessing = False
-
 
     def disable(self):
         """
@@ -504,10 +473,8 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         """
         self.disableWorkProcessing = True
 
-
     def totalLoad(self):
         return self.workerPool.allWorkerLoad() if self.workerPool else 0
-
 
     def workerListenerFactory(self):
         """
@@ -516,7 +483,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         f = Factory()
         f.buildProtocol = lambda addr: ConnectionFromWorker(self)
         return f
-
 
     def choosePerformer(self, onlyLocally=False):
         """
@@ -534,7 +500,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             raise JobFailedError("No capacity for work")
 
         return LocalPerformer(self.transactionFactory)
-
 
     @inlineCallbacks
     def _workCheck(self):
@@ -690,7 +655,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             self._actualPollInterval, self._workCheckLoop
         )
 
-
     @inlineCallbacks
     def _overdueCheck(self):
         """
@@ -812,7 +776,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
             self.queueOverduePollInterval, self._overdueCheckLoop
         )
 
-
     def enqueuedJob(self):
         """
         Reschedule the work check loop to run right now. This should be called in response to "external" activity that
@@ -834,7 +797,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         except (AlreadyCalled, AlreadyCancelled):
             pass
 
-
     def startService(self):
         """
         Register ourselves with the database and establish all outgoing
@@ -843,7 +805,6 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         super(ControllerQueue, self).startService()
         self._workCheckLoop()
         self._overdueCheckLoop()
-
 
     @inlineCallbacks
     def stopService(self):
@@ -865,11 +826,10 @@ class ControllerQueue(_BaseQueuer, MultiService, object):
         start = time.time()
         while self._inWorkCheck and self._inOverdueCheck:
             d = Deferred()
-            self.reactor.callLater(0.5, lambda : d.callback(None))
+            self.reactor.callLater(0.5, lambda: d.callback(None))
             yield d
             if time.time() - start >= 60:
                 break
-
 
 
 class LocalPerformer(object):
@@ -885,13 +845,11 @@ class LocalPerformer(object):
         """
         self.txnFactory = txnFactory
 
-
     def performJob(self, job):
         """
         Perform the given job right now.
         """
         return JobItem.ultimatelyPerform(self.txnFactory, job)
-
 
 
 class LocalQueuer(_BaseQueuer):
@@ -907,13 +865,11 @@ class LocalQueuer(_BaseQueuer):
             from twisted.internet import reactor
         self.reactor = reactor
 
-
     def choosePerformer(self):
         """
         Choose to perform the work locally.
         """
         return LocalPerformer(self.txnFactory)
-
 
 
 class NonPerformer(object):
@@ -932,7 +888,6 @@ class NonPerformer(object):
         return succeed(None)
 
 
-
 class NonPerformingQueuer(_BaseQueuer):
     """
     When work is enqueued with this queuer, it is never executed locally.
@@ -945,7 +900,6 @@ class NonPerformingQueuer(_BaseQueuer):
         if reactor is None:
             from twisted.internet import reactor
         self.reactor = reactor
-
 
     def choosePerformer(self):
         """

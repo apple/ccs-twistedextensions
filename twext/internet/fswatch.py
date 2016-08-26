@@ -34,7 +34,6 @@ except ImportError:
     kqueueSupported = False
 
 
-
 class IDirectoryChangeListenee(Interface):
     """
     A delegate of DirectoryChangeListener
@@ -64,7 +63,6 @@ class IDirectoryChangeListenee(Interface):
 # TODO: better way to tell if reactor is kqueue or not
 if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
 
-
     def patchReactor(reactor):
         # Wrap _doWriteOrRead to support KQ_FILTER_VNODE
         origDoWriteOrRead = reactor._doWriteOrRead
@@ -77,7 +75,6 @@ if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
         reactor._doWriteOrRead = _doWriteOrReadOrVNodeEvent
 
     patchReactor(reactor)
-
 
     class DirectoryChangeListener(Logger, object):
         """
@@ -98,14 +95,11 @@ if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
             self._dirname = dirname
             self._listenee = listenee
 
-
         def logPrefix(self):
             return repr(self._dirname)
 
-
         def fileno(self):
             return self._fd
-
 
         def vnodeEventHappened(self, evt):
             if evt.flags & KQ_EV_EOF:
@@ -115,14 +109,12 @@ if kqueueSupported and hasattr(reactor, "_doWriteOrRead"):
             if evt.fflags & KQ_NOTE_RENAME:
                 self._listenee.renamed()
 
-
         def startListening(self):
             ke = kevent(self._fd, filter=KQ_FILTER_VNODE,
                         flags=(KQ_EV_ADD | KQ_EV_ENABLE | KQ_EV_CLEAR),
                         fflags=KQ_NOTE_DELETE | KQ_NOTE_RENAME)
             self._reactor._kq.control([ke], 0, None)
             self._reactor._selectables[self._fd] = self
-
 
         def connectionLost(self, reason):
             os.close(self._fd)
@@ -152,22 +144,17 @@ else:
             self._dirname = dirname
             self._listenee = listenee
 
-
         def logPrefix(self):
             return repr(self._dirname)
-
 
         def fileno(self):
             return self._fd
 
-
         def vnodeEventHappened(self, evt):
             pass
 
-
         def startListening(self):
             pass
-
 
         def connectionLost(self, reason):
             os.close(self._fd)

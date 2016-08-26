@@ -33,7 +33,6 @@ __all__ = [
 ]
 
 
-
 class _WrappedProtocol(object):
     """
     A protocol providing a thin wrapper that relays the connectionLost
@@ -51,13 +50,11 @@ class _WrappedProtocol(object):
         self._wrapped = wrapped
         self._wrapper = wrapper
 
-
     def __getattr__(self, attr):
         """
         Relay all undefined methods to the wrapped protocol.
         """
         return getattr(self._wrapped, attr)
-
 
     def connectionLost(self, reason):
         """
@@ -70,7 +67,6 @@ class _WrappedProtocol(object):
         self._wrapper.legacyFactory.clientConnectionLost(self._wrapper, reason)
 
 
-
 class LegacyClientFactoryWrapper(Factory):
     implements(IConnector)
 
@@ -81,7 +77,6 @@ class LegacyClientFactoryWrapper(Factory):
         self._connectedProtocol = None
         self._outstandingAttempt = None
 
-
     def getDestination(self):
         """
         Implement L{IConnector.getDestination}.
@@ -89,7 +84,6 @@ class LegacyClientFactoryWrapper(Factory):
         @return: the endpoint being connected to as the destination.
         """
         return self.endpoint
-
 
     def buildProtocol(self, addr):
         """
@@ -100,7 +94,6 @@ class LegacyClientFactoryWrapper(Factory):
         """
         return _WrappedProtocol(self.legacyFactory.buildProtocol(addr), self)
 
-
     def connect(self):
         """
         Implement L{IConnector.connect} to connect the endpoint.
@@ -109,17 +102,19 @@ class LegacyClientFactoryWrapper(Factory):
             raise RuntimeError("connection already in progress")
         self.legacyFactory.startedConnecting(self)
         d = self._outstandingAttempt = self.endpoint.connect(self)
+
         @d.addBoth
         def attemptDone(result):
             self._outstandingAttempt = None
             return result
+
         def rememberProto(proto):
             self._connectedProtocol = proto
             return proto
+
         def callClientConnectionFailed(reason):
             self.legacyFactory.clientConnectionFailed(self, reason)
         d.addCallbacks(rememberProto, callClientConnectionFailed)
-
 
     def disconnect(self):
         """
@@ -130,7 +125,6 @@ class LegacyClientFactoryWrapper(Factory):
         elif self._outstandingAttempt is not None:
             self._outstandingAttempt.cancel()
 
-
     def stopConnecting(self):
         """
         Implement L{IConnector.stopConnecting}.
@@ -138,7 +132,6 @@ class LegacyClientFactoryWrapper(Factory):
         if self._outstandingAttempt is None:
             raise RuntimeError("no connection attempt in progress")
         self.disconnect()
-
 
 
 def connect(endpoint, clientFactory):
@@ -160,6 +153,6 @@ def connect(endpoint, clientFactory):
     @rtype: L{IConnector}
     """
     wrap = LegacyClientFactoryWrapper(clientFactory, endpoint)
-    wrap.noisy = clientFactory.noisy # relay the noisy attribute to the wrapper
+    wrap.noisy = clientFactory.noisy  # relay the noisy attribute to the wrapper
     wrap.connect()
     return wrap

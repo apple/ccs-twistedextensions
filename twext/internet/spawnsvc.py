@@ -34,6 +34,7 @@ if __name__ == '__main__':
     protocolClass = namedAny(there)
     proto = protocolClass()
     origLost = proto.connectionLost
+
     def goodbye(reason):
         """
         Stop the process if stdin is closed.
@@ -74,13 +75,11 @@ class BridgeTransport(object):
         """
         self.transport = processTransport
 
-
     def __getattr__(self, name):
         """
         Delegate all attribute accesses to the process traansport.
         """
         return getattr(self.transport, name)
-
 
     def getPeer(self):
         """
@@ -88,13 +87,11 @@ class BridgeTransport(object):
         """
         return "Peer:PID:" + str(self.transport.pid)
 
-
     def getHost(self):
         """
         Get a fake host address indicating the subprocess's pid.
         """
         return "Host:PID:" + str(self.transport.pid)
-
 
 
 class BridgeProtocol(ProcessProtocol, object):
@@ -116,20 +113,17 @@ class BridgeProtocol(ProcessProtocol, object):
         self.killTimeout = killTimeout
         self.service.addBridge(self)
 
-
     def connectionMade(self):
         """
         The subprocess was started.
         """
         self.protocol.makeConnection(BridgeTransport(self.transport))
 
-
     def outReceived(self, data):
         """
         Some data was received to standard output; relay it to the protocol.
         """
         self.protocol.dataReceived(data)
-
 
     def errReceived(self, data):
         """
@@ -138,21 +132,21 @@ class BridgeProtocol(ProcessProtocol, object):
         log.msg("Error output from process: " + data,
                 isError=True)
 
-
     _killTimeout = None
+
     def eventuallyStop(self):
         """
         Eventually stop this subprocess.  Send it a SIGTERM, and if it hasn't
         stopped by C{self.killTimeout} seconds, send it a SIGKILL.
         """
         self.transport.signalProcess('TERM')
+
         def reallyStop():
             self.transport.signalProcess("KILL")
             self._killTimeout = None
         self._killTimeout = (
             self.service.reactor.callLater(self.killTimeout, reallyStop)
         )
-
 
     def processEnded(self, reason):
         """
@@ -163,7 +157,6 @@ class BridgeProtocol(ProcessProtocol, object):
             self._killTimeout.cancel()
         self.protocol.connectionLost(reason)
         self.service.removeBridge(self)
-
 
 
 class SpawnerService(Service, object):
@@ -184,7 +177,6 @@ class SpawnerService(Service, object):
         self.pendingSpawns = []
         self.bridges = []
         self._stopAllDeferred = None
-
 
     def spawn(self, hereProto, thereProto, childFDs=None):
         """
@@ -212,7 +204,6 @@ class SpawnerService(Service, object):
         )
         return succeed(hereProto)
 
-
     def startService(self):
         """
         Start the service; spawn any processes previously started with spawn().
@@ -222,13 +213,11 @@ class SpawnerService(Service, object):
             self.spawn(*spawn)
         self.pendingSpawns = []
 
-
     def addBridge(self, bridge):
         """
         Add a L{BridgeProtocol} to the list to be tracked.
         """
         self.bridges.append(bridge)
-
 
     def removeBridge(self, bridge):
         """
@@ -242,7 +231,6 @@ class SpawnerService(Service, object):
             if len(self.bridges) == 0:
                 self._stopAllDeferred.callback(None)
                 self._stopAllDeferred = None
-
 
     def stopService(self):
         """

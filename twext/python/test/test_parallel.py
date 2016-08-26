@@ -24,6 +24,7 @@ from twext.python.parallel import Parallelizer
 
 from twisted.trial.unittest import TestCase
 
+
 class ParallelizerTests(TestCase):
     """
     Tests for L{Parallelizer}.

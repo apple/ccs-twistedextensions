@@ -24,7 +24,6 @@ from datetime import datetime
 SQL_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
-
 def parseSQLTimestamp(ts):
     """
     Parse an SQL timestamp string.
@@ -36,7 +35,6 @@ def parseSQLTimestamp(ts):
         return datetime.strptime(ts, SQL_TIMESTAMP_FORMAT)
     else:
         return ts
-
 
 
 def mapOracleOutputType(column):

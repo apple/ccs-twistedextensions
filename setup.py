@@ -52,7 +52,6 @@ def find_packages():
     return modules
 
 
-
 def git_info(wc_path):
     """
     Look up info on a GIT working copy.
@@ -106,7 +105,6 @@ def git_info(wc_path):
         revision=revision,
         tag=tag,
     )
-
 
 
 def version():
@@ -171,7 +169,6 @@ def version():
     )
 
 
-
 #
 # Options
 #
@@ -204,7 +201,6 @@ license = "Apache License, Version 2.0"
 platforms = ["all"]
 
 
-
 #
 # Entry points
 #
@@ -212,7 +208,6 @@ platforms = ["all"]
 entry_points = {
     "console_scripts": [],
 }
-
 
 
 #
@@ -244,7 +239,6 @@ if "ORACLE_HOME" in os.environ:
     extras_requirements["oracle"] = ["cx_Oracle"]
 
 
-
 #
 # Set up Extension modules that need to be built
 #
@@ -259,7 +253,6 @@ if sys.platform == "darwin":
         extensions.append(sacl.ffi.verifier.get_extension())
     except ImportError:
         pass
-
 
 
 #
@@ -303,7 +296,6 @@ def doSetup():
         install_requires=install_requirements,
         extras_require=extras_requirements,
     )
-
 
 
 #

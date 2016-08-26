@@ -31,7 +31,6 @@ except ImportError as e:
 from twisted.trial.unittest import TestCase, SkipTest
 
 
-
 class SchemaTestHelper(object):
     """
     Mix-in that can parse a schema from a string.
@@ -44,7 +43,6 @@ class SchemaTestHelper(object):
         s = Schema(self.id())
         addSQLToSchema(s, string)
         return s
-
 
 
 class ParsingExampleTests(TestCase, SchemaTestHelper):
@@ -64,7 +62,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(bar.name, "bar")
         self.assertEquals(bar.type.name, "integer")
 
-
     def test_stringTypes(self):
         """
         Table and column names should be byte strings.
@@ -75,7 +72,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertIsInstance(foo.name, str)
         self.assertIsInstance(foo.columnNamed('bar').name, str)
 
-
     def test_typeWithLength(self):
         """
         Parse a type with a length.
@@ -85,7 +81,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(bar.type.name, "varchar")
         self.assertEquals(bar.type.length, 6543)
 
-
     def test_sequence(self):
         """
         Parsing a 'create sequence' statement adds a L{Sequence} to the
@@ -94,7 +89,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         s = self.schemaFromString("create sequence myseq;")
         self.assertEquals(len(s.sequences), 1)
         self.assertEquals(s.sequences[0].name, "myseq")
-
 
     def test_sequenceColumn(self):
         """
@@ -122,7 +116,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(s.sequences[0].referringColumns,
                           [s.tables[0].columns[0], s.tables[1].columns[0]])
 
-
     def test_sequenceDefault(self):
         """
         Default sequence column.
@@ -137,7 +130,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             """)
         self.assertEquals(s.tableNamed("foo").columnNamed("bar").needsValue(),
                           False)
-
 
     def test_sequenceDefaultWithParens(self):
         """
@@ -156,7 +148,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         )
         self.assertEquals(s.tableNamed("foo").columnNamed("bar").needsValue(),
                           False)
-
 
     def test_defaultConstantColumns(self):
         """
@@ -180,7 +171,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(table.columnNamed("e").default, 'sample value')
         self.assertEquals(table.columnNamed("f").default, None)
 
-
     def test_defaultFunctionColumns(self):
         """
         Parsing a 'default' column with a function call in it will return
@@ -202,7 +192,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(table.columnNamed("b3").default, ProcedureCall("tz", ["UTC", "GMT"]))
         self.assertEquals(table.columnNamed("b4").default, ProcedureCall("timezone", ["UTC", "CURRENT_TIMESTAMP"]))
         self.assertEquals(table.columnNamed("b5").default, ProcedureCall("timezone", ["UTC", "CURRENT_TIMESTAMP"]))
-
 
     def test_needsValue(self):
         """
@@ -228,7 +217,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         # Just nullable.
         self.assertEquals(table.columnNamed("e").needsValue(), False)
 
-
     def test_notNull(self):
         """
         A column with a NOT NULL constraint in SQL will be parsed as a
@@ -240,7 +228,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         t = s.tableNamed('alpha')
         self.assertEquals(True, t.columnNamed('beta').canBeNull())
         self.assertEquals(False, t.columnNamed('gamma').canBeNull())
-
 
     def test_unique(self):
         """
@@ -257,7 +244,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             table = s.tableNamed('sample')
             column = table.columnNamed('example')
             self.assertEquals(list(table.uniques()), [[column]])
-
 
     def test_checkExpressionConstraint(self):
         """
@@ -286,7 +272,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             "(example integer, constraint gt_5 check (example>5))", "gt_5"
         )
 
-
     def test_checkKeywordConstraint(self):
         """
         A column with a CHECK constraint in SQL that compares with a keyword
@@ -310,7 +295,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             "(example integer check (example = lower (example)));"
         )
 
-
     def test_multiUnique(self):
         """
         A column with a UNIQUE constraint in SQL will result in the table
@@ -324,7 +308,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         c = a.columnNamed('c')
         self.assertEquals(list(a.uniques()), [[b, c], [c]])
 
-
     def test_singlePrimaryKey(self):
         """
         A table with a multi-column PRIMARY KEY clause will be parsed as a list
@@ -336,7 +319,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         )
         a = s.tableNamed("a")
         self.assertEquals(a.primaryKey, [a.columnNamed("b")])
-
 
     def test_multiPrimaryKey(self):
         """
@@ -350,7 +332,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(
             a.primaryKey, [a.columnNamed("b"), a.columnNamed("c")]
         )
-
 
     def test_deleteAction(self):
         """
@@ -382,7 +363,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
             "set default"
         )
 
-
     def test_indexes(self):
         """
         A 'create index' statement will add an L{Index} object to a L{Schema}'s
@@ -407,7 +387,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
         self.assertEquals(bc.table, a)
         self.assertEquals(bc.columns, [a.columnNamed("c"), a.columnNamed("b")])
 
-
     def test_pseudoIndexes(self):
         """
         A implicit and explicit indexes are listed.
@@ -431,7 +410,6 @@ class ParsingExampleTests(TestCase, SchemaTestHelper):
                 "z:unique:(c)",
             ))
         )
-
 
     def test_functions(self):
         """
@@ -466,7 +444,6 @@ $$ LANGUAGE plpgsql;
         self.assertTrue(s.functionNamed("decrement") is not None)
         self.assertRaises(KeyError, s.functionNamed, "merge")
 
-
     def test_oracle_functions(self):
         """
         A 'create (or replace) function' statement will add an L{Function} object to a L{Schema}'s
@@ -493,7 +470,6 @@ END;
         )
         self.assertTrue(s.functionNamed("function1") is not None)
         self.assertTrue(s.functionNamed("function2") is not None)
-
 
     def test_insert(self):
         """

@@ -25,7 +25,6 @@ from ..idirectory import FieldName
 from ..expression import MatchExpression, MatchType, MatchFlags
 
 
-
 class MatchFlagsTest(unittest.TestCase):
     """
     Tests for L{MatchFlags}.
@@ -40,7 +39,6 @@ class MatchFlagsTest(unittest.TestCase):
         for boolean in (True, False):
             self.assertEquals(bool(predicator(boolean)), boolean)
 
-
     def test_predicator_NOT(self):
         """
         Predicator for flags with L{MatchFlags.NOT} does not invert.
@@ -49,7 +47,6 @@ class MatchFlagsTest(unittest.TestCase):
 
         for boolean in (True, False):
             self.assertNotEquals(bool(predicator(boolean)), boolean)
-
 
     def test_normalizer_none(self):
         """
@@ -60,7 +57,6 @@ class MatchFlagsTest(unittest.TestCase):
 
         self.assertEquals(normalizer(u"ThInGo"), u"ThInGo")
 
-
     def test_normalizer_insensitive(self):
         """
         Normalizer for flags with L{MatchFlags.caseInsensitive} lowercases.
@@ -68,7 +64,6 @@ class MatchFlagsTest(unittest.TestCase):
         normalizer = MatchFlags.normalizer(MatchFlags.caseInsensitive)
 
         self.assertEquals(normalizer(u"ThInGo"), u"thingo")
-
 
 
 class MatchExpressionTest(unittest.TestCase):
@@ -86,7 +81,6 @@ class MatchExpressionTest(unittest.TestCase):
             MatchExpression, u"uid", u"some value"
         )
 
-
     def test_initBadType_value(self):
         """
         L{MatchExpression.__init__} raises if the field value doesn't match the
@@ -98,7 +92,6 @@ class MatchExpressionTest(unittest.TestCase):
             MatchExpression,
             FieldName.guid, u"00000000-0000-0000-0000-000000000000"
         )
-
 
     def test_repr_name(self):
         """
@@ -112,7 +105,6 @@ class MatchExpressionTest(unittest.TestCase):
             )),
         )
 
-
     def test_repr_type(self):
         """
         L{MatchExpression.__repr__} emits match type.
@@ -125,7 +117,6 @@ class MatchExpressionTest(unittest.TestCase):
                 matchType=MatchType.contains,
             )),
         )
-
 
     def test_repr_flags(self):
         """
@@ -151,7 +142,6 @@ class MatchExpressionTest(unittest.TestCase):
             )),
         )
 
-
     def test_match_equals(self):
         """
         L{MatchExpression.match} with L{MatchType.equals}.
@@ -162,7 +152,6 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
-
 
     def test_match_equals_not(self):
         """
@@ -177,7 +166,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Wilfredo"))
 
-
     def test_match_startsWith(self):
         """
         L{MatchExpression.match} with L{MatchType.startsWith}.
@@ -188,7 +176,6 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
-
 
     def test_match_startsWith_not(self):
         """
@@ -203,7 +190,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Wilfredo"))
 
-
     def test_match_endsWith(self):
         """
         L{MatchExpression.match} with L{MatchType.endsWith}.
@@ -214,7 +200,6 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
-
 
     def test_match_endsWith_not(self):
         """
@@ -229,7 +214,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Wilfredo"))
 
-
     def test_match_contains(self):
         """
         L{MatchExpression.match} with L{MatchType.contains}.
@@ -240,7 +224,6 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
-
 
     def test_match_contains_not(self):
         """
@@ -255,7 +238,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Wilfredo"))
 
-
     def test_match_lessThan(self):
         """
         L{MatchExpression.match} with L{MatchType.lessThan}.
@@ -266,7 +248,6 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertTrue(expression.match(u"Glyph"))  # Sorry, Glyph
         self.assertFalse(expression.match(u"Wilfredo"))
-
 
     def test_match_lessThan_not(self):
         """
@@ -281,7 +262,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Glyph"))
         self.assertTrue(expression.match(u"Wilfredo"))
 
-
     def test_match_greaterThan(self):
         """
         L{MatchExpression.match} with L{MatchType.greaterThan}.
@@ -292,7 +272,6 @@ class MatchExpressionTest(unittest.TestCase):
         )
         self.assertTrue(expression.match(u"Wilfredo"))  # Woot!
         self.assertFalse(expression.match(u"Glyph"))
-
 
     def test_match_greaterThan_not(self):
         """
@@ -307,7 +286,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Wilfredo"))
         self.assertTrue(expression.match(u"Glyph"))
 
-
     def test_match_lessThanOrEqualTo(self):
         """
         L{MatchExpression.match} with L{MatchType.lessThanOrEqualTo}.
@@ -319,7 +297,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertTrue(expression.match(u"Glyph"))
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Wilfredo"))
-
 
     def test_match_lessThanOrEqualTo_not(self):
         """
@@ -335,7 +312,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Wilfredo"))
 
-
     def test_match_greaterThanOrEqualTo(self):
         """
         L{MatchExpression.match} with L{MatchType.greaterThanOrEqualTo}.
@@ -347,7 +323,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertTrue(expression.match(u"Wilfredo"))
         self.assertTrue(expression.match(u"Morgen"))
         self.assertFalse(expression.match(u"Glyph"))
-
 
     def test_match_greaterThanOrEqualTo_not(self):
         """
@@ -362,7 +337,6 @@ class MatchExpressionTest(unittest.TestCase):
         self.assertFalse(expression.match(u"Wilfredo"))
         self.assertFalse(expression.match(u"Morgen"))
         self.assertTrue(expression.match(u"Glyph"))
-
 
     def test_non_unicode_value(self):
         """

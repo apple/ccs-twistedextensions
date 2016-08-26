@@ -36,7 +36,6 @@ from .directory import (
 )
 
 
-
 ##
 # Data type extensions
 ##
@@ -45,7 +44,6 @@ class FieldName(Names):
     memberUIDs = NamedConstant()
     memberUIDs.description = u"member UIDs"
     memberUIDs.multiValue = True
-
 
 
 ##
@@ -154,12 +152,10 @@ class DirectoryService(BaseDirectoryService):
         FieldName.memberUIDs,
     )
 
-
     def __init__(self, realmName):
         BaseDirectoryService.__init__(self, realmName)
 
         self.flush()
-
 
     @property
     def index(self):
@@ -168,7 +164,6 @@ class DirectoryService(BaseDirectoryService):
         """
         self.loadRecords()
         return self._index
-
 
     def loadRecords(self):
         """
@@ -188,7 +183,6 @@ class DirectoryService(BaseDirectoryService):
                     self.indexRecords(records)
         """
         raise NotImplementedError("Subclasses must implement loadRecords().")
-
 
     def indexRecords(self, records):
         """
@@ -213,7 +207,6 @@ class DirectoryService(BaseDirectoryService):
                     for value in values:
                         index[fieldName].setdefault(value, set()).add(record)
 
-
     def flush(self):
         """
         Flush the index.
@@ -224,7 +217,6 @@ class DirectoryService(BaseDirectoryService):
             index.setdefault(fieldName, {})
 
         self._index = index
-
 
     def indexedRecordsFromMatchExpression(
         self, expression, recordTypes=None, records=None,
@@ -299,7 +291,6 @@ class DirectoryService(BaseDirectoryService):
 
         return succeed(matchingRecords)
 
-
     def unIndexedRecordsFromMatchExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
@@ -345,7 +336,6 @@ class DirectoryService(BaseDirectoryService):
 
         return succeed(result)
 
-
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
@@ -372,7 +362,6 @@ class DirectoryService(BaseDirectoryService):
             )
 
 
-
 class DirectoryRecord(BaseDirectoryRecord):
     """
     Indexed directory record.
@@ -385,23 +374,19 @@ class DirectoryRecord(BaseDirectoryRecord):
             members.add((yield self.service.recordWithUID(uid)))
         returnValue(members)
 
-
     def addMembers(self, memberRecords):
         oldlen = len(getattr(self, "memberUIDs", ()))
         self.fields[FieldName.memberUIDs] = sorted(list(set(getattr(self, "memberUIDs", ())) | set([r.uid for r in memberRecords])))
         return succeed(oldlen < len(self.memberUIDs))
-
 
     def removeMembers(self, memberRecords):
         oldlen = len(getattr(self, "memberUIDs", ()))
         self.fields[FieldName.memberUIDs] = sorted(list(set(getattr(self, "memberUIDs", ())) - set([r.uid for r in memberRecords])))
         return succeed(oldlen > len(self.memberUIDs))
 
-
     def setMembers(self, memberRecords):
         self.fields[FieldName.memberUIDs] = set([r.uid for r in memberRecords])
         return succeed(None)
-
 
     def groups(self):
         return self.service.recordsWithFieldValue(

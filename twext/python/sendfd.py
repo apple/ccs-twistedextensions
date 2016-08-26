@@ -21,7 +21,6 @@ from socket import SOL_SOCKET
 from twisted.python.sendmsg import send1msg, recv1msg, SCM_RIGHTS
 
 
-
 def sendfd(socketfd, fd, description):
     """
     Send the given FD to another process via L{send1msg} on the given
@@ -43,7 +42,6 @@ def sendfd(socketfd, fd, description):
     send1msg(
         socketfd, description, 0, [(SOL_SOCKET, SCM_RIGHTS, pack("i", fd))]
     )
-
 
 
 def recvfd(socketfd):

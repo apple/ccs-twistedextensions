@@ -43,10 +43,8 @@ from ..directory import DirectoryService, DirectoryRecord
 from ..util import ConstantsContainer
 
 
-
 class TestDirectoryService(DirectoryService):
     recordType = ConstantsContainer((RecordType,))
-
 
 
 class StubDirectoryService(TestDirectoryService):
@@ -61,14 +59,12 @@ class StubDirectoryService(TestDirectoryService):
         self.records = RecordStorage(self, DirectoryRecord)
         self.seenExpressions = []
 
-
     def recordsFromExpression(self, expression, recordTypes=None, records=None):
         self.seenExpressions.append(expression)
         return (
             super(StubDirectoryService, self)
             .recordsFromExpression(expression, recordTypes=recordTypes)
         )
-
 
     def recordsFromNonCompoundExpression(
         self, expression, recordTypes=None, records=None,
@@ -103,7 +99,6 @@ class StubDirectoryService(TestDirectoryService):
         )
 
 
-
 class ServiceMixIn(object):
     """
     MixIn that sets up a service appropriate for testing.
@@ -111,12 +106,10 @@ class ServiceMixIn(object):
 
     realmName = u"xyzzy"
 
-
     def service(self, subClass=None):
         if subClass is None:
             subClass = self.serviceClass
         return subClass(self.realmName)
-
 
 
 class BaseDirectoryServiceTest(ServiceMixIn):
@@ -134,14 +127,12 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         except BrokenMethodImplementation as e:
             self.fail(e)
 
-
     def test_init(self):
         """
         Test initialization.
         """
         service = self.service()
         self.assertEquals(service.realmName, self.realmName)
-
 
     def test_repr(self):
         """
@@ -155,7 +146,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             )
         )
 
-
     def test_recordTypes(self):
         """
         L{DirectoryService.recordTypes} returns the supported set of record
@@ -168,7 +158,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             set(service.recordType.iterconstants())
         )
 
-
     def test_recordsFromNonCompoundExpression_unknownExpression(self):
         """
         L{DirectoryService.recordsFromNonCompoundExpression} with an unknown
@@ -179,7 +168,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             service.recordsFromNonCompoundExpression(object()),
             QueryNotSupportedError
         )
-
 
     @inlineCallbacks
     def test_recordsFromNonCompoundExpression_emptyRecords(self):
@@ -194,7 +182,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             )
         )
         self.assertEquals(set(result), set(()))
-
 
     def test_recordsFromNonCompoundExpression_nonEmptyRecords(self):
         """
@@ -220,7 +207,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             QueryNotSupportedError
         )
 
-
     def test_recordsFromExpression_unknownExpression(self):
         """
         L{DirectoryService.recordsFromExpression} with an unknown expression
@@ -231,7 +217,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             service.recordsFromExpression(object()),
             QueryNotSupportedError
         )
-
 
     @inlineCallbacks
     def test_recordsFromExpression_emptyExpression(self):
@@ -247,20 +232,17 @@ class BaseDirectoryServiceTest(ServiceMixIn):
             )
             self.assertEquals(set(result), set(()))
 
-
     def _unimplemented(self):
         """
         Unimplemented test.
         """
         raise NotImplementedError("Subclasses should implement this test.")
 
-
     test_recordWithUID = _unimplemented
     test_recordWithGUID = _unimplemented
     test_recordsWithRecordType = _unimplemented
     test_recordWithShortName = _unimplemented
     test_recordsWithEmailAddress = _unimplemented
-
 
     def test_updateRecordsEmpty(self):
         """
@@ -270,7 +252,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         for create in (True, False):
             service.updateRecords((), create=create),
 
-
     def test_removeRecordsEmpty(self):
         """
         Removing no records is allowed.
@@ -278,7 +259,6 @@ class BaseDirectoryServiceTest(ServiceMixIn):
         service = self.service()
 
         service.removeRecords(())
-
 
 
 class DirectoryServiceRecordsFromExpressionTest(
@@ -290,7 +270,6 @@ class DirectoryServiceRecordsFromExpressionTest(
 
     serviceClass = StubDirectoryService
     directoryRecordClass = DirectoryRecord
-
 
     @inlineCallbacks
     def test_recordsFromExpression_single(self):
@@ -312,7 +291,6 @@ class DirectoryServiceRecordsFromExpressionTest(
             ),
             set((record.uid for record in result))
         )
-
 
     @inlineCallbacks
     def test_recordsFromExpression_OR(self):
@@ -347,7 +325,6 @@ class DirectoryServiceRecordsFromExpressionTest(
             set((record.uid for record in result))
         )
 
-
     @inlineCallbacks
     def test_recordsFromExpression_AND(self):
         """
@@ -375,7 +352,6 @@ class DirectoryServiceRecordsFromExpressionTest(
             ),
             set((record.uid for record in result))
         )
-
 
     @inlineCallbacks
     def test_recordsFromExpression_AND_optimized(self):
@@ -407,7 +383,6 @@ class DirectoryServiceRecordsFromExpressionTest(
             service.seenExpressions
         )
 
-
     def test_recordsFromExpression_unknownOperand(self):
         """
         L{DirectoryService.recordsFromExpression} fails with
@@ -429,7 +404,6 @@ class DirectoryServiceRecordsFromExpressionTest(
         return self.assertFailure(results, QueryNotSupportedError)
 
 
-
 class DirectoryServiceConvenienceTest(
     unittest.TestCase, BaseDirectoryServiceTest
 ):
@@ -439,7 +413,6 @@ class DirectoryServiceConvenienceTest(
 
     serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
-
 
     def test_recordWithUID(self):
         """
@@ -452,7 +425,6 @@ class DirectoryServiceConvenienceTest(
             QueryNotSupportedError
         )
 
-
     def test_recordWithGUID(self):
         """
         L{DirectoryService.recordWithGUID} fails with
@@ -464,7 +436,6 @@ class DirectoryServiceConvenienceTest(
             service.recordWithGUID(UUID(int=0)),
             QueryNotSupportedError
         )
-
 
     @inlineCallbacks
     def test_recordsWithRecordType(self):
@@ -480,7 +451,6 @@ class DirectoryServiceConvenienceTest(
                 QueryNotSupportedError
             )
 
-
     @inlineCallbacks
     def test_recordWithShortName(self):
         """
@@ -495,7 +465,6 @@ class DirectoryServiceConvenienceTest(
                 QueryNotSupportedError
             )
 
-
     def test_recordsWithEmailAddress(self):
         """
         L{DirectoryService.recordsWithEmailAddress} fails with
@@ -507,7 +476,6 @@ class DirectoryServiceConvenienceTest(
             service.recordsWithEmailAddress(u"a@b"),
             QueryNotSupportedError
         )
-
 
 
 class BaseDirectoryServiceImmutableTest(ServiceMixIn):
@@ -537,7 +505,6 @@ class BaseDirectoryServiceImmutableTest(ServiceMixIn):
                 NotAllowedError,
             )
 
-
     def test_removeRecordsNotAllowed(self):
         """
         Removing records is not allowed.
@@ -550,7 +517,6 @@ class BaseDirectoryServiceImmutableTest(ServiceMixIn):
         )
 
 
-
 class DirectoryServiceImmutableTest(
     unittest.TestCase, BaseDirectoryServiceImmutableTest,
 ):
@@ -560,7 +526,6 @@ class DirectoryServiceImmutableTest(
 
     serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
-
 
 
 class BaseDirectoryRecordTest(ServiceMixIn):
@@ -630,7 +595,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         FieldName.emailAddresses: (u"staff@CalendarServer.org",)
     }
 
-
     def makeRecord(self, fields=None, service=None):
         """
         Create a directory record from fields and a service.
@@ -650,7 +614,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             service = self.service()
         return self.directoryRecordClass(service, fields)
 
-
     def test_interface(self):
         """
         L{DirectoryRecord} complies with L{IDirectoryRecord}.
@@ -661,7 +624,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         except BrokenMethodImplementation as e:
             self.fail(e)
 
-
     def test_init(self):
         """
         L{DirectoryRecord} initialization sets service and fields.
@@ -671,7 +633,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
 
         self.assertEquals(wsanchez.service, service)
         self.assertEquals(wsanchez.fields, self.fields_wsanchez)
-
 
     def test_initWithNonConstantFieldName(self):
         """
@@ -687,7 +648,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             self.makeRecord, fields, service=service
         )
 
-
     def test_initWithNoUID(self):
         """
         Directory records must have a UID.
@@ -699,7 +659,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         fields = self.fields_wsanchez.copy()
         fields[FieldName.uid] = u""
         self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
-
 
     def test_initWithNoRecordType(self):
         """
@@ -713,7 +672,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         fields[FieldName.recordType] = None
         self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
 
-
     def test_initWithBogusRecordType(self):
         """
         Directory records must have a known record type.
@@ -721,7 +679,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         fields = self.fields_wsanchez.copy()
         fields[FieldName.recordType] = object()
         self.assertRaises(InvalidDirectoryRecordError, self.makeRecord, fields)
-
 
     def test_initNormalizeEmailLowercase(self):
         """
@@ -733,7 +690,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             sagen.fields[FieldName.emailAddresses],
             (u"sagen@calendarserver.org",)
         )
-
 
     def test_initWithIncorrectFieldTypes(self):
         """
@@ -759,7 +715,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             }
         )
 
-
     def test_noneIsAllowed(self):
         """
         Verify a value of None is allowed
@@ -768,7 +723,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         record = self.makeRecord(self.fields_none_password, service=service)
 
         self.assertEquals(record.password, None)
-
 
     def _test_containerClassFieldType(self, callback):
         """
@@ -797,7 +751,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             fields = baseFields.copy()
             callback(service, fields, fieldName, validValue, almostValidValue)
 
-
     def test_initWithContainerClassFieldType_valid(self):
         """
         If C{valueType} is L{Names}, L{Values} or L{Flags}, the expected type
@@ -810,7 +763,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             self.assertEquals(record.fields[fieldName], validValue)
 
         self._test_containerClassFieldType(callback)
-
 
     def test_initWithContainerClassFieldType_invalid(self):
         """
@@ -827,7 +779,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
                 )
 
         self._test_containerClassFieldType(callback)
-
 
     def test_initWithContainerClassFieldType_almostValid(self):
         """
@@ -848,7 +799,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         "It would be nice if this raised... presently does not"
     )
 
-
     def test_reprWithShortName(self):
         """
         L{DirectoryRecord.repr} returns a string using short name.
@@ -859,7 +809,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             "<DirectoryRecord (user)wsanchez>",
             repr(wsanchez)
         )
-
 
     def test_reprWithoutShortName(self):
         """
@@ -872,7 +821,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             repr(wsanchez)
         )
 
-
     def test_reprEmptyShortName(self):
         """
         L{DirectoryRecord.repr} returns a string using UID.
@@ -883,7 +831,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             "<DirectoryRecord UID:empty_shortnames>",
             repr(wsanchez)
         )
-
 
     def test_compare(self):
         """
@@ -905,7 +852,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         self.assertNotEqual(glyphmod, wsanchez)
         self.assertNotEqual(wsanchez, wsanchezmod)  # Different service
 
-
     def test_compareOtherType(self):
         """
         Comparison of records with other object types.
@@ -914,7 +860,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
 
         self.assertIdentical(wsanchez.__eq__(object()), NotImplemented)
         self.assertIdentical(wsanchez.__ne__(object()), NotImplemented)
-
 
     def test_attributeAccess(self):
         """
@@ -945,7 +890,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
 
         self.assertRaises(AttributeError, lambda: nobody.emailAddresses)
 
-
     def test_description(self):
         """
         L{DirectoryRecord.description} returns the expected string.
@@ -966,13 +910,11 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             sagen.description()
         )
 
-
     def test_members_group(self):
         """
         Group members for group records.
         """
         raise NotImplementedError("Subclasses should implement this test.")
-
 
     @inlineCallbacks
     def test_members_nonGroup(self):
@@ -986,13 +928,11 @@ class BaseDirectoryRecordTest(ServiceMixIn):
             set()
         )
 
-
     def test_memberships(self):
         """
         Group memberships.
         """
         raise NotImplementedError("Subclasses should implement this test.")
-
 
     @inlineCallbacks
     def test_verifyPlaintextPassword(self):
@@ -1009,7 +949,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
         self.assertTrue((yield wsanchez.verifyPlaintextPassword(password)))
         self.assertFalse((yield wsanchez.verifyPlaintextPassword(u"bleargh")))
         self.assertFalse((yield wsanchez.verifyPlaintextPassword("bleargh\xc3\xa5")))
-
 
     @inlineCallbacks
     def test_verifyHTTPDigest(self):
@@ -1040,7 +979,6 @@ class BaseDirectoryRecordTest(ServiceMixIn):
     test_verifyHTTPDigest.todo = "unimplemented"
 
 
-
 class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
     """
     Tests for L{DirectoryRecord}.
@@ -1049,18 +987,15 @@ class DirectoryRecordTest(unittest.TestCase, BaseDirectoryRecordTest):
     serviceClass = TestDirectoryService
     directoryRecordClass = DirectoryRecord
 
-
     def test_members_group(self):
         staff = self.makeRecord(self.fields_staff)
 
         return self.assertFailure(staff.members(), NotImplementedError)
 
-
     def test_memberships(self):
         wsanchez = self.makeRecord(self.fields_wsanchez)
 
         return self.assertFailure(wsanchez.groups(), NotImplementedError)
-
 
 
 class RecordStorage(object):
@@ -1074,7 +1009,6 @@ class RecordStorage(object):
         self.records = []
 
         self.addDefaultRecords()
-
 
     def addDefaultRecords(self):
         """
@@ -1176,7 +1110,6 @@ class RecordStorage(object):
             ],
         )
 
-
     def addUser(self, shortNames, fullNames, emailAddresses=[]):
         """
         Add a user record with the given field information.
@@ -1203,7 +1136,6 @@ class RecordStorage(object):
             fieldName.emailAddresses: emailAddresses,
         }))
 
-
     def addGroup(self, shortNames, fullNames, emailAddresses=[]):
         """
         Add a group record with the given field information.
@@ -1229,10 +1161,8 @@ class RecordStorage(object):
             fieldName.emailAddresses: emailAddresses,
         }))
 
-
     def __iter__(self):
         return iter(self.records)
-
 
 
 class WackyOperand(Names):
@@ -1240,7 +1170,6 @@ class WackyOperand(Names):
     Wacky operands.
     """
     WHUH = NamedConstant()
-
 
 
 class Color(Names):
@@ -1253,13 +1182,11 @@ class Color(Names):
     black = NamedConstant()
 
 
-
 class OtherColor(Names):
     """
     More colors.
     """
     mauve = NamedConstant()
-
 
 
 class Language(Values):
@@ -1270,13 +1197,11 @@ class Language(Values):
     Spanish = ValueConstant(u"sp")
 
 
-
 class OtherLanguage(Values):
     """
     More languages.
     """
     French = ValueConstant(u"fr")
-
 
 
 class Access(Flags):
@@ -1287,13 +1212,11 @@ class Access(Flags):
     write = FlagConstant()
 
 
-
 class OtherAccess(Flags):
     """
     More access types.
     """
     delete = FlagConstant()
-
 
 
 class ConstantHavingFieldName(Names):

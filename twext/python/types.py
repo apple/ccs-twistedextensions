@@ -23,7 +23,6 @@ __all__ = [
 ]
 
 
-
 class MappingProxyType(object):
     """
     Read-only proxy of a mapping. It provides a dynamic view on the mapping's
@@ -45,70 +44,53 @@ class MappingProxyType(object):
         """
         self._mapping = mapping
 
-
     def __len__(self):
         return len(self._mapping)
-
 
     def __getitem__(self, key):
         return self._mapping[key]
 
-
     def __iter__(self):
         return iter(self._mapping)
-
 
     def __reversed__(self):
         return reversed(self._mapping)
 
-
     def __contains__(self, key):
         return key in self._mapping
-
 
     def copy(self):
         return self._mapping.copy()
 
-
     def get(self, key, default=None):
         return self._mapping.get(key, default)
-
 
     def has_key(self, key):
         return key in self._mapping
 
-
     def items(self):
         return self._mapping.items()
-
 
     def iteritems(self):
         return self._mapping.iteritems()
 
-
     def iterkeys(self):
         return self._mapping.iterkeys()
-
 
     def itervalues(self):
         return self._mapping.itervalues()
 
-
     def keys(self):
         return self._mapping.keys()
-
 
     def values(self):
         return self._mapping.values()
 
-
     def viewitems(self):
         return self._mapping.viewitems()
 
-
     def viewkeys(self):
         return self._mapping.viewkeys()
-
 
     def viewvalues(self):
         return self._mapping.viewvalues()

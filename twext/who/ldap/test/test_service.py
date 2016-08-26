@@ -45,7 +45,6 @@ try:
             value = value[:sizelimit]
         return self._add_async_result(value)
 
-
     def result3(self, msgid, all=1, timeout=None):
         return ldap.RES_SEARCH_RESULT, self._pop_async_result(msgid), None, None
 
@@ -102,7 +101,6 @@ class TestFieldWithChoices(Names):
     three.description = u"three"
 
 
-
 class TestFieldName(Names):
     multiChoice = NamedConstant()
     multiChoice.description = u"Multiple Choice Test Field"
@@ -151,10 +149,8 @@ TEST_FIELDNAME_MAP[TestFieldName.boolean3] = (
 )
 
 
-
 class TestService(DirectoryService, QueryMixIn):
     pass
-
 
 
 class BaseTestCase(XMLBaseTest):
@@ -166,7 +162,6 @@ class BaseTestCase(XMLBaseTest):
     baseDN = u"dc=calendarserver,dc=org"
     realmName = unicode(url)
 
-
     def setUp(self):
         if MockLdap is None:
             raise SkipTest("No MockLdap available")
@@ -176,7 +171,6 @@ class BaseTestCase(XMLBaseTest):
                 return True
             else:
                 return mockldap_matches(self, dn, attrs)
-
 
         self.patch(MockLDAPFilterTest, "_parse_expression", mockldap_parse)
         self.patch(MockLDAPFilterTest, "matches", mockldap_matches)
@@ -194,10 +188,8 @@ class BaseTestCase(XMLBaseTest):
         self.mockLDAP = MockLdap(self.mockData)
         self.mockLDAP.start()
 
-
     def tearDown(self):
         self.mockLDAP.stop()
-
 
     def service(self, **kwargs):
         svc = TestService(
@@ -237,22 +229,19 @@ class BaseTestCase(XMLBaseTest):
         return svc
 
 
-
 class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
+
     def test_queryNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryNot(self)
     test_queryNot.todo = "?"
-
 
     def test_queryNotNoIndex(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryNotNoIndex(self)
     test_queryNotNoIndex.todo = "?"
 
-
     def test_queryStartsWithNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryStartsWithNot(self)
     test_queryStartsWithNot.todo = "?"
-
 
     def test_queryStartsWithNotAny(self):
         return (
@@ -261,7 +250,6 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
         )
     test_queryStartsWithNotAny.todo = "?"
 
-
     def test_queryStartsWithNotNoIndex(self):
         return (
             BaseDirectoryServiceQueryTestMixIn
@@ -269,11 +257,9 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
         )
     test_queryStartsWithNotNoIndex.todo = "?"
 
-
     def test_queryContainsNot(self):
         return BaseDirectoryServiceQueryTestMixIn.test_queryContainsNot(self)
     test_queryContainsNot.todo = "?"
-
 
     def test_queryContainsNotNoIndex(self):
         return (
@@ -283,12 +269,11 @@ class DirectoryServiceQueryTestMixIn(BaseDirectoryServiceQueryTestMixIn):
     test_queryContainsNotNoIndex.todo = "?"
 
 
-
 class DirectoryServiceMutableTestMixIn(BaseDirectoryServiceMutableTestMixIn):
+
     def test_removeRecord(self):
         return BaseDirectoryServiceMutableTestMixIn.test_removeRecord(self)
     test_removeRecord.todo = "?"
-
 
     def test_removeRecordNoExist(self):
         return (
@@ -296,16 +281,13 @@ class DirectoryServiceMutableTestMixIn(BaseDirectoryServiceMutableTestMixIn):
         )
     test_removeRecordNoExist.todo = "?"
 
-
     def test_addRecord(self):
         return BaseDirectoryServiceMutableTestMixIn.test_addRecord(self)
     test_addRecord.todo = "?"
 
-
     def test_updateRecord(self):
         return BaseDirectoryServiceMutableTestMixIn.test_updateRecord(self)
     test_updateRecord.todo = "?"
-
 
     def test_addRecordNoCreate(self):
         raise NotImplementedError()
@@ -313,7 +295,6 @@ class DirectoryServiceMutableTestMixIn(BaseDirectoryServiceMutableTestMixIn):
             BaseDirectoryServiceMutableTestMixIn.test_addRecordNoCreate(self)
         )
     test_addRecordNoCreate.todo = "?"
-
 
 
 class DirectoryServiceConnectionTestMixIn(object):
@@ -337,7 +318,6 @@ class DirectoryServiceConnectionTestMixIn(object):
 
             self.assertFalse(connection.tls_enabled)
 
-
     def test_connect_withUsernamePassword_invalid(self):
         """
         Connect with UsernamePassword credentials.
@@ -355,7 +335,6 @@ class DirectoryServiceConnectionTestMixIn(object):
         else:
             self.fail("Should have raised LDAPBindAuthError")
 
-
     def test_connect_withUsernamePassword_valid(self):
         """
         Connect with UsernamePassword credentials.
@@ -371,7 +350,6 @@ class DirectoryServiceConnectionTestMixIn(object):
                 connection.methods_called(),
                 ["initialize", "simple_bind_s"]
             )
-
 
     def test_connect_withOptions(self):
         """
@@ -405,7 +383,6 @@ class DirectoryServiceConnectionTestMixIn(object):
             # SSL implicitly.
             self.assertFalse(connection.tls_enabled)
 
-
     def test_connect_withTLS(self):
         """
         Connect with TLS enabled.
@@ -421,7 +398,6 @@ class DirectoryServiceConnectionTestMixIn(object):
             self.assertTrue(connection.tls_enabled)
 
 
-
 class DirectoryServiceTest(
     BaseTestCase,
     DirectoryServiceConvenienceTestMixIn,
@@ -435,12 +411,10 @@ class DirectoryServiceTest(
     serviceClass = DirectoryService
     directoryRecordClass = DirectoryRecord
 
-
     def test_repr(self):
         service = self.service()
 
         self.assertEquals(repr(service), u"<TestService u'ldap://localhost/'>")
-
 
     def test_server_down(self):
         """
@@ -491,7 +465,6 @@ class DirectoryServiceTest(
         # Verify the connections are all closed
         self.assertEquals(len(service.connectionPools["query"].connections), 0)
 
-
     def test_server_down_auth(self):
         """
         Verify an ldap.SERVER_DOWN error will retry 2 more times and that
@@ -524,7 +497,6 @@ class DirectoryServiceTest(
             self.assertEquals(testStats["retryNumber"], 2)
         except:
             self.fail("Should have raised LDAPQueryError")
-
 
     @inlineCallbacks
     def test_auth_pool(self):
@@ -594,7 +566,6 @@ class DirectoryServiceTest(
         self.assertEquals(0, service.poolStats["connection-auth-active"])
 
 
-
 class ExtraFiltersTest(BaseTestCase, unittest.TestCase):
 
     def test_extraFilters(self):
@@ -616,7 +587,6 @@ class ExtraFiltersTest(BaseTestCase, unittest.TestCase):
             "(bar=2)",
             service._addExtraFilter(RecordType.group, "(bar=2)")
         )
-
 
 
 class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
@@ -652,7 +622,6 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
         self.assertFalse(records[1].boolean2)  # foo != true so False
         self.assertFalse(records[1].boolean3)  # bar != true so False
 
-
     def test_multipleChoice(self):
         service = self.service()
         reply = (
@@ -676,7 +645,6 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
 
         # "Four" is not a valid value, so it won't get set
         self.assertFalse(service.fieldName.multiChoice in records[1].fields)
-
 
     def test_multipleAttributes(self):
         """
@@ -733,7 +701,6 @@ class RecordsFromReplyTest(BaseTestCase, unittest.TestCase):
         self.assertEquals(records[2].fullNames, ["cn-name"])
 
 
-
 def mockDirectoryDataFromXMLService(service):
     dc0 = u"org"
     dc1 = u"calendarserver"
@@ -753,7 +720,6 @@ def mockDirectoryDataFromXMLService(service):
             return [unicode(x) for x in obj]
 
         return unicode(obj)
-
 
     def tuplify(record, fieldName):
         fieldValue = record.fields[fieldName]
@@ -799,7 +765,6 @@ def mockDirectoryDataFromXMLService(service):
     return data
 
 
-
 #
 # mockldap patches
 # See https://bitbucket.org/psagers/mockldap/issue/4/
@@ -809,7 +774,6 @@ class WildcardExpression(object):
     first = None
     middle = []
     last = None
-
 
 
 def mockldap_parse(self):
@@ -827,7 +791,6 @@ def mockldap_parse(self):
         raise MockLDAPUnsupportedOp(
             u"Operation %r is not supported" % (self.op,)
         )
-
 
     def unescape(value):
         return self.UNESCAPE_RE.sub(lambda m: chr(int(m.group(1), 16)), value)
@@ -851,7 +814,6 @@ def mockldap_parse(self):
 
     else:
         self.value = unescape(valueExpression)
-
 
 
 def mockldap_matches(self, dn, attrs):

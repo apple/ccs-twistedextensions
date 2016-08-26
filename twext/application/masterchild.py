@@ -59,7 +59,6 @@ from twext.internet.sendfdport import IStatusWatcher
 from twext.internet.sendfdport import InheritedPort
 
 
-
 class MasterOptions(Options):
     """
     Options for a master process.
@@ -125,12 +124,10 @@ class MasterOptions(Options):
 
         protocols.append((protocol, port))
 
-
     def postOptions(self):
         for (parameter, key) in [("protocol", "protocols")]:
             if key not in self:
                 raise UsageError("{0} parameter is required".format(parameter))
-
 
 
 class SpawningInheritingProtocolFactory(InheritingProtocolFactory):
@@ -144,11 +141,9 @@ class SpawningInheritingProtocolFactory(InheritingProtocolFactory):
         )
         self.spawningService = spawningService
 
-
     def sendSocket(self, socketObject):
         self.spawningService.socketWillArriveForProtocol(self.description)
         super(SpawningInheritingProtocolFactory, self).sendSocket(socketObject)
-
 
 
 @implementer(IStatusWatcher)
@@ -158,7 +153,6 @@ class MasterService(MultiService, object):
     """
 
     log = Logger()
-
 
     def __init__(self):
         MultiService.__init__(self)
@@ -170,7 +164,6 @@ class MasterService(MultiService, object):
         self.log.info("Setting up master/child spawning service...")
         self.spawningService = ChildSpawningService(self.dispatcher)
         self.spawningService.setServiceParent(self)
-
 
     def addProtocol(self, protocol, port):
         self.log.info(
@@ -186,7 +179,6 @@ class MasterService(MultiService, object):
 
         tcpService.setServiceParent(self)
 
-
     def startService(self):
         """
         Start up multiservice, then start up the dispatcher.
@@ -194,13 +186,11 @@ class MasterService(MultiService, object):
         super(MasterService, self).startService()
         self.dispatcher.startDispatching()
 
-
     # IStatusWatcher
 
     @staticmethod
     def initialStatus():
         return ChildStatus()
-
 
     @staticmethod
     def newConnectionStatus(previousStatus):
@@ -208,7 +198,6 @@ class MasterService(MultiService, object):
         A connection was just sent to the process, but not yet acknowledged.
         """
         return previousStatus.adjust(unacknowledged=1)
-
 
     @staticmethod
     def statusFromMessage(previousStatus, message):
@@ -234,12 +223,10 @@ class MasterService(MultiService, object):
         else:
             raise AssertionError("Unknown message: {0}".format(message))
 
-
     @staticmethod
     def closeCountFromStatus(previousStatus):
         toClose = previousStatus.unclosed
         return (toClose, previousStatus.adjust(unclosed=-toClose))
-
 
     def statusesChanged(self, statuses):
         # FIXME: This isn't in IStatusWatcher, but is called by
@@ -261,7 +248,6 @@ class MasterService(MultiService, object):
 #                f.loadNominal()
 
 
-
 @implementer(IServiceMaker)
 class MasterServiceMaker(object):
     """
@@ -269,12 +255,10 @@ class MasterServiceMaker(object):
     """
     log = Logger()
 
-
     def __init__(self):
         self.tapname = "master"
         self.description = self.__class__.__doc__
         self.options = MasterOptions
-
 
     def makeService(self, options):
         service = MasterService()
@@ -283,7 +267,6 @@ class MasterServiceMaker(object):
             service.addProtocol(protocol, port)
 
         return service
-
 
 
 class ChildProcess(object):
@@ -296,7 +279,6 @@ class ChildProcess(object):
         self.protocol = protocol
 
 
-
 class ChildSpawningService(Service, object):
     """
     Service that spawns children as necessary.
@@ -305,7 +287,6 @@ class ChildSpawningService(Service, object):
     log = Logger()
 
     pluginName = b"child"
-
 
     def __init__(
         self, dispatcher, maxProcessCount=8, highWaterMark=3
@@ -326,16 +307,13 @@ class ChildSpawningService(Service, object):
         self.maxProcessCount = maxProcessCount
         self.highWaterMark = highWaterMark
 
-
     def startService(self):
         assert not hasattr(self, "children")
 
         self.children = set()
 
-
     def stopService(self):
         del(self.children)
-
 
     def totalEffectiveLoad(self):
         """
@@ -345,7 +323,6 @@ class ChildSpawningService(Service, object):
         @rtype: L{float}
         """
         return sum(s.effectiveLoad() for s in self.dispatcher.statuses)
-
 
     def socketWillArriveForProtocol(self, protocolName):
         """
@@ -373,7 +350,6 @@ class ChildSpawningService(Service, object):
         if averageLoad >= self.highWaterMark:
             if numChildren < self.maxProcessCount:
                 self.spawnChild(protocolName)
-
 
     def spawnChild(self, protocolName):
         """
@@ -425,7 +401,6 @@ class ChildSpawningService(Service, object):
 
         self.children.add(child)
 
-
     def childDidExit(self, processProtocol, reason):
         """
         Called by L{ChildProcessProtocol} to alert this service that a
@@ -462,7 +437,6 @@ class ChildSpawningService(Service, object):
             )
 
 
-
 class ChildProcessProtocol(ProcessProtocol, object):
     """
     Process protocol for child processes.
@@ -479,24 +453,20 @@ class ChildProcessProtocol(ProcessProtocol, object):
         # re-initialize state.
         self.inheritedSocket.start()
 
-
     def outReceived(self, data):
         # self.log.info(u"{data}", data=data)
         sys.stdout.write(data)
-
 
     def errReceived(self, data):
         super(ChildProcessProtocol, self).errReceived(data)
         # self.log.error(u"{data}", data=data)
         sys.stderr.write(data)
 
-
     def processExited(self, reason):
         # Always tell any metafd socket that we have started, so it can
         # re-initialize state.
         self.inheritedSocket.stop()
         self.service.childDidExit(self, reason)
-
 
 
 class ChildOptions(Options):
@@ -514,7 +484,6 @@ class ChildOptions(Options):
             raise UsageError("Unknown protocol: {0}".format(value))
 
         self["protocol"] = protocol
-
 
     def opt_inherited_fd(self, value):
         """
@@ -536,12 +505,10 @@ class ChildOptions(Options):
 
         self["inherited-fd"] = fd
 
-
     def postOptions(self):
         for parameter in ("protocol", "inherited-fd"):
             if parameter not in self:
                 raise UsageError("{0} parameter is required".format(parameter))
-
 
 
 @implementer(IServiceMaker)
@@ -555,12 +522,10 @@ class ChildServiceMaker(object):
         self.description = self.__class__.__doc__
         self.options = ChildOptions
 
-
     def makeService(self, options):
         factory = ServerFactory.forProtocol(options["protocol"])
         service = ChildService(options["inherited-fd"], factory)
         return service
-
 
 
 class ChildService(Service, object):
@@ -570,11 +535,9 @@ class ChildService(Service, object):
 
     log = Logger()
 
-
     def __init__(self, fd, protocolFactory):
         self.fd = fd
         self.protocolFactory = protocolFactory
-
 
     def startService(self):
         factory = ReportingWrapperFactory(
@@ -587,7 +550,6 @@ class ChildService(Service, object):
 
         return super(ChildService, self).startService()
 
-
     def stopService(self):
         factory = self.wrappedProtocolFactory
 
@@ -598,7 +560,6 @@ class ChildService(Service, object):
         factory.allConnectionsClosed()
 
         return super(ChildService, self).stopService()
-
 
     def createTransport(self, socket, peer, data, protocol):
         """
@@ -619,8 +580,8 @@ class ChildService(Service, object):
         return transport
 
 
-
 class ReportingProtocolWrapper(ProtocolWrapper, object):
+
     def __init__(self, *args, **kwargs):
         try:
             raise RuntimeError()
@@ -632,12 +593,10 @@ class ReportingProtocolWrapper(ProtocolWrapper, object):
             *args, **kwargs
         )
 
-
     def connectionLost(self, reason):
         # self.factory.protocolDidLoseConnection(self)
         self.factory.inheritedPort.reportStatus("-")
         return super(ReportingProtocolWrapper, self).connectionLost(reason)
-
 
 
 class ReportingWrapperFactory(WrappingFactory, object):
@@ -645,11 +604,9 @@ class ReportingWrapperFactory(WrappingFactory, object):
 
     protocol = ReportingProtocolWrapper
 
-
     def __init__(self, wrappedFactory, fd, createTransport):
         self.inheritedPort = InheritedPort(fd, createTransport, self)
         super(ReportingWrapperFactory, self).__init__(wrappedFactory)
-
 
     def registerProtocol(self, p):
         super(ReportingWrapperFactory, self).registerProtocol(p)
@@ -659,7 +616,6 @@ class ReportingWrapperFactory(WrappingFactory, object):
             factory=self, protocol=p
         )
 
-
     def unregisterProtocol(self, p):
         super(ReportingWrapperFactory, self).unregisterProtocol(p)
         self.log.info(
@@ -667,7 +623,6 @@ class ReportingWrapperFactory(WrappingFactory, object):
             "Remaining protocols: {factory.protocols}",
             factory=self, protocol=p
         )
-
 
 
 @implementer(IStatus)
@@ -686,7 +641,6 @@ class ChildStatus(FancyStrMixin, object):
         "starting",
         "stopped",
     )
-
 
     def __init__(
         self,
@@ -738,13 +692,11 @@ class ChildStatus(FancyStrMixin, object):
         self.starting = starting
         self.stopped = stopped
 
-
     def effectiveLoad(self):
         """
         The current effective load.
         """
         return self.acknowledged + self.unacknowledged
-
 
     def active(self):
         """
@@ -752,7 +704,6 @@ class ChildStatus(FancyStrMixin, object):
         i.e, this socket is neither stopped nor starting
         """
         return self.starting == 0 and self.stopped == 0
-
 
     def start(self):
         """
@@ -765,7 +716,6 @@ class ChildStatus(FancyStrMixin, object):
             stopped=0,
         )
 
-
     def restarted(self):
         """
         The child process for this L{WorkerStatus} has indicated it is now
@@ -776,7 +726,6 @@ class ChildStatus(FancyStrMixin, object):
             started=self.started + 1,
             starting=0,
         )
-
 
     def stop(self):
         """
@@ -791,7 +740,6 @@ class ChildStatus(FancyStrMixin, object):
             stopped=1,
         )
 
-
     def adjust(self, **kwargs):
         """
         Update the L{WorkerStatus} by adding the supplied values to the
@@ -801,7 +749,6 @@ class ChildStatus(FancyStrMixin, object):
             newval = getattr(self, k) + v
             setattr(self, k, max(newval, 0))
         return self
-
 
     def reset(self, **kwargs):
         """

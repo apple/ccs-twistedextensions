@@ -55,7 +55,6 @@ class KQueueReactorTestFixture(object):
 
         self.testCase.addCleanup(maybeStop)
 
-
     def runReactor(self):
         """
         Run the test reactor, adding cleanup code to stop if after a timeout,
@@ -69,13 +68,11 @@ class KQueueReactorTestFixture(object):
         self.reactor.run(installSignalHandlers=False)
 
 
-
 class DataStoreMonitor(object):
     """
     Stub IDirectoryChangeListenee
     """
     implements(IDirectoryChangeListenee)
-
 
     def __init__(self, reactor, storageService):
         """
@@ -86,28 +83,23 @@ class DataStoreMonitor(object):
         self._storageService = storageService
         self.methodCalled = ""
 
-
     def disconnected(self):
         self.methodCalled = "disconnected"
         self._storageService.hardStop()
         self._reactor.stop()
-
 
     def deleted(self):
         self.methodCalled = "deleted"
         self._storageService.hardStop()
         self._reactor.stop()
 
-
     def renamed(self):
         self.methodCalled = "renamed"
         self._storageService.hardStop()
         self._reactor.stop()
 
-
     def connectionLost(self, reason):
         pass
-
 
 
 class StubStorageService(object):
@@ -118,10 +110,8 @@ class StubStorageService(object):
     def __init__(self, ignored):
         self.stopCalled = False
 
-
     def hardStop(self):
         self.stopCalled = True
-
 
 
 class DirectoryChangeListenerTestCase(TestCase):
@@ -145,7 +135,6 @@ class DirectoryChangeListenerTestCase(TestCase):
         resource.runReactor()
         self.assertTrue(storageService.stopCalled)
         self.assertEquals(delegate.methodCalled, "deleted")
-
 
     def test_rename(self):
         """

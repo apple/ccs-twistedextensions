@@ -44,6 +44,7 @@ processing queue to handle many different types of work, each of which may have
 its own set of parameters.
 """
 
+
 def makeJobSchema(inSchema):
     """
     Create a self-contained schema for L{JobInfo} to use, in C{inSchema}.
@@ -74,7 +75,6 @@ def makeJobSchema(inSchema):
 JobInfoSchema = SchemaSyntax(makeJobSchema(Schema(__file__)))
 
 
-
 class JobFailedError(Exception):
     """
     A job failed to run - we need to be smart about clean up.
@@ -82,7 +82,6 @@ class JobFailedError(Exception):
 
     def __init__(self, ex):
         self._ex = ex
-
 
 
 class JobTemporaryError(Exception):
@@ -99,13 +98,11 @@ class JobTemporaryError(Exception):
         self.delay = delay
 
 
-
 class JobRunningError(Exception):
     """
     A job is already running.
     """
     pass
-
 
 
 # Priority for work - used to order work items in the job queue
@@ -158,7 +155,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
     def descriptor(self):
         return JobDescriptor(self.jobID, self.weight, self.workType)
 
-
     def assign(self, when, overdue):
         """
         Mark this job as assigned to a worker by setting the assigned column to the current,
@@ -171,13 +167,11 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         """
         return self.update(isAssigned=1, assigned=when, overdue=when + timedelta(seconds=overdue))
 
-
     def unassign(self):
         """
         Mark this job as unassigned by setting the assigned and overdue columns to L{None}.
         """
         return self.update(isAssigned=0, assigned=None, overdue=None)
-
 
     def bumpOverdue(self, bump):
         """
@@ -188,7 +182,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         @type bump: L{int}
         """
         return self.update(overdue=self.overdue + timedelta(seconds=bump))
-
 
     def failedToRun(self, locked=False, delay=None):
         """
@@ -216,7 +209,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             notBefore=datetime.utcnow() + timedelta(seconds=delay)
         )
 
-
     def pauseIt(self, pause=False):
         """
         Pause the L{JobItem} leaving all other attributes the same. The job processing loop
@@ -230,7 +222,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         """
 
         return self.update(pause=pause)
-
 
     @classmethod
     @inlineCallbacks
@@ -251,8 +242,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         """
 
         t = time.time()
+
         def _tm():
             return "{:.3f}".format(1000 * (time.time() - t))
+
         def _overtm(nb):
             return "{:.0f}".format(1000 * (t - astimestamp(nb)))
 
@@ -357,7 +350,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
         returnValue(None)
 
-
     @classmethod
     @inlineCallbacks
     def nextjob(cls, txn, now, minPriority, rowLimit):
@@ -434,7 +426,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
         returnValue(job)
 
-
     @classmethod
     @inlineCallbacks
     def overduejob(cls, txn, now, rowLimit):
@@ -477,7 +468,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             job = jobs[0] if jobs else None
 
         returnValue(job)
-
 
     @inlineCallbacks
     def run(self):
@@ -522,7 +512,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             # The record has already been removed
             pass
 
-
     @inlineCallbacks
     def isRunning(self):
         """
@@ -535,7 +524,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         else:
             returnValue(False)
 
-
     @inlineCallbacks
     def workItem(self):
         """
@@ -546,7 +534,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             self.transaction, self.jobID
         )
         returnValue(workItems[0] if len(workItems) == 1 else None)
-
 
     @classmethod
     def workItemForType(cls, workType):
@@ -560,7 +547,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             cls.workTypes()
         return cls._workTypeMap[workType]
 
-
     @classmethod
     def workTypes(cls):
         """
@@ -571,6 +557,7 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
         """
         if cls._workTypes is None:
             cls._workTypes = []
+
             def getWorkType(subcls, appendTo):
                 if hasattr(subcls, "table"):
                     appendTo.append(subcls)
@@ -586,7 +573,6 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
         return cls._workTypes
 
-
     @classmethod
     def allWorkTypes(cls):
         """
@@ -599,11 +585,9 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             cls.workTypes()
         return cls._workTypeMap
 
-
     @classmethod
     def numberOfWorkTypes(cls):
         return len(cls.workTypes())
-
 
     @classmethod
     @inlineCallbacks
@@ -620,11 +604,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             if time.time() - t > timeout:
                 returnValue(False)
             d = Deferred()
-            reactor.callLater(0.1, lambda : d.callback(None))
+            reactor.callLater(0.1, lambda: d.callback(None))
             yield d
 
         returnValue(True)
-
 
     @classmethod
     @inlineCallbacks
@@ -641,11 +624,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             if time.time() - t > timeout:
                 returnValue(False)
             d = Deferred()
-            reactor.callLater(0.1, lambda : d.callback(None))
+            reactor.callLater(0.1, lambda: d.callback(None))
             yield d
 
         returnValue(True)
-
 
     @classmethod
     @inlineCallbacks
@@ -670,11 +652,10 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
             if time.time() - t > timeout:
                 returnValue(False)
             d = Deferred()
-            reactor.callLater(0.1, lambda : d.callback(None))
+            reactor.callLater(0.1, lambda: d.callback(None))
             yield d
 
         returnValue(True)
-
 
     @classmethod
     @inlineCallbacks
@@ -727,13 +708,14 @@ class JobItem(Record, fromTable(JobInfoSchema.JOB)):
 
 JobDescriptor = namedtuple("JobDescriptor", ["jobID", "weight", "workType"])
 
+
 class JobDescriptorArg(Argument):
     """
     Comma-separated representation of an L{JobDescriptor} for AMP-serialization.
     """
+
     def toString(self, inObject):
         return ",".join(map(str, inObject))
-
 
     def fromString(self, inString):
         return JobDescriptor(*[f(s) for f, s in zip((int, int, str,), inString.split(","))])

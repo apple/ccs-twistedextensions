@@ -57,7 +57,6 @@ except ImportError:
         )
 
 
-
 class Clock(_Clock):
     """
     More careful L{IReactorTime} fake which mimics the exception behavior of
@@ -70,15 +69,14 @@ class Clock(_Clock):
         return super(Clock, self).callLater(_seconds, _f, *args, **kw)
 
 
-
 class MemoryReactorWithClock(MemoryReactor, Clock):
     """
     Simulate a real reactor.
     """
+
     def __init__(self):
         MemoryReactor.__init__(self)
         Clock.__init__(self)
-
 
 
 def transactionally(transactionCreator):
@@ -102,7 +100,6 @@ def transactionally(transactionCreator):
     return thunk
 
 
-
 class UtilityTests(TestCase):
     """
     Tests for supporting utilities.
@@ -115,6 +112,7 @@ class UtilityTests(TestCase):
         argument when it succeeds.
         """
         class faketxn(object):
+
             def __init__(self):
                 self.commits = []
                 self.aborts = []
@@ -155,11 +153,10 @@ class UtilityTests(TestCase):
         self.assertEquals(x, [35])
 
 
-
 class SimpleSchemaHelper(SchemaTestHelper):
+
     def id(self):
         return "worker"
-
 
 
 SQL = passthru
@@ -201,12 +198,10 @@ else:
     skip = False
 
 
-
 class DummyWorkDone(Record, DummyWorkDone):
     """
     Work result.
     """
-
 
 
 class DummyWorkItem(WorkItem, DummyWorkItem):
@@ -219,7 +214,6 @@ class DummyWorkItem(WorkItem, DummyWorkItem):
         return DummyWorkDone.create(
             self.transaction, workID=self.workID, aPlusB=self.a + self.b
         )
-
 
     @classmethod
     @inlineCallbacks
@@ -238,7 +232,6 @@ class DummyWorkItem(WorkItem, DummyWorkItem):
         returnValue(self)
 
 
-
 class SchemaAMPTests(TestCase):
     """
     Tests for L{SchemaAMP} faithfully relaying tables across the wire.
@@ -255,6 +248,7 @@ class SchemaAMPTests(TestCase):
             arguments = [("table", TableSyntaxByName())]
 
         class Receiver(SchemaAMP):
+
             @SampleCommand.responder
             def gotIt(self, table):
                 self.it = table
@@ -268,7 +262,6 @@ class SchemaAMPTests(TestCase):
         client.callRemote(SampleCommand, table=schema.DUMMY_WORK_ITEM)
         server.dataReceived(clientT.io.getvalue())
         self.assertEqual(server.it, schema.DUMMY_WORK_ITEM)
-
 
 
 class WorkItemTests(TestCase):
@@ -286,14 +279,12 @@ class WorkItemTests(TestCase):
         )
 
 
-
 class WorkerConnectionPoolTests(TestCase):
     """
     A L{WorkerConnectionPool} is responsible for managing, in a node's
     controller (master) process, the collection of worker (slave) processes
     that are capable of executing queue work.
     """
-
 
 
 class WorkProposalTests(TestCase):
@@ -317,7 +308,6 @@ class WorkProposalTests(TestCase):
         self.assertEquals(r, [])
         cph.flushHolders()
         self.assertEquals(len(r), 1)
-
 
     def test_whenProposedFailure(self):
         """
@@ -345,17 +335,16 @@ class WorkProposalTests(TestCase):
         self.assertIsInstance(r[0], Failure)
 
 
-
 class PeerConnectionPoolUnitTests(TestCase):
     """
     L{PeerConnectionPool} has many internal components.
     """
+
     def setUp(self):
         """
         Create a L{PeerConnectionPool} that is just initialized enough.
         """
         self.pcp = PeerConnectionPool(None, None, 4321, schema)
-
 
     def checkPerformer(self, cls):
         """
@@ -366,7 +355,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         self.failUnlessIsInstance(performer, cls)
         verifyObject(_IWorkPerformer, performer)
 
-
     def test_choosingPerformerWhenNoPeersAndNoWorkers(self):
         """
         If L{PeerConnectionPool.choosePerformer} is invoked when no workers
@@ -375,7 +363,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         simply executes the work locally.
         """
         self.checkPerformer(LocalPerformer)
-
 
     def test_choosingPerformerWithLocalCapacity(self):
         """
@@ -393,7 +380,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         # Now it has some capacity.
         self.checkPerformer(WorkerConnectionPool)
 
-
     def test_choosingPerformerFromNetwork(self):
         """
         If L{PeerConnectionPool.choosePerformer} is invoked when no workers
@@ -406,7 +392,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         connection = Connection(local, remote)
         connection.start()
         self.checkPerformer(ConnectionFromPeerNode)
-
 
     def test_performingWorkOnNetwork(self):
         """
@@ -421,6 +406,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         d = Deferred()
 
         class DummyPerformer(object):
+
             def performWork(self, table, workID):
                 self.table = table
                 self.workID = workID
@@ -448,7 +434,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         connection.flush()
         self.assertEquals(performResult, [None])
 
-
     def test_choosePerformerSorted(self):
         """
         If L{PeerConnectionPool.choosePerformer} is invoked make it
@@ -457,6 +442,7 @@ class PeerConnectionPoolUnitTests(TestCase):
         peer = PeerConnectionPool(None, None, 4322, schema)
 
         class DummyPeer(object):
+
             def __init__(self, name, load):
                 self.name = name
                 self.load = load
@@ -477,7 +463,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         bpeer.load = 2
         performer = peer.choosePerformer(onlyLocally=False)
         self.assertEqual(performer, apeer)
-
 
     @inlineCallbacks
     def test_notBeforeWhenCheckingForLostWork(self):
@@ -530,7 +515,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         every = yield check
         self.assertEquals([x.aPlusB for x in every], [7])
 
-
     @inlineCallbacks
     def test_notBeforeWhenEnqueueing(self):
         """
@@ -581,7 +565,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         result = yield proposal.whenExecuted()
         self.assertIdentical(result, proposal)
 
-
     @inlineCallbacks
     def test_notBeforeBefore(self):
         """
@@ -620,7 +603,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         result = yield proposal.whenExecuted()
         self.assertIdentical(result, proposal)
 
-
     def test_workerConnectionPoolPerformWork(self):
         """
         L{WorkerConnectionPool.performWork} performs work by selecting a
@@ -648,7 +630,6 @@ class PeerConnectionPoolUnitTests(TestCase):
         peerPool.workerPool.performWork(schema.DUMMY_WORK_ITEM, 2)
         self.assertEquals(worker1.currentLoad, 1)
         self.assertEquals(worker2.currentLoad, 1)
-
 
     def test_poolStartServiceChecksForWork(self):
         """
@@ -683,19 +664,17 @@ class PeerConnectionPoolUnitTests(TestCase):
         )
 
 
-
 class HalfConnection(object):
+
     def __init__(self, protocol):
         self.protocol = protocol
         self.transport = StringTransport()
-
 
     def start(self):
         """
         Hook up the protocol and the transport.
         """
         self.protocol.makeConnection(self.transport)
-
 
     def extract(self):
         """
@@ -706,7 +685,6 @@ class HalfConnection(object):
         io.seek(0)
         io.truncate()
         return value
-
 
     def deliver(self, data):
         """
@@ -722,7 +700,6 @@ class HalfConnection(object):
         return False
 
 
-
 class Connection(object):
 
     def __init__(self, local, remote):
@@ -732,14 +709,12 @@ class Connection(object):
         self.receiver = HalfConnection(local)
         self.sender = HalfConnection(remote)
 
-
     def start(self):
         """
         Start up the connection.
         """
         self.sender.start()
         self.receiver.start()
-
 
     def pump(self):
         """
@@ -749,7 +724,6 @@ class Connection(object):
         self.receiver, self.sender = self.sender, self.receiver
         return result
 
-
     def flush(self, turns=10):
         """
         Keep relaying data until there's no more.
@@ -757,7 +731,6 @@ class Connection(object):
         for _ignore_x in range(turns):
             if not (self.pump() or self.pump()):
                 return
-
 
 
 class PeerConnectionPoolIntegrationTests(TestCase):
@@ -807,6 +780,7 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             reactor, indirectedTransactionFactory, 0, schema)
 
         class FireMeService(Service, object):
+
             def __init__(self, d):
                 super(FireMeService, self).__init__()
                 self.d = d
@@ -832,7 +806,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         yield gatherResults([d1, d2])
         self.store.queuer = self.node1
 
-
     def test_currentNodeInfo(self):
         """
         There will be two C{NODE_INFO} rows in the database, retrievable as two
@@ -843,7 +816,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
             self.assertEquals(len((yield self.node1.activeNodes(txn))), 2)
             self.assertEquals(len((yield self.node2.activeNodes(txn))), 2)
         return inTransaction(self.store.newTransaction, check)
-
 
     @inlineCallbacks
     def test_enqueueHappyPath(self):
@@ -875,7 +847,6 @@ class PeerConnectionPoolIntegrationTests(TestCase):
 
         rows = yield inTransaction(self.store.newTransaction, op2)
         self.assertEquals(map(list, rows), [[4321, 7]])
-
 
     @inlineCallbacks
     def test_noWorkDoneWhenConcurrentlyDeleted(self):
@@ -926,16 +897,13 @@ class PeerConnectionPoolIntegrationTests(TestCase):
         self.assertEquals(list(rows), [])
 
 
-
 class DummyProposal(object):
 
     def __init__(self, *ignored):
         pass
 
-
     def _start(self):
         pass
-
 
 
 class BaseQueuerTests(TestCase):
@@ -944,10 +912,8 @@ class BaseQueuerTests(TestCase):
         self.proposal = None
         self.patch(twext.enterprise.queue, "WorkProposal", DummyProposal)
 
-
     def _proposalCallback(self, proposal):
         self.proposal = proposal
-
 
     def test_proposalCallbacks(self):
         queuer = _BaseQueuer()
@@ -955,7 +921,6 @@ class BaseQueuerTests(TestCase):
         self.assertEqual(self.proposal, None)
         queuer.enqueueWork(None, None)
         self.assertNotEqual(self.proposal, None)
-
 
 
 class NonPerformingQueuerTests(TestCase):

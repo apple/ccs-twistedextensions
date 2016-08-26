@@ -69,11 +69,9 @@ class DirectoryService(BaseDirectoryService):
 
         self._services = tuple(services)
 
-
     @property
     def services(self):
         return self._services
-
 
     @property
     def recordType(self):
@@ -83,7 +81,6 @@ class DirectoryService(BaseDirectoryService):
                 for s in self.services
             ))
         return self._recordType
-
 
     @inlineCallbacks
     def _oneFromSubServices(self, methodName, *args, **kwargs):
@@ -95,7 +92,6 @@ class DirectoryService(BaseDirectoryService):
                 returnValue(record)
 
         returnValue(None)
-
 
     def _gatherFromSubServices(self, methodName, *args, **kwargs):
         ds = []
@@ -113,7 +109,6 @@ class DirectoryService(BaseDirectoryService):
         d.addErrback(unwrapFirstError)
         return d
 
-
     def recordsFromExpression(
         self, expression, recordTypes=None, records=None,
         limitResults=None, timeoutSeconds=None
@@ -124,13 +119,11 @@ class DirectoryService(BaseDirectoryService):
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
-
     # Implementation of recordWith*() methods may seem unnecessary here, since
     # they eventually end up at recordsFromExpression() anyway (in our
     # superclass).
     # However, the wrapped services may have optimzed versions of these, so we
     # want to call their implementations, not bypass them.
-
 
     def recordsWithFieldValue(
         self, fieldName, value, limitResults=None, timeoutSeconds=None
@@ -140,18 +133,15 @@ class DirectoryService(BaseDirectoryService):
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
 
-
     def recordWithUID(self, uid, timeoutSeconds=None):
         return self._oneFromSubServices(
             "recordWithUID", uid, timeoutSeconds=timeoutSeconds
         )
 
-
     def recordWithGUID(self, guid, timeoutSeconds=None):
         return self._oneFromSubServices(
             "recordWithGUID", guid, timeoutSeconds=timeoutSeconds
         )
-
 
     def recordsWithRecordType(
         self, recordType, limitResults=None, timeoutSeconds=None
@@ -166,7 +156,6 @@ class DirectoryService(BaseDirectoryService):
                 )
         return succeed(())
 
-
     def recordWithShortName(self, recordType, shortName, timeoutSeconds=None):
         # Since we know the recordType, we can go directly to the appropriate
         # service.
@@ -177,7 +166,6 @@ class DirectoryService(BaseDirectoryService):
                 )
         return succeed(None)
 
-
     def recordsWithEmailAddress(
         self, emailAddress, limitResults=None, timeoutSeconds=None
     ):
@@ -185,7 +173,6 @@ class DirectoryService(BaseDirectoryService):
             "recordsWithEmailAddress", emailAddress,
             limitResults=limitResults, timeoutSeconds=timeoutSeconds
         )
-
 
     @inlineCallbacks
     def updateRecords(self, records, create=False):
@@ -200,7 +187,6 @@ class DirectoryService(BaseDirectoryService):
                 if recordType in service.recordTypes():
                     yield service.updateRecords(recordList, create=create)
 
-
     @inlineCallbacks
     def removeRecords(self, uids):
         # FIXME: since we don't know which sub-service owns each uid, we
@@ -211,7 +197,6 @@ class DirectoryService(BaseDirectoryService):
                 yield service.removeRecords(uids)
             except:
                 pass
-
 
     @inlineCallbacks
     def flush(self):

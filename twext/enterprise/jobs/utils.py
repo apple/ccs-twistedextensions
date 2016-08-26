@@ -49,7 +49,6 @@ def inTransaction(transactionCreator, operation, label="jobqueue.inTransaction",
         returnValue(result)
 
 
-
 def astimestamp(v):
     """
     Convert the given datetime to a POSIX timestamp.

@@ -21,7 +21,6 @@ from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
 
 
-
 @implementer(IPlugin, IServiceMaker)
 class ServiceMakerWrapper(object):
     """
@@ -45,7 +44,6 @@ class ServiceMakerWrapper(object):
         self.args = args
         self.kwargs = kwargs
 
-
     @property
     def wrappedServiceMaker(self):
         if not hasattr(self, "_wrappedServiceMaker"):
@@ -55,25 +53,20 @@ class ServiceMakerWrapper(object):
 
         return self._wrappedServiceMaker
 
-
     @property
     def tapname(self):
         return self.wrappedServiceMaker.tapname
-
 
     @property
     def description(self):
         return self.wrappedServiceMaker.description
 
-
     @property
     def options(self):
         return self.wrappedServiceMaker.options
 
-
     def makeService(self, options):
         return self.wrappedServiceMaker.makeService(options)
-
 
 
 masterServiceMaker = ServiceMakerWrapper(

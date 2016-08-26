@@ -41,7 +41,6 @@ if __name__ == '__main__':
     sys.exit(0)
 
 
-
 try:
     from twext.python.launchd import launchActivateSocket
 except ImportError:
@@ -65,13 +64,16 @@ class CheckInTests(TestCase):
         from twisted.internet.protocol import Protocol, Factory
         from twisted.internet import reactor, defer
         d = defer.Deferred()
+
         class JustLetMeMoveOn(Protocol):
+
             def connectionMade(self):
                 d.callback(None)
                 self.transport.abortConnection()
         f = Factory()
         f.protocol = JustLetMeMoveOn
         port = reactor.listenTCP(0, f, interface="127.0.0.1")
+
         @self.addCleanup
         def goodbyePort():
             return port.stopListening()
@@ -112,7 +114,6 @@ class CheckInTests(TestCase):
 
         return d
 
-
     @staticmethod
     def job_test():
         """
@@ -121,14 +122,12 @@ class CheckInTests(TestCase):
         sys.stdout.write("Sample Value.")
         sys.stdout.flush()
 
-
     def test_test(self):
         """
         Since this test framework is somewhat finicky, let's just make sure
         that a test can complete.
         """
         self.assertEquals("Sample Value.", self.stdout.getContent())
-
 
     @staticmethod
     def job_getFDs():
@@ -137,7 +136,6 @@ class CheckInTests(TestCase):
         us listening FDs.
         """
         sys.stdout.write(json.dumps(launchActivateSocket("Awesome")))
-
 
     def test_getFDs(self):
         """
@@ -148,7 +146,6 @@ class CheckInTests(TestCase):
         sockets = json.loads(self.stdout.getContent())
         self.assertEquals(len(sockets), 1)
         self.assertIsInstance(sockets[0], int)
-
 
     def tearDown(self):
         """

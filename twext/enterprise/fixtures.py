@@ -39,7 +39,6 @@ from twext.enterprise.adbapi2 import DEFAULT_PARAM_STYLE
 from twext.internet.threadutils import ThreadHolder
 
 
-
 def buildConnectionPool(testCase, schemaText="", dbtype=DatabaseType(SQLITE_DIALECT, "numeric")):
     """
     Build a L{ConnectionPool} for testing purposes, with the given C{testCase}.
@@ -78,7 +77,6 @@ def buildConnectionPool(testCase, schemaText="", dbtype=DatabaseType(SQLITE_DIAL
     return pool
 
 
-
 def resultOf(deferred, propagate=False):
     """
     Add a callback and errback which will capture the result of a L{Deferred}
@@ -98,7 +96,6 @@ def resultOf(deferred, propagate=False):
     return results
 
 
-
 class FakeThreadHolder(ThreadHolder):
     """
     Run things to submitted this ThreadHolder on the main thread, so that
@@ -112,26 +109,21 @@ class FakeThreadHolder(ThreadHolder):
         self.stopped = False
         self._workerIsRunning = False
 
-
     def start(self):
         self.started = True
         return super(FakeThreadHolder, self).start()
 
-
     def retry(self):
         pass
-
 
     def stop(self):
         result = super(FakeThreadHolder, self).stop()
         self.stopped = True
         return result
 
-
     @property
     def _get_q(self):
         return self._q_
-
 
     @_get_q.setter
     def _q(self, newq):
@@ -150,15 +142,12 @@ class FakeThreadHolder(ThreadHolder):
 
         self._q_ = newq
 
-
     def callLater(self, f, *a, **k):
         return Deferred()
-
 
     def callFromThread(self, f, *a, **k):
         result = f(*a, **k)
         return result
-
 
     def callInThread(self, f, *a, **k):
         """
@@ -166,7 +155,6 @@ class FakeThreadHolder(ThreadHolder):
         dedicates a thread to this L{ThreadHolder}.
         """
         self._workerIsRunning = True
-
 
     def flush(self):
         """
@@ -181,7 +169,6 @@ class FakeThreadHolder(ThreadHolder):
             pass
 
 
-
 @implementer(IReactorThreads)
 class ClockWithThreads(Clock):
     """
@@ -192,20 +179,17 @@ class ClockWithThreads(Clock):
         super(ClockWithThreads, self).__init__()
         self._pool = ThreadPool()
 
-
     def getThreadPool(self):
         """
         Get the threadpool.
         """
         return self._pool
 
-
     def suggestThreadPoolSize(self, size):
         """
         Approximate the behavior of a "real" reactor.
         """
         self._pool.adjustPoolsize(maxthreads=size)
-
 
     def callInThread(self, thunk, *a, **kw):
         """
@@ -218,7 +202,6 @@ class ClockWithThreads(Clock):
         """
 
 verifyClass(IReactorThreads, ClockWithThreads)
-
 
 
 class ConnectionPoolHelper(object):
@@ -251,7 +234,6 @@ class ConnectionPoolHelper(object):
         self.pool.startService()
         test.addCleanup(self.flushHolders)
 
-
     def flushHolders(self):
         """
         Flush all pending C{submit}s since C{pauseHolders} was called.  This
@@ -262,14 +244,12 @@ class ConnectionPoolHelper(object):
         for holder in self.holders:
             holder.flush()
 
-
     def pauseHolders(self):
         """
         Pause all L{FakeThreadHolder}s, causing C{submit} to return an unfired
         L{Deferred}.
         """
         self.paused = True
-
 
     def makeAHolder(self):
         """
@@ -279,18 +259,14 @@ class ConnectionPoolHelper(object):
         self.holders.append(fth)
         return fth
 
-
     def resultOf(self, it):
         return resultOf(it)
-
 
     def createTransaction(self):
         return self.pool.connection()
 
-
     def translateError(self, err):
         return err
-
 
 
 class SteppablePoolHelper(ConnectionPoolHelper):
@@ -304,7 +280,6 @@ class SteppablePoolHelper(ConnectionPoolHelper):
     def __init__(self, schema):
         self.schema = schema
 
-
     def setUp(self, test):
         connect = synchronousConnectionFactory(test)
         con = connect()
@@ -312,7 +287,6 @@ class SteppablePoolHelper(ConnectionPoolHelper):
         cur.executescript(self.schema)
         con.commit()
         super(SteppablePoolHelper, self).setUp(test, connect)
-
 
     def rows(self, sql):
         """
@@ -326,7 +300,6 @@ class SteppablePoolHelper(ConnectionPoolHelper):
         return result
 
 
-
 def synchronousConnectionFactory(test):
     tmpdb = test.mktemp()
 
@@ -336,22 +309,20 @@ def synchronousConnectionFactory(test):
     return connect
 
 
-
 class Child(object):
     """
     An object with a L{Parent}, in its list of C{children}.
     """
+
     def __init__(self, parent):
         self.closed = False
         self.parent = parent
         self.parent.children.append(self)
 
-
     def close(self):
         if self.parent._closeFailQueue:
             raise self.parent._closeFailQueue.pop(0)
         self.closed = True
-
 
 
 class Parent(object):
@@ -363,7 +334,6 @@ class Parent(object):
         self.children = []
         self._closeFailQueue = []
 
-
     def childCloseWillFail(self, exception):
         """
         Closing children of this object will result in the given exception.
@@ -371,7 +341,6 @@ class Parent(object):
         @see: L{ConnectionFactory}
         """
         self._closeFailQueue.append(exception)
-
 
 
 class FakeConnection(Parent, Child):
@@ -395,7 +364,6 @@ class FakeConnection(Parent, Child):
         self._commitCount = 0
         self._rollbackCount = 0
 
-
     def executeWillFail(self, thunk):
         """
         The next call to L{FakeCursor.execute} will fail with an exception
@@ -403,23 +371,19 @@ class FakeConnection(Parent, Child):
         """
         self._executeFailQueue.append(thunk)
 
-
     @property
     def cursors(self):
         "Alias to make tests more readable."
         return self.children
 
-
     def cursor(self):
         return FakeCursor(self)
-
 
     def commit(self):
         self._commitCount += 1
         if self.parent.commitFail:
             self.parent.commitFail = False
             raise CommitFail()
-
 
     def rollback(self):
         self._rollbackCount += 1
@@ -428,12 +392,10 @@ class FakeConnection(Parent, Child):
             raise RollbackFail()
 
 
-
 class RollbackFail(Exception):
     """
     Sample rollback-failure exception.
     """
-
 
 
 class CommitFail(Exception):
@@ -442,11 +404,11 @@ class CommitFail(Exception):
     """
 
 
-
 class FakeCursor(Child):
     """
     Fake stand-in for a DB-API 2.0 cursor.
     """
+
     def __init__(self, connection):
         Child.__init__(self, connection)
         self.rowcount = 0
@@ -455,12 +417,10 @@ class FakeCursor(Child):
         self.variables = []
         self.allExecutions = []
 
-
     @property
     def connection(self):
         "Alias to make tests more readable."
         return self.parent
-
 
     def execute(self, sql, args=()):
         if self.connection.closed:
@@ -478,7 +438,6 @@ class FakeCursor(Child):
             self.rowcount = 0
         return
 
-
     def var(self, type, *args):
         """
         Return a database variable in the style of the cx_Oracle bindings.
@@ -486,7 +445,6 @@ class FakeCursor(Child):
         v = FakeVariable(self, type, args)
         self.variables.append(v)
         return v
-
 
     def fetchall(self):
         """
@@ -499,13 +457,12 @@ class FakeCursor(Child):
         return None
 
 
-
 class FakeVariable(object):
+
     def __init__(self, cursor, type, args):
         self.cursor = cursor
         self.type = type
         self.args = args
-
 
     def getvalue(self):
         vv = self.cursor.connection.parent.varvals
@@ -513,10 +470,8 @@ class FakeVariable(object):
             return vv.pop(0)
         return self.cursor.variables.index(self) + 300
 
-
     def __reduce__(self):
         raise RuntimeError("Not pickleable (since oracle vars aren't)")
-
 
 
 class ConnectionFactory(Parent):
@@ -543,12 +498,10 @@ class ConnectionFactory(Parent):
         self.shouldUpdateRowcount = shouldUpdateRowcount
         self.hasResults = hasResults
 
-
     @property
     def connections(self):
         "Alias to make tests more readable."
         return self.children
-
 
     def connect(self):
         """
@@ -561,7 +514,6 @@ class ConnectionFactory(Parent):
             thunk = self._default
         return thunk()
 
-
     def willConnect(self):
         """
         Used by tests to queue a successful result for connect().
@@ -569,7 +521,6 @@ class ConnectionFactory(Parent):
         def thunk():
             return FakeConnection(self)
         self._connectResultQueue.append(thunk)
-
 
     def willConnectTo(self):
         """
@@ -587,7 +538,6 @@ class ConnectionFactory(Parent):
         self._connectResultQueue.append(thunk)
         return aConnection
 
-
     def willFail(self):
         """
         Used by tests to queue a successful result for connect().
@@ -596,7 +546,6 @@ class ConnectionFactory(Parent):
             raise FakeConnectionError()
         self._connectResultQueue.append(thunk)
 
-
     def defaultConnect(self):
         """
         By default, connection attempts will succeed.
@@ -604,14 +553,12 @@ class ConnectionFactory(Parent):
         self.willConnect()
         self._default = self._connectResultQueue.pop()
 
-
     def defaultFail(self):
         """
         By default, connection attempts will fail.
         """
         self.willFail()
         self._default = self._connectResultQueue.pop()
-
 
 
 class FakeConnectionError(Exception):

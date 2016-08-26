@@ -38,7 +38,9 @@ import uuid
 _OP_NO_COMPRESSION = getattr(OpenSSL.SSL, 'OP_NO_COMPRESSION', 0x00020000)
 SSL_CB_HANDSHAKE_DONE = 0x20
 
+
 class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
+
     def __init__(
         self, privateKeyFileName, certificateFileName,
         sslmethod=SSLv23_METHOD,
@@ -69,7 +71,6 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
             certificateFileName,
             sslmethod=sslmethod
         )
-
 
     def cacheContext(self):
         # Unfortunate code duplication.
@@ -141,7 +142,6 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
 
         self._context = ctx
 
-
     def _identityVerifyingInfoCallback(self, connection, where, ret):
         """
         U{info_callback
@@ -166,7 +166,6 @@ class ChainingOpenSSLContextFactory (DefaultOpenSSLContextFactory):
                 f = Failure()
                 transport = connection.get_app_data()
                 transport.failVerification(f)
-
 
 
 def simpleClientContextFactory(hostname):

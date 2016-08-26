@@ -38,7 +38,6 @@ from twext.python.sendfd import sendfd, recvfd
 log = Logger()
 
 
-
 class InheritingProtocol(Protocol, object):
     """
     When a connection comes in on this protocol, stop reading and writing, and
@@ -55,7 +54,6 @@ class InheritingProtocol(Protocol, object):
         self.transport.stopWriting()
         skt = self.transport.getHandle()
         self.factory.sendSocket(skt)
-
 
 
 class InheritingProtocolFactory(Factory, object):
@@ -80,13 +78,11 @@ class InheritingProtocolFactory(Factory, object):
         self.dispatcher = dispatcher
         self.description = description
 
-
     def sendSocket(self, socketObject):
         """
         Send the given socket object on to my dispatcher.
         """
         self.dispatcher.sendFileDescriptor(socketObject, self.description)
-
 
 
 class _SubprocessSocket(FileDescriptor, object):
@@ -127,13 +123,11 @@ class _SubprocessSocket(FileDescriptor, object):
         self.outgoingSocketQueue = []
         self.pendingCloseSocketQueue = []
 
-
     def childSocket(self):
         """
         Return the socket that the child process will use to communicate with the master.
         """
         return self.inSocket
-
 
     def start(self):
         """
@@ -143,7 +137,6 @@ class _SubprocessSocket(FileDescriptor, object):
         self.status.start()
         self.dispatcher.statusChanged()
 
-
     def restarted(self):
         """
         The child process associated with this socket has signaled it is ready.
@@ -151,7 +144,6 @@ class _SubprocessSocket(FileDescriptor, object):
         """
         self.status.restarted()
         self.dispatcher.statusChanged()
-
 
     def stop(self):
         """
@@ -161,7 +153,6 @@ class _SubprocessSocket(FileDescriptor, object):
         self.status.stop()
         self.dispatcher.statusChanged()
 
-
     def remove(self):
         """
         Remove this socket.
@@ -170,14 +161,12 @@ class _SubprocessSocket(FileDescriptor, object):
         self.dispatcher.statusChanged()
         self.dispatcher.removeSocket()
 
-
     def sendSocketToPeer(self, skt, description):
         """
         Enqueue a socket to send to the subprocess.
         """
         self.outgoingSocketQueue.append((skt, description))
         self.startWriting()
-
 
     def doRead(self, recvmsg=recv1msg):
         """
@@ -194,7 +183,6 @@ class _SubprocessSocket(FileDescriptor, object):
             closeCount = self.dispatcher.statusMessage(self, data)
             for ignored in xrange(closeCount):
                 self.pendingCloseSocketQueue.pop(0).close()
-
 
     def doWrite(self, sendfd=sendfd):
         """
@@ -215,7 +203,6 @@ class _SubprocessSocket(FileDescriptor, object):
 
         if not self.outgoingSocketQueue:
             self.stopWriting()
-
 
 
 class IStatus(Interface):
@@ -260,7 +247,6 @@ class IStatus(Interface):
 
         @return: C{self}
         """
-
 
 
 class IStatusWatcher(Interface):
@@ -333,7 +319,6 @@ class IStatusWatcher(Interface):
         """
 
 
-
 class InheritedSocketDispatcher(object):
     """
     Used by one or more L{InheritingProtocolFactory}s, this keeps track of a
@@ -358,7 +343,6 @@ class InheritedSocketDispatcher(object):
         self.reactor = reactor
         self._isDispatching = False
 
-
     @property
     def statuses(self):
         """
@@ -366,7 +350,6 @@ class InheritedSocketDispatcher(object):
         """
         for subsocket in self._subprocessSockets:
             yield subsocket.status
-
 
     @property
     def slavestates(self):
@@ -376,13 +359,11 @@ class InheritedSocketDispatcher(object):
         for subsocket in sorted(self._subprocessSockets, key=lambda x: x.slavenum):
             yield (subsocket.slavenum, subsocket.status,)
 
-
     def statusChanged(self):
         """
         Someone is telling us a child socket status changed.
         """
         self.statusWatcher.statusesChanged(self.statuses)
-
 
     def statusMessage(self, subsocket, message):
         """
@@ -393,7 +374,6 @@ class InheritedSocketDispatcher(object):
         closeCount, subsocket.status = self.statusWatcher.closeCountFromStatus(status)
         self.statusChanged()
         return closeCount
-
 
     def sendFileDescriptor(self, skt, description):
         """
@@ -417,7 +397,6 @@ class InheritedSocketDispatcher(object):
         )
         self.statusChanged()
 
-
     def startDispatching(self):
         """
         Start listening on all subprocess sockets.
@@ -425,7 +404,6 @@ class InheritedSocketDispatcher(object):
         self._isDispatching = True
         for subSocket in self._subprocessSockets:
             subSocket.startReading()
-
 
     def addSocket(self, slavenum=0, socketpair=lambda: socketpair(AF_UNIX, SOCK_DGRAM)):
         """
@@ -445,14 +423,12 @@ class InheritedSocketDispatcher(object):
             a.startReading()
         return a
 
-
     def removeSocket(self, skt):
         """
         Removes a previously added socket from the pool of sockets being used
         for transmitting file descriptors to child processes.
         """
         self._subprocessSockets.remove(skt)
-
 
 
 class InheritedPort(FileDescriptor, object):
@@ -485,13 +461,11 @@ class InheritedPort(FileDescriptor, object):
         self.protocolFactory = protocolFactory
         self.statusQueue = []
 
-
     def fileno(self):
         """
         Get the FD number for this socket.
         """
         return self.fd
-
 
     def doRead(self):
         """
@@ -521,7 +495,6 @@ class InheritedPort(FileDescriptor, object):
             except:
                 log.failure("doRead()")
 
-
     def doWrite(self):
         """
         Write some data.
@@ -536,7 +509,6 @@ class InheritedPort(FileDescriptor, object):
                     return
                 raise
         self.stopWriting()
-
 
     def reportStatus(self, statusMessage):
         """

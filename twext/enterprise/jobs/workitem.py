@@ -23,7 +23,6 @@ from twisted.internet.defer import inlineCallbacks, returnValue, succeed
 log = Logger()
 
 
-
 # Priority for work - used to order work items in the job queue
 WORK_PRIORITY_LOW = 0
 WORK_PRIORITY_MEDIUM = 1
@@ -42,7 +41,6 @@ WORK_WEIGHT_8 = 8
 WORK_WEIGHT_9 = 9
 WORK_WEIGHT_10 = 10
 WORK_WEIGHT_CAPACITY = 10   # Total amount of work any one worker can manage
-
 
 
 class WorkItem(SerializableRecord):
@@ -146,7 +144,6 @@ class WorkItem(SerializableRecord):
     def workType(cls):
         return cls.table.model.name
 
-
     @classmethod
     @inlineCallbacks
     def makeJob(cls, transaction, **kwargs):
@@ -186,13 +183,11 @@ class WorkItem(SerializableRecord):
         work.__dict__["job"] = job
         returnValue(work)
 
-
     @classmethod
     @inlineCallbacks
     def loadForJob(cls, txn, jobID):
         workItems = yield cls.query(txn, (cls.jobID == jobID))
         returnValue(workItems)
-
 
     @classmethod
     def updateWorkTypes(cls, updates):
@@ -249,7 +244,6 @@ class WorkItem(SerializableRecord):
                 workType=workType, priority=priority, weight=weight,
             )
 
-
     @classmethod
     def dumpWorkTypes(cls):
         """
@@ -269,7 +263,6 @@ class WorkItem(SerializableRecord):
             }
 
         return results
-
 
     @inlineCallbacks
     def runlock(self):
@@ -294,7 +287,6 @@ class WorkItem(SerializableRecord):
         locked = yield self.trylock(self.group)
         returnValue(locked)
 
-
     @inlineCallbacks
     def beforeWork(self):
         """
@@ -317,7 +309,6 @@ class WorkItem(SerializableRecord):
         else:
             returnValue(True)
 
-
     def doWork(self):
         """
         Subclasses must implement this to actually perform the queued work.
@@ -329,14 +320,12 @@ class WorkItem(SerializableRecord):
         """
         raise NotImplementedError
 
-
     def afterWork(self):
         """
         A hook that gets called after the L{WorkItem} does its real work. This can be used
         for common clean-up behaviors. The base implementation does nothing.
         """
         return succeed(None)
-
 
     @inlineCallbacks
     def remove(self):
@@ -349,7 +338,6 @@ class WorkItem(SerializableRecord):
         # Delete the job, then self
         yield JobItem.deletesome(self.transaction, JobItem.jobID == self.jobID)
         yield self.delete()
-
 
     @classmethod
     @inlineCallbacks
@@ -381,7 +369,6 @@ class WorkItem(SerializableRecord):
             returnValue(None)
 
 
-
 class SingletonWorkItem(WorkItem):
     """
     An L{WorkItem} that can only appear once no matter how many times an attempt is
@@ -409,7 +396,6 @@ class SingletonWorkItem(WorkItem):
         result = yield super(SingletonWorkItem, cls).makeJob(transaction, **kwargs)
         returnValue(result)
 
-
     @inlineCallbacks
     def beforeWork(self):
         """
@@ -419,7 +405,6 @@ class SingletonWorkItem(WorkItem):
         # Delete all other work items
         yield self.deleteall(self.transaction)
         returnValue(True)
-
 
     @classmethod
     @inlineCallbacks
@@ -434,7 +419,6 @@ class SingletonWorkItem(WorkItem):
             yield cls.all(transaction)
         result = yield super(SingletonWorkItem, cls).reschedule(transaction, seconds, **kwargs)
         returnValue(result)
-
 
 
 class AggregatedWorkItem(WorkItem):
@@ -453,7 +437,6 @@ class AggregatedWorkItem(WorkItem):
         returnValue(True)
 
 
-
 class RegeneratingWorkItem(SingletonWorkItem):
     """
     An L{SingletonWorkItem} that regenerates itself when work is done.
@@ -464,7 +447,6 @@ class RegeneratingWorkItem(SingletonWorkItem):
         Return the interval in seconds between regenerating instances.
         """
         return None
-
 
     @inlineCallbacks
     def afterWork(self):

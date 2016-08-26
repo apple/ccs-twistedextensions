@@ -34,11 +34,11 @@ from twisted.python.constants import (
 from .idirectory import DirectoryServiceError
 
 
-
 class ConstantsContainer(object):
     """
     A container for constants.
     """
+
     def __init__(self, sources):
         self._constants = {}
         self._methods = {}
@@ -63,7 +63,6 @@ class ConstantsContainer(object):
             else:
                 self._addConstants(source)
 
-
     def _addConstants(self, constants):
         for constant in constants:
             if hasattr(self, "_constantsClass"):
@@ -87,7 +86,6 @@ class ConstantsContainer(object):
 
             self._constants[constant.name] = constant
 
-
     def _addMethods(self, methods):
         for name, method in methods:
             if name[0] == "_":
@@ -101,7 +99,6 @@ class ConstantsContainer(object):
 
             self._methods[name] = method
 
-
     def __getattr__(self, name):
         attr = self._constants.get(name, None)
         if attr is not None:
@@ -113,10 +110,8 @@ class ConstantsContainer(object):
 
         raise AttributeError(name)
 
-
     def iterconstants(self):
         return self._constants.itervalues()
-
 
     def lookupByName(self, name):
         try:
@@ -124,13 +119,11 @@ class ConstantsContainer(object):
         except KeyError:
             raise ValueError(name)
 
-
     def _lookupByValue(self, value):
         for constant in self.iterconstants():
             if constant.value == value:
                 return constant
         raise ValueError(value)
-
 
 
 def uniqueResult(values):
@@ -145,12 +138,10 @@ def uniqueResult(values):
     return result
 
 
-
 def firstResult(values):
     for value in values:
         return value
     return None
-
 
 
 def describe(constant):
@@ -166,7 +157,6 @@ def describe(constant):
                 return description
 
     return unicode(constant)
-
 
 
 CONTAINER_CLASSES = (Names, Values, Flags)

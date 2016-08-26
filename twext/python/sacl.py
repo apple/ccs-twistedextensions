@@ -43,7 +43,6 @@ except VerificationError as ve:
     raise ImportError(ve)
 
 
-
 def checkSACL(userOrGroupName, serviceName):
     """
     Check to see if a given user or group is a member of an OS X Server

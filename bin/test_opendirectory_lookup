@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import sys
 
-#PYTHONPATH
+# PYTHONPATH
 
 if __name__ == "__main__":
     if "PYTHONPATH" in globals():
