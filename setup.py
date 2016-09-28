@@ -177,7 +177,7 @@ project_name = "twext"
 
 description = "Extensions to Twisted"
 
-long_description = file(joinpath(dirname(__file__), "README.rst")).read()
+long_description = open(joinpath(dirname(__file__), "README.rst")).read()
 
 url = "https://github.com/apple/ccs-twistedextensions"
 
@@ -265,7 +265,7 @@ def doSetup():
     version_filename = joinpath(
         dirname(__file__), "twext", "version.py"
     )
-    version_file = file(version_filename, "w")
+    version_file = open(version_filename, "w")
 
     try:
         version_file.write(
