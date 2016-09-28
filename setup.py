@@ -60,7 +60,7 @@ def git_info(wc_path):
         branch = subprocess.check_output(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stderr=subprocess.STDOUT,
-        )
+        ).decode("utf-8")
     except OSError as e:
         if e.errno == errno.ENOENT:
             return None
@@ -74,7 +74,7 @@ def git_info(wc_path):
         revision = subprocess.check_output(
             ["git", "rev-parse", "--verify", "HEAD"],
             stderr=subprocess.STDOUT,
-        )
+        ).decode("utf-8")
     except OSError as e:
         if e.errno == errno.ENOENT:
             return None
@@ -88,7 +88,7 @@ def git_info(wc_path):
         tags = subprocess.check_output(
             ["git", "describe", "--exact-match", "HEAD"],
             stderr=subprocess.STDOUT,
-        )
+        ).decode("utf-8")
     except OSError as e:
         if e.errno == errno.ENOENT:
             return None
