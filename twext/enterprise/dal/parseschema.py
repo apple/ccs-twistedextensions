@@ -33,6 +33,8 @@ __all__ = [
     "iterSignificant",
 ]
 
+# FIXME: support newer sqlparse
+
 from itertools import chain
 from re import compile
 
