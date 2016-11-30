@@ -146,7 +146,7 @@ def addSQLToSchema(schema, schemaData):
             continue
 
         if stmt.get_type() == "CREATE":
-            createType = stmt.token_next(1, True).value.upper()
+            createType = stmt.token_next(1, True)[1].value.upper()
 
             if createType == u"TABLE":
                 t = tableFromCreateStatement(schema, stmt)
@@ -155,7 +155,7 @@ def addSQLToSchema(schema, schemaData):
             elif createType == u"SEQUENCE":
                 Sequence(
                     schema,
-                    stmt.token_next(2, True).get_name().encode("utf-8")
+                    stmt.token_next(2, True)[1].get_name().encode("utf-8")
                 )
 
             elif createType in (u"INDEX", u"UNIQUE"):
@@ -248,7 +248,7 @@ def addSQLToSchema(schema, schemaData):
             schema.tableNamed(tableName).insertSchemaRow(rowData, columns=columns)
 
         elif stmt.get_type() == "CREATE OR REPLACE":
-            createType = stmt.token_next(1, True).value.upper()
+            createType = stmt.token_next(1, True)[1].value.upper()
 
             if createType == u"FUNCTION":
                 parseFunction(schema, stmt)
@@ -264,7 +264,7 @@ def parseFunction(schema, stmt):
     A FUNCTION may or may not have an argument list, so we need to account for
     both possibilities.
     """
-    fn_name = stmt.token_next(2, True)
+    fn_name = stmt.token_next(2, True)[1]
     if isinstance(fn_name, Function):
         [fn_name, _ignore_args] = iterSignificant(fn_name)
         fn_name = fn_name.get_name()
