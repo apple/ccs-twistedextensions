@@ -33,8 +33,6 @@ __all__ = [
     "iterSignificant",
 ]
 
-# FIXME: support newer sqlparse
-
 from itertools import chain
 from re import compile
 
@@ -56,13 +54,22 @@ from twext.enterprise.dal.syntax import (
 def _fixKeywords():
     """
     Work around bugs in SQLParse, adding SEQUENCE as a keyword (since it is
-    treated as one in postgres) and removing ACCESS and SIZE (since we use
+    treated as one in postgres) and removing ACCESS, SIZE and UID (since we use
     those as column names).  Technically those are keywords in SQL, but they
-    aren't treated as such by postgres's parser.
+    aren't treated as such by postgres's parser.  Also remove "GROUPS" from the
+    Oracle keywords.
     """
     keywords.KEYWORDS["SEQUENCE"] = Keyword
-    for columnNameKeyword in ["ACCESS", "SIZE"]:
-        del keywords.KEYWORDS[columnNameKeyword]
+    for columnNameKeyword in ["ACCESS", "SIZE", "UID"]:
+        try:
+            del keywords.KEYWORDS[columnNameKeyword]
+        except:
+            pass
+
+    try:
+        del keywords.KEYWORDS_ORACLE["GROUPS"]
+    except:
+        pass
 
 _fixKeywords()
 
