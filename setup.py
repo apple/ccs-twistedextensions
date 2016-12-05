@@ -218,12 +218,12 @@ setup_requirements = []
 
 install_requirements = [
     "cffi",
-    "twisted>=16.3",
+    "twisted>=16.6",
 ]
 
 extras_requirements = {
     # Database Abstraction Layer
-    "dal": ["sqlparse==0.1.19"],
+    "dal": ["sqlparse==0.2.0"],
 
     # LDAP
     "ldap": ["python-ldap"],
