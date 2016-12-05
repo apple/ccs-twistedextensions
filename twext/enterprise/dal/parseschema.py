@@ -66,10 +66,11 @@ def _fixKeywords():
         except:
             pass
 
-    try:
-        del keywords.KEYWORDS_ORACLE["GROUPS"]
-    except:
-        pass
+    for keyword in ["GROUPS", "TIME"]:
+        try:
+            del keywords.KEYWORDS_ORACLE[keyword]
+        except:
+            pass
 
 _fixKeywords()
 
