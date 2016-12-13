@@ -519,6 +519,20 @@ class DirectoryService(BaseDirectoryService):
         reactor.callWhenRunning(self.start)
         reactor.addSystemEventTrigger("during", "shutdown", self.stop)
 
+    def getPreferredRecordTypesOrder(self):
+        # Not doing this in init( ) because we get our recordTypes assigned later
+
+        if not hasattr(self, "_preferredRecordTypesOrder"):
+            self._preferredRecordTypesOrder = []
+            for recordTypeName in ["user", "location", "resource", "group", "address"]:
+                try:
+                    recordType = self.recordType.lookupByName(recordTypeName)
+                    self._preferredRecordTypesOrder.append(recordType)
+                except ValueError:
+                    pass
+
+        return self._preferredRecordTypesOrder
+
     def start(self):
         """
         Start up this service. Initialize the threadpool (if we own it).
@@ -685,7 +699,10 @@ class DirectoryService(BaseDirectoryService):
         # This method is always called in a thread.
 
         if recordTypes is None:
-            recordTypes = list(self.recordTypes())
+            # recordTypes = list(self.recordTypes())
+
+            # Quick hack to optimize the order in which we query by record type:
+            recordTypes = self.getPreferredRecordTypesOrder()
 
         # Retry if we get ldap.SERVER_DOWN
         for retryNumber in xrange(self._tries):
