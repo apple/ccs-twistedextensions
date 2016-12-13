@@ -276,7 +276,7 @@ class DirectoryService(object):
     def recordWithUID(self, uid, timeoutSeconds=None):
         returnValue(uniqueResult(
             (yield self.recordsWithFieldValue(
-                FieldName.uid, uid, timeoutSeconds=timeoutSeconds
+                FieldName.uid, uid, limitResults=1, timeoutSeconds=timeoutSeconds
             ))
         ))
 
@@ -284,7 +284,7 @@ class DirectoryService(object):
     def recordWithGUID(self, guid, timeoutSeconds=None):
         returnValue(uniqueResult(
             (yield self.recordsWithFieldValue(
-                FieldName.guid, guid, timeoutSeconds=timeoutSeconds
+                FieldName.guid, guid, limitResults=1, timeoutSeconds=timeoutSeconds
             ))
         ))
 
