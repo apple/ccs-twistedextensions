@@ -986,7 +986,14 @@ class DirectoryService(BaseDirectoryService):
                                         # unicode values (?)
                                         newValues.append(v)
                                     else:
-                                        newValues.append(unicode(v, "utf-8"))
+                                        try:
+                                            newValues.append(unicode(v, "utf-8"))
+                                        except UnicodeDecodeError:
+                                            # Log and skip this value
+                                            self.log.warn(
+                                                "Received non-UTF-8 bytes from LDAP for {dn} in {name}",
+                                                dn=dn, name=fieldName
+                                            )
                             else:
                                 try:
                                     newValues = [valueType(v) for v in values]
