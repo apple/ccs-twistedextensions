@@ -686,7 +686,7 @@ class DirectoryService(BaseDirectoryService):
 
     def _addExtraFilter(self, recordType, queryString):
         if self._extraFilters and self._extraFilters.get(recordType, ""):
-            queryString = "(&{extra}{query})".format(
+            queryString = u"(&{extra}{query})".format(
                 extra=self._extraFilters[recordType], query=queryString
             )
         return queryString
@@ -741,7 +741,7 @@ class DirectoryService(BaseDirectoryService):
                             "Performing LDAP query: "
                             "{rdn} {query} {recordType}{limit}{timeout}",
                             rdn=rdn,
-                            query=filteredQuery,
+                            query=filteredQuery.encode("utf-8"),
                             recordType=recordType,
                             limit=(
                                 " limit={}".format(limitResults)
@@ -759,7 +759,7 @@ class DirectoryService(BaseDirectoryService):
                             s.startSearch(
                                 ldap.dn.dn2str(rdn),
                                 ldap.SCOPE_SUBTREE,
-                                filteredQuery,
+                                filteredQuery.encode("utf-8"),
                                 attrList=self._attributesToFetch,
                                 timeout=(
                                     timeoutSeconds
