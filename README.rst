@@ -8,7 +8,7 @@ This is a python module consisting of extensions to the Twisted Framework
 Copyright and License
 =====================
 
-Copyright (c) 2005-2016 Apple Inc.  All rights reserved.
+Copyright (c) 2005-2017 Apple Inc.  All rights reserved.
 
 This software is licensed under the Apache License, Version 2.0.
 
